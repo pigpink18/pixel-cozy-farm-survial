@@ -1,0 +1,13 @@
+Farmer Pack v1.0 — Asset License
+Copyright 2026 Pyong Hoo
+
+You may use and modify these assets for personal and commercial games and
+other interactive projects. You may distribute the assets as part of a
+finished project. Attribution is appreciated and optional.
+
+You may not sell, share, or redistribute these assets as standalone files,
+as a competing asset pack, or as part of a template that provides the
+assets for reuse. This restriction also applies to modified versions
+distributed as standalone assets.
+
+All rights not expressly granted are reserved by the rights holder.
