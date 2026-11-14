@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { noteGain } from './collection.js';
 import { MAX_ENERGY, MAX_HP, WATER_CAP, DAY_START, SEASONS, ITEMS, TOOLS, TOOL_KEYS, NPCS, BAG_START, HOME_CHEST } from './config.js';
 
 const SAVE_KEY = 'nong-trai-save-v2';
@@ -163,11 +164,13 @@ export function addItem(id, n = 1, silent = false) {
   // Nội thất (quà NPC…) → vào kho nội thất, không chiếm túi đồ
   if (ITEMS[id]?.furn && state.home?.owned && n > 0) {
     state.home.owned[id] = (state.home.owned[id] || 0) + n;
+    noteGain(id, n);
     if (!silent) bus.emit('gain', id, n);
     return;
   }
   state.inv[id] = (state.inv[id] || 0) + n;
   if (state.inv[id] <= 0) delete state.inv[id];
+  if (n > 0) noteGain(id, n);
   if (n > 0 && !silent) bus.emit('gain', id, n);
 }
 

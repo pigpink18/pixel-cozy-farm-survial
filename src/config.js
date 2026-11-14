@@ -40,6 +40,9 @@ export const ITEMS = {
   watermelon: { name: 'Dưa hấu', tex: 'fp_crops', frame: 23, sell: 250 },
   beans: { name: 'Đậu que', tex: 'items', frame: 4, sell: 35 },
   pumpkin: { name: 'Bí ngô', tex: 'items', frame: 0, sell: 220 },
+  cabbage: { name: 'Bắp cải', tex: 'fp_crops2', frame: 23, sell: 80 },
+  corn: { name: 'Bắp', tex: 'fp_crops2', frame: 29, sell: 50 },
+  eggplant: { name: 'Cà tím', tex: 'fp_crops2', frame: 35, sell: 60 },
   egg: { name: 'Trứng gà', tex: 'egg', sell: 40 },
   milk: { name: 'Sữa bò', tex: 'items', frame: 10, sell: 90 },
   truffle: { name: 'Nấm cục', tex: 'truffle', sell: 200 },
@@ -95,6 +98,9 @@ export const ITEMS = {
   dish_cake: { name: 'Bánh trứng sữa', tex: 'food_fortunecookie', sell: 200, eat: { e: 60, h: 20 } },
   dish_tea: { name: 'Trà mật ong', tex: 'food_lifepot', sell: 90, eat: { e: 30, h: 40 } },
   dish_soup: { name: 'Súp bí ngô', tex: 'soup', sell: 420, eat: { e: 80, h: 50 } },
+  dish_corn: { name: 'Súp bắp', tex: 'props', frame: 'dish_corn', sell: 190, eat: { e: 55, h: 25 } },
+  dish_eggplant: { name: 'Cà tím nướng mỡ hành', tex: 'props', frame: 'dish_eggplant', sell: 170, eat: { e: 50, h: 30 } },
+  dish_cabbage: { name: 'Bắp cải cuộn thịt', tex: 'props', frame: 'dish_cabbage', sell: 260, eat: { e: 65, h: 35 } },
   // Nội thất (đặt trong nhà)
   f_plant: { name: 'Chậu cây', tex: 'interior', frame: 26, sell: 0, furn: true },
   f_candles: { name: 'Nến thơm', tex: 'interior', frame: 25, sell: 0, furn: true },
@@ -114,6 +120,9 @@ export const ITEMS = {
   seed_tomato: { name: 'Hạt cà chua', tex: 'fp_crops', frame: 6, seed: 'tomato' },
   seed_beans: { name: 'Hạt đậu que', tex: 'items', frame: 9, seed: 'beans' },
   seed_pumpkin: { name: 'Hạt bí ngô', tex: 'items', frame: 5, seed: 'pumpkin' },
+  seed_cabbage: { name: 'Hạt bắp cải', tex: 'fp_crops2', frame: 19, seed: 'cabbage' },
+  seed_corn: { name: 'Hạt bắp', tex: 'fp_crops2', frame: 25, seed: 'corn' },
+  seed_eggplant: { name: 'Hạt cà tím', tex: 'fp_crops2', frame: 31, seed: 'eggplant' },
 };
 
 export const TOOLS = {
@@ -159,6 +168,9 @@ export const CROPS = {
   strawberry: { sheet: 'fp_crops', row: 2, frames: FP4, grow: 180, seasons: ['spring'], seedPrice: 35, regrow: 120 },
   pumpkin: { sheet: 'fp_crops2', row: 1, frames: [0, 1, 2, 3, 4], grow: 480, seasons: ['autumn'], seedPrice: 80 },
   watermelon: { sheet: 'fp_crops', row: 3, frames: FP4, grow: 600, seasons: ['summer'], seedPrice: 100 },
+  cabbage: { sheet: 'fp_crops2', row: 3, frames: [0, 1, 2, 3, 4], grow: 240, seasons: ['spring'], seedPrice: 30 },
+  corn: { sheet: 'fp_crops2', row: 4, frames: [0, 1, 2, 3, 4], grow: 300, seasons: ['summer', 'autumn'], seedPrice: 40, regrow: 180 },
+  eggplant: { sheet: 'fp_crops2', row: 5, frames: [0, 1, 2, 3, 4], grow: 150, seasons: ['autumn'], seedPrice: 25, regrow: 100 },
 };
 export const WATER_BOOST = 1.5;
 export const RIPE_STAGE = 4;
@@ -198,7 +210,7 @@ export const UNLOCK_LEVEL = {
   seed_carrot: 1, seed_potato: 1, seed_beans: 1, seed_strawberry: 1,
   seed_tomato: 2, rod: 2, coop: 2, chicken: 2,
   barn: 3, cow: 3, seed_pumpkin: 3,
-  seed_watermelon: 4, bag: 4,
+  seed_watermelon: 4, bag: 4, seed_cabbage: 2, seed_corn: 3, seed_eggplant: 2,
   pig: 5, quarry: 2, deepcave: 4, home2: 3, home3: 6 };
 export const XP_PER_COINS = 20; // bán được 20 xu = +1 uy tín
 // Kho chứa: sức chứa theo cấp, chi phí nâng cấp lên cấp kế
@@ -253,6 +265,9 @@ export const COOKING = [
   { id: 'dish_cake', cost: { egg: 1, milk: 1 } },
   { id: 'dish_tea', cost: { tealeaf: 1, honey: 1 } },
   { id: 'dish_soup', cost: { pumpkin: 1, milk: 1 } },
+  { id: 'dish_corn', cost: { corn: 2, milk: 1 } },
+  { id: 'dish_eggplant', cost: { eggplant: 2 } },
+  { id: 'dish_cabbage', cost: { cabbage: 1, egg: 1 } },
 ];
 
 // ---------- Câu cá ----------
@@ -323,6 +338,24 @@ export const NPCS = {
     gifts: { 2: { fish_chep: 1, dish_grill: 1 }, 4: { fish_gold: 1 } },
     name: 'Anh Ba', sheet: 'Villager', role: null, loves: ['truffle', 'pumpkin'],
     lines: ['Làng mình yên bình ha.', 'Nghe nói nấm cục bán được giá lắm.', 'Có rảnh ghé bảng nhiệm vụ coi nha.'],
+  },
+  nam: {
+    birthday: { season: 2, day: 5 },
+    gifts: { 2: { fish_loc: 2, dish_grill: 1 }, 4: { fish_gold: 1, gem_green: 1 } },
+    name: 'Ông Năm', sheet: 'Villager', role: 'fisher', loves: ['fish_gold', 'dish_tea'],
+    lines: ['Câu cá là phải kiên nhẫn con à.', 'Cá chép vàng hiếm lắm, ông câu cả đời được có ba con.', 'Ban đêm cá trê hay ăn mồi lắm.'],
+  },
+  hoa: {
+    birthday: { season: 0, day: 3 },
+    gifts: { 2: { dish_cake: 2, dish_tea: 2 }, 4: { dish_soup: 2, f_lamp: 1 } },
+    name: 'Chị Hoa', sheet: 'Woman', role: 'cook', loves: ['strawberry', 'milk'],
+    lines: ['Quán chị nấu bằng rau củ của làng mình đó.', 'Ăn no mới có sức làm việc nha em.', 'Em có rau ngon thì đem qua chị nấu thử!'],
+  },
+  bin: {
+    birthday: { season: 1, day: 13 },
+    gifts: { 2: { flower: 3, strawberry: 2 }, 4: { gem_yellow: 1, f_plant: 1 } },
+    name: 'Bé Bin', sheet: 'Child', role: null, loves: ['strawberry', 'flower'],
+    lines: ['Chị Tí... à không, anh Tí chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
   },
 };
 // ---------- Lễ hội (ở làng, 9:00–16:00) ----------

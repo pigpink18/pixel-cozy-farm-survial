@@ -1,7 +1,7 @@
 // Cửa hàng, chế tạo, NPC, nhiệm vụ — tạo dữ liệu cho UIScene hiển thị
 import { timeText } from './crops.js';
 import { ITEMS, CROPS, BUILDINGS, ANIMALS, ANIMAL_NAMES, RECIPES, NPCS, SEASON_LINES, HAY_PRICE, SHOP_OPEN, SHOP_CLOSE, TOOLS, TOOL_TIERS, TIER_BARS, ROD_PRICE, FISH, FORAGE, COOKING, BAG_BIG, BAG_PRICE } from './config.js';
-import { state, bus, changed, toast, sfx, has, count, addItem, season, hearts, itemName, ui } from './state.js';
+import { state, bus, changed, toast, sfx, has, count, addItem, season, hearts, itemName, ui, roomFor } from './state.js';
 import { makeQuest } from './day.js';
 import { unlocked, needLevel, absMin, farmLevel } from './hayday.js';
 import { FURN, FURN_CATS, WALLS, FLOORS, HOME_LEVELS, homeLv, ensureHome, addOwned, ownedCount } from './furniture.js';
@@ -411,6 +411,9 @@ export function talk(npcId, text, greet = true) {
     const label = { store: 'Mua hạt giống', carpenter: 'Xây dựng', ranch: 'Mua vật nuôi' }[npc.role];
     choices.push({ label, onClick: () => (open ? openPanel(shop) : toast('Cửa hàng mở từ 8:00 đến 18:00')) });
   }
+  if (npc.role === 'ranch' && !state.pet) choices.push({ label: 'Nhận nuôi thú cưng', onClick: () => adoptDialog() });
+  if (npc.role === 'fisher') choices.push({ label: 'Bán cá (giá cao)', onClick: () => openPanel(fishBuyPanel) });
+  if (npc.role === 'cook') choices.push({ label: 'Mua món ăn', onClick: () => openPanel(cookShopPanel) });
   if (npc.role === 'miner') {
     choices.push({ label: 'Bán khoáng sản', onClick: () => openPanel(mineralPanel) });
     choices.push({ label: 'Đập hốc đá', onClick: () => openPanel(geodePanel) });
@@ -450,6 +453,83 @@ export function talk(npcId, text, greet = true) {
   bus.emit('dialog', { face: `face_${npcId}`, name: `${npc.name}  ${hearts(st.pts)}`, text, choices });
   changed();
 }
+
+// ---------- Cô Mai cho nhận nuôi chó mèo (miễn phí, 1 con) ----------
+const PETS = [['dogyellow', 'Chó vàng', 'Vàng'], ['dog', 'Chó vện', 'Vện'], ['cat', 'Mèo mướp', 'Mướp'], ['catorange', 'Mèo cam', 'Cam']];
+function adoptDialog() {
+  bus.emit('dialog', {
+    face: 'face_mai',
+    name: 'Cô Mai',
+    text: 'Nhà cô có mấy bé đang cần chủ mới. Cháu muốn nhận nuôi bé nào? Nó sẽ ở nông trại với cháu, nhớ vuốt ve mỗi ngày nha!',
+    choices: [
+      ...PETS.map(([kind, label, name]) => ({
+        label,
+        onClick: () => {
+          state.pet = { kind, name, pts: 0, petDay: null };
+          sfx('success');
+          toast(`${name} đã về nông trại của bạn! Ghé chỗ trước nhà để vuốt ve.`);
+          changed();
+        },
+      })),
+      { label: 'Để sau', onClick: null },
+    ],
+  });
+}
+
+// ---------- Ông Năm mua cá (cao hơn thùng bán hàng 25%) ----------
+const FISH_BONUS = 1.25;
+export const fishBuyPanel = {
+  title: 'Ông Năm — thu mua cá',
+  face: 'face_nam',
+  rows() {
+    const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].fish && count(id) > 0);
+    if (!ids.length) return [{ name: 'Chưa có con cá nào', desc: 'Câu cá ở ao, hồ rồi mang tới ông nhé', buttons: [] }];
+    return ids.map((id) => {
+      const p = Math.round(ITEMS[id].sell * FISH_BONUS);
+      const sell = (n) => {
+        addItem(id, -n);
+        earnCoins(p * n);
+        sfx('coin', 0.5);
+        changed();
+      };
+      return {
+        icon: { tex: ITEMS[id].tex, frame: ITEMS[id].frame },
+        name: `${ITEMS[id].name} × ${count(id)}`,
+        desc: `${p} xu/con (thường ${ITEMS[id].sell})`,
+        buttons: [{ label: 'Bán 1', onClick: () => sell(1) }, { label: 'Bán hết', onClick: () => sell(count(id)) }],
+      };
+    });
+  },
+};
+
+// ---------- Quán Chị Hoa: món ăn hồi sức ----------
+const COOK_MENU = ['dish_noodle', 'dish_potato', 'dish_tea', 'dish_cake', 'dish_grill', 'dish_corn', 'dish_eggplant'];
+export const cookShopPanel = {
+  title: 'Quán Chị Hoa',
+  face: 'face_hoa',
+  rows() {
+    return COOK_MENU.filter((id) => ITEMS[id]).map((id) => {
+      const it = ITEMS[id];
+      const price = Math.round((it.sell * 1.6) / 5) * 5;
+      return {
+        icon: { tex: it.tex, frame: it.frame },
+        name: `${it.name} — ${price} xu`,
+        desc: `Ăn hồi ${it.eat?.e || 0} năng lượng, ${it.eat?.h || 0} máu`,
+        buttons: [{
+          label: 'Mua', disabled: state.coins < price,
+          onClick: () => {
+            if (state.coins < price) return toast('Không đủ xu');
+            if (!roomFor(id)) return;
+            state.coins -= price;
+            addItem(id, 1);
+            sfx('coin', 0.5);
+            changed();
+          },
+        }],
+      };
+    });
+  },
+};
 
 // ---------- Nội thất ----------
 const KIND_TEXT = { floor: 'đặt sàn', rug: 'thảm', wall: 'treo tường' };

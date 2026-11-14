@@ -5,8 +5,10 @@ import UIScene from './scenes/UIScene.js';
 import { state, bus, ui } from './state.js';
 import { initSkills } from './skills.js';
 import { ensureHome } from './furniture.js';
+import { ensureSeen } from './collection.js';
 
 initSkills();
+ensureSeen();
 ensureHome(); // chuyển nội thất của save cũ sang hệ thống trang trí mới
 
 // iPhone/iPad (iOS 16.4+): vẫn phát âm thanh khi gạt công tắc im lặng

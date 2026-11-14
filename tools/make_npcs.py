@@ -56,6 +56,15 @@ NPCS = {
     # Anh Ba — dân làng: tóc đen, áo xanh ngọc, quần nâu
     'ba': dict(hat=None, hair=('#2f2a2e', '#1c181b'), bun=False, long=False,
                shirt=('#4f9a9a', '#356b6e'), pants=('#8a6a50', '#b8977a', '#4a3527'), boots='#3d2a26'),
+    # Ông Năm — ngư dân: nón lá giữ nguyên (mũ rơm), áo xanh dương bạc, quần đen
+    'nam': dict(hat=('#e8d6a0', '#bfa76a', '#7a5a3a'), hair=None, bun=False, long=False,
+                shirt=('#5f7fa8', '#3f5a80'), pants=('#3d3a40', '#6a6670', '#1f1d22'), boots='#2a2428'),
+    # Chị Hoa — đầu bếp quán ăn: tóc dài đen, áo trắng, quần đỏ
+    'hoa': dict(hat=None, hair=('#2f2a2e', '#1c181b'), bun=False, long=True,
+                shirt=('#f6f2ea', '#cfc6b6'), pants=('#c85a4a', '#e58a73', '#7a2f28'), boots='#4a3030'),
+    # Bé Bin — cô bé: tóc nâu búi, áo vàng, váy hồng, thấp
+    'bin': dict(hat=None, hair=('#8a4a32', '#5e2f22'), bun=True, long=False, child=True,
+                shirt=('#f2d16b', '#c9a43e'), pants=('#e88aa0', '#f6c3cf', '#9c4a62'), boots='#6b3f2e'),
 }
 
 

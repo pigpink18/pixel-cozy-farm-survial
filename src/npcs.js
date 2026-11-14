@@ -13,6 +13,9 @@ export const SCHEDULE = {
   ti: [[6, 9, 'house:ti', 3, 6, 1], [9, 12, 'village', 18, 13, 5], [12, 16, 'forest', 11, 9, 1], [16, 19, 'village', 33, 25, 3], [19, 22, 'house:ti', 3, 6, 1]],
   ba: [[6, 10, 'forest', 34, 23, 0], [10, 17, 'village', 40, 13, 6], [17, 21, 'village', 23, 12, 5], [21, 22, 'house:ti', 8, 6, 1]],
   sau: [[6, 7, 'house:sau', 2, 6, 1], [7, 17, 'quarry', 13, 9, 2], [17, 21, 'village', 27, 14, 4], [21, 22, 'house:sau', 2, 6, 1]],
+  nam: [[5, 7, 'house:nam', 3, 6, 1], [7, 12, 'forest', 9, 11, 1], [12, 17, 'village', 43, 21, 1], [17, 20, 'village', 46, 25, 2], [20, 22, 'house:nam', 3, 6, 1]],
+  hoa: [[6, 8, 'house:hoa', 8, 5, 1], [8, 11, 'village', 28, 12, 1], [11, 14, 'village', 20, 13, 4], [14, 18, 'village', 32, 12, 1], [18, 22, 'house:hoa', 8, 5, 1]],
+  bin: [[7, 9, 'house:hoa', 4, 6, 1], [9, 12, 'village', 22, 14, 4], [12, 15, 'farm', 26, 13, 3], [15, 19, 'village', 38, 24, 2], [19, 22, 'house:hoa', 4, 6, 1]],
 };
 
 // Giờ mở cửa nhà dân
@@ -46,6 +49,14 @@ export const HOUSES = {
   sau: {
     title: 'Nhà Bác Sáu', house: 5, owners: ['sau'], wall: 'brick', floor: 'stone',
     furn: [['bed_basic', 1, 2], ['fireplace', 5, 2], ['armchair_red', 4, 4], ['cabinet', 9, 2], ['bookshelf', 10, 2], ['table_round', 7, 5], ['floor_lamp', 3, 2], ['rug_long', 4, 6], ['painting_mountain', 8, 1], ['clock', 2, 1]],
+  },
+  nam: {
+    title: 'Nhà Ông Năm', house: 6, owners: ['nam'], wall: 'blue', floor: 'wood',
+    furn: [['bed_basic', 1, 2], ['aquarium', 4, 2], ['bookshelf', 9, 2], ['table_round', 6, 5], ['stool_round', 5, 5], ['armchair_teal', 9, 5], ['rug_blue', 5, 6], ['painting_mountain', 3, 1], ['window_blue', 7, 1], ['radio', 10, 2]],
+  },
+  hoa: {
+    title: 'Quán & nhà Chị Hoa', house: 7, owners: ['hoa', 'bin'], wall: 'cream', floor: 'check',
+    furn: [['bed_pink', 1, 2], ['kitchen_counter', 5, 2], ['stove', 7, 2], ['sink', 9, 2], ['table_long', 4, 5], ['chair_wood', 3, 5], ['chair_wood', 7, 5, true], ['toy_box', 10, 2], ['plant_big', 10, 5], ['painting_flower', 4, 1], ['hanging_plant', 2, 1]],
   },
 };
 export const NPC_HOUSE_IN = { w: 12, h: 9, door: { x: 6, y: 8 }, enter: { x: 6, y: 7 } };
@@ -84,6 +95,24 @@ export const LINES = {
   },
 };
 
+Object.assign(LINES, {
+  nam: {
+    1: ['Câu cá là phải kiên nhẫn con à.', 'Hồ trong rừng sâu hơn ao làng, cá cũng to hơn.', 'Ông đánh cá ở đây từ hồi làng còn chưa có chợ.'],
+    3: ['Mùa thu cá chép béo nhất, nhớ đi câu nghe.', 'Cá trê thích ăn đêm, ra hồ sau 18 giờ thử coi.', 'Câu được cá ngon thì đem bán cho ông, ông trả giá cao.'],
+    5: ['Con câu giỏi hơn ông hồi trẻ rồi đó!', 'Ông chỉ con chỗ này: góc hồ phía tây có cá chép vàng.', 'Cần câu của ông, mai mốt ông để lại cho con.'],
+  },
+  hoa: {
+    1: ['Quán chị nấu bằng rau củ của làng mình đó.', 'Ăn no mới có sức làm việc nha em.', 'Buổi trưa chị hay ra quảng trường hóng gió.'],
+    3: ['Rau nhà em tươi ghê, nấu canh ngọt lắm.', 'Bé Bin nhà chị hay chạy qua nông trại em chơi, có phiền không?', 'Chị đang nghĩ món mới từ dâu tây đó.'],
+    5: ['Em là khách quen số một của quán chị rồi!', 'Muốn học nấu món gì chị chỉ cho, khỏi tốn tiền.', 'Có em, chợ làng vui hơn hẳn.'],
+  },
+  bin: {
+    1: ['Chị Tí... à không, anh Tí chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
+    3: ['Buổi trưa em hay chạy qua nông trại coi gà con!', 'Em hái hoa tặng anh chị nè... à quên, em lỡ cầm về rồi.', 'Đài phun nước có đồng xu ai bỏ dưới đáy kìa!'],
+    5: ['Anh chị là siêu anh hùng của làng!', 'Lớn lên em sẽ mở quán bán bánh dâu!', 'Em vẽ tặng anh chị một bức tranh nông trại nè.'],
+  },
+});
+
 // Câu theo nơi đang đứng
 export const PLACE_LINES = {
   forest: ['Trong rừng mát quá ha.', 'Suỵt... nhỏ tiếng kẻo cá chạy!'],
@@ -101,6 +130,9 @@ export const WANTS = {
   ti: ['flower', 'strawberry', 'egg', 'honey', 'beans'],
   ba: ['fish_chep', 'truffle', 'pumpkin', 'tomato'],
   sau: ['ore_iron', 'geode', 'gem_purple', 'stone', 'bar_iron'],
+  nam: ['fish_ro', 'fish_chep', 'fish_loc', 'fish_bong', 'honey'],
+  hoa: ['tomato', 'carrot', 'egg', 'milk', 'strawberry', 'beans'],
+  bin: ['flower', 'strawberry', 'egg', 'honey'],
 };
 
 export const tier = (pts) => (pts >= 40 ? 5 : pts >= 20 ? 3 : 1);

@@ -3,6 +3,7 @@ import { TILE, FORAGE, ITEMS } from '../config.js';
 import { state, bus, changed, sfx, addItem, xp, season, roomFor } from '../state.js';
 import { bonusChance } from '../skills.js';
 import { mineEntryChoices } from './mine.js';
+import { decorateForest } from './decor.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -11,8 +12,8 @@ export const FOREST = {
   h: 40,
   fromFarm: { x: 19, y: 2 },
   exit: [{ x: 19, y: 0 }, { x: 20, y: 0 }],
-  lake: { x: 5, y: 12, w: 12, h: 8 },
-  lake2: { x: 34, y: 24, w: 12, h: 8 },
+  lake: { x: 5, y: 12, w: 12, h: 8, lobes: [[8, 17.5, 3.5, 2.5], [13.5, 14, 3.5, 2.5]] },
+  lake2: { x: 34, y: 24, w: 12, h: 8, lobes: [[37.5, 26, 3.5, 2.5], [42.5, 29.5, 3.5, 2.5]] },
   cave: { x: 31, y: 4 }, // ô dưới-trái của ảnh hang
   caveFront: { x: 32, y: 6 },
   pathV: { x0: 19, y0: 0, x1: 20, y1: 7 },
@@ -52,16 +53,7 @@ export function buildForest(s) {
   // Hai hồ nước
   const L = F.lake;
   s.lakeTiles = new Set();
-  for (const lk of [F.lake, F.lake2]) {
-    s.drawWater(lk.x, lk.y, lk.x + lk.w - 1, lk.y + lk.h - 1);
-    s.addWall(lk.x * TILE + 6, lk.y * TILE + 6, lk.w * TILE - 12, lk.h * TILE - 10);
-    for (let x = lk.x; x < lk.x + lk.w; x++)
-      for (let y = lk.y; y < lk.y + lk.h; y++) {
-        s.lakeTiles.add(key(x, y));
-        s.waterTiles.add(key(x, y));
-        s.statics.set(key(x, y), (sel) => s.waterAction('lake', x, y, sel));
-      }
-  }
+  for (const lk of [F.lake, F.lake2]) s.addWater(s.pondShape(lk, lk.lobes), 'lake');
 
   // Hang mỏ
   const c = F.cave;
@@ -101,11 +93,9 @@ export function buildForest(s) {
     placed.push([x, y]);
     s.tree(x * TILE + 8, (y + 1) * TILE);
   }
-  const onDirt = (x, y) => {
-    const i = s.groundLayer.getTileAt(x, y)?.index ?? 0;
-    return i >= 16 && i <= 21;
-  };
+  const onDirt = (x, y) => s.isDirt(x, y);
   s.forestFree = (x, y) => !s.blocked.has(key(x, y)) && !onDirt(x, y) && !s.lakeTiles.has(key(x, y)) && !s.decor.has(key(x, y));
+  decorateForest(s);
   s.scatterDecor((x, y) => s.forestFree(x, y), 650, 777);
   spawnForage(s);
 }

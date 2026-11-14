@@ -15,6 +15,7 @@ import { buildHome, homeAction, HOME, decoPointer, decoMove } from '../maps/home
 import { buildShop, SHOPS, SHOP_IN } from '../maps/shop.js';
 import { buildQuarry, QUARRY } from '../maps/quarry.js';
 import { buildNpcHome } from '../maps/npchome.js';
+import { decorateVillage, decorateFarm, spawnPet } from '../maps/decor.js';
 import { SCHEDULE, HOUSES, NPC_HOUSE_IN, HOUSE_OPEN, slotNow } from '../npcs.js';
 import { energyCost, bonusChance, maxHp } from '../skills.js';
 import { todayFestival, festivalActive } from '../festivals.js';
@@ -115,6 +116,7 @@ export default class WorldScene extends Phaser.Scene {
     this.objSprites = new Map();
     this.decor = new Map();
     this.waterTiles = new Set(); // ô nước câu được (tầm quăng xa hơn)
+    this.terrain = { path: new Set(), plaza: new Set(), water: new Set() }; // vẽ bằng ô tự nối (tools/make_terrain.py)
     this.movers = []; // NPC + vật nuôi + quái
     this.path = null;
     this.combat = null;
@@ -129,6 +131,7 @@ export default class WorldScene extends Phaser.Scene {
     else if (this.mapId === 'shop') buildShop(this, this.shopId);
     else if (this.mapId === 'quarry') buildQuarry(this);
     else if (this.mapId === 'npchome') buildNpcHome(this, this.houseId);
+    this.paintTerrain();
     // NPC theo lịch sinh hoạt (chủ tiệm do buildShop tự đặt sau quầy)
     this.place = this.mapId === 'shop' ? `shop:${this.shopId}` : this.mapId === 'npchome' ? `house:${this.houseId}` : this.mapId;
     ui.place = this.place;
@@ -233,38 +236,50 @@ export default class WorldScene extends Phaser.Scene {
     if (this.sea.snow) this.add.rectangle(0, 0, this.worldW, this.worldH, 0xffffff, 0.5).setOrigin(0).setDepth(-990);
   }
 
-  // Viền cỏ quanh một vùng đất/nước (ô cỏ có mép tối hướng về phía vùng đó)
-  grassEdges(x0, y0, x1, y1) {
-    const L = this.groundLayer;
-    if (!L) return;
-    const put = (idx, x, y) => {
-      if (!this.inMap(x, y)) return;
-      const cur = L.getTileAt(x, y)?.index;
-      if (cur >= 16 && cur <= 21) return; // không đè lên đất của vùng khác
-      const t = L.putTileAt(idx, x, y);
-      t.tint = this.sea.grassTint;
-    };
-    for (let x = x0; x <= x1; x++) {
-      put(6 + (x % 2), x, y0 - 1); // mép dưới của ô cỏ phía trên
-      put(4 + (x % 2), x, y1 + 1); // mép trên của ô cỏ phía dưới
-    }
-    for (let y = y0; y <= y1; y++) {
-      put(10 + (y % 2), x0 - 1, y); // mép phải của ô cỏ bên trái
-      put(8 + (y % 2), x1 + 1, y); // mép trái của ô cỏ bên phải
+  // Vùng đất trống (đường đi): mép cỏ bo tròn tự nối khi vẽ (paintTerrain)
+  dirtArea(x0, y0, x1, y1) {
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) if (this.inMap(x, y)) this.terrain.path.add(key(x, y));
+  }
+
+  // Sân lát đá cuội (quảng trường)
+  plazaArea(x0, y0, x1, y1) {
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) if (this.inMap(x, y)) this.terrain.plaza.add(key(x, y));
+  }
+
+  isDirt(x, y) {
+    return this.terrain.path.has(key(x, y)) || this.terrain.plaza.has(key(x, y));
+  }
+
+  // Vẽ mọi vùng địa hình đã khai báo: mỗi ô chọn hình theo 8 ô hàng xóm (mép cong, góc bo)
+  paintTerrain() {
+    const T = this.terrain;
+    const pathish = new Set([...T.path, ...T.plaza]); // đường đi lót dưới sân đá → không hở mép cỏ giữa đường & sân
+    const layers = [['path', pathish, -995], ['plaza', T.plaza, -994], ['water', T.water, -850]];
+    const N8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+    for (const [kind, set, depth] of layers) {
+      if (!set.size) continue;
+      const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width: this.mapW, height: this.mapH });
+      const layer = map.createBlankLayer(kind, map.addTilesetImage(`ter_${kind}`), 0, 0).setDepth(depth);
+      for (const k of set) {
+        const [x, y] = k.split(',').map(Number);
+        let m = 0;
+        N8.forEach(([dx, dy], i) => {
+          if (!this.inMap(x + dx, y + dy) || set.has(key(x + dx, y + dy))) m |= 1 << i;
+        });
+        layer.putTileAt(m, x, y);
+      }
+      if (kind === 'water' && this.sea.id === 'winter') layer.forEachTile((t) => t.index >= 0 && (t.tint = 0xcfe0f0));
     }
   }
 
-  // Vùng đất trống (đường đi, quảng trường)
-  dirtArea(x0, y0, x1, y1) {
-    const L = this.groundLayer;
-    const rnd = seededRandom(x0 * 97 + y0 * 13 + x1);
-    for (let x = x0; x <= x1; x++)
-      for (let y = y0; y <= y1; y++) {
-        if (!this.inMap(x, y)) continue;
-        const t = L.putTileAt(16 + Math.floor(rnd() * 4), x, y);
-        t.flipX = rnd() < 0.5;
-      }
-    this.grassEdges(x0, y0, x1, y1);
+  // Hình ao tự nhiên: hợp của các elip nằm trong khung (x, y, w, h); lobes = [[cx, cy, rx, ry], ...] thêm thùy phụ
+  pondShape({ x, y, w, h }, lobes = []) {
+    const out = [];
+    const ells = [[x + w / 2, y + h / 2, w / 2, h / 2], ...lobes];
+    for (let tx = x; tx < x + w; tx++)
+      for (let ty = y; ty < y + h; ty++)
+        if (ells.some(([cx, cy, rx, ry]) => ((tx + 0.5 - cx) / rx) ** 2 + ((ty + 0.5 - cy) / ry) ** 2 <= 1.08)) out.push([tx, ty]);
+    return out;
   }
 
   // Khung cây theo mùa: kind 0 = tán tròn, 1 = thông, 2 = cây ăn quả
@@ -284,17 +299,44 @@ export default class WorldScene extends Phaser.Scene {
     return img;
   }
 
-  // Ao/hồ: nước Farmer Pack (lăn tăn) + viền cỏ
-  drawWater(x0, y0, x1, y1) {
+  // Ao/hồ: bờ cỏ + vách đất (ô tự nối), gợn nước lăn tăn ở giữa, câu cá được trên mọi ô nước
+  addWater(tiles, where = 'pond') {
+    const T = this.terrain.water;
     const winter = this.sea.id === 'winter';
-    for (let x = x0; x <= x1; x++)
-      for (let y = y0; y <= y1; y++) {
-        const w = this.add.sprite(x * TILE, y * TILE, 'fp_tiles', 26).setOrigin(0).setDepth(-850);
-        if (winter) w.setTint(0xcfe0f0);
-        else if ((x * 7 + y * 3) % 3 === 0) w.play({ key: 'fp_water_anim', startFrame: (x + y) % 4 });
-      }
-    if (!winter) this.fx.sparkleWater(x0, y0, x1, y1);
-    this.grassEdges(x0, y0, x1, y1);
+    for (const [x, y] of tiles) T.add(key(x, y));
+    const inner = [];
+    for (const [x, y] of tiles) {
+      const k = key(x, y);
+      this.statics.set(k, (sel) => this.waterAction(where, x, y, sel));
+      this.waterTiles.add(k);
+      if (where === 'lake') this.lakeTiles.add(k);
+      this.blocked.add(k);
+      this.removeDecor(k);
+      let full = true;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (!tiles.some(([a, b]) => a === x + dx && b === y + dy)) full = false;
+      if (full) inner.push([x, y]);
+    }
+    // Tường chặn theo từng dải ô liền nhau trên mỗi hàng
+    const rows = new Map();
+    for (const [x, y] of tiles) rows.set(y, [...(rows.get(y) || []), x]);
+    for (const [y, xs] of rows) {
+      xs.sort((a, b) => a - b);
+      let a = xs[0];
+      for (let i = 1; i <= xs.length; i++)
+        if (i === xs.length || xs[i] !== xs[i - 1] + 1) {
+          this.addWall(a * TILE + 3, y * TILE + 3, (xs[i - 1] - a + 1) * TILE - 6, TILE - 5, false);
+          a = xs[i];
+        }
+    }
+    if (winter) return;
+    for (const [x, y] of inner)
+      if ((x * 7 + y * 3) % 3 === 0) this.add.sprite(x * TILE, y * TILE, 'fp_tiles', 26).setOrigin(0).setDepth(-849).play({ key: 'fp_water_anim', startFrame: (x + y) % 4 });
+    this.fx.sparkleTiles(inner.length ? inner : tiles);
+  }
+
+  // Ao chữ nhật cũ (giữ cho các bản đồ chưa chuyển): bo tròn thành hình elip
+  drawWater(x0, y0, x1, y1, where = 'pond') {
+    this.addWater(this.pondShape({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }), where);
   }
 
   // gaps: { top, bottom, left, right } = [ô bắt đầu, ô kết thúc] để chừa lối đi
@@ -382,15 +424,7 @@ export default class WorldScene extends Phaser.Scene {
     this.statics.set(key(sx, sy), () => ({ label: 'Mở rương chứa đồ', run: () => bus.emit('openStorage', HOME_CHEST) }));
 
     // Ao nước
-    for (const p of [FARM.pond, FARM.pond2]) {
-      this.drawWater(p.x, p.y, p.x + p.w - 1, p.y + p.h - 1);
-      this.addWall(p.x * TILE + 6, p.y * TILE + 6, p.w * TILE - 12, p.h * TILE - 10);
-      for (let x = p.x; x < p.x + p.w; x++)
-        for (let y = p.y; y < p.y + p.h; y++) {
-          this.statics.set(key(x, y), (sel) => this.waterAction('pond', x, y, sel));
-          this.waterTiles.add(key(x, y));
-        }
-    }
+    for (const p of [FARM.pond, FARM.pond2]) this.addWater(this.pondShape(p, p.lobes));
 
     // Đường đất nối nhà – ruộng – chuồng – làng – rừng
     for (const [x0, y0, x1, y1] of FARM.paths) this.dirtArea(x0, y0, x1, y1);
@@ -430,7 +464,10 @@ export default class WorldScene extends Phaser.Scene {
       this.renderSoil(x, y);
       this.renderCrop(x, y);
     }
-    this.scatterDecor((x, y) => !isReserved(x, y) && !state.tiles[key(x, y)] && !state.objects[key(x, y)] && !this.blocked.has(key(x, y)), 700, 42);
+    const farmFree = (x, y) => !isReserved(x, y) && !state.tiles[key(x, y)] && !state.objects[key(x, y)] && !this.blocked.has(key(x, y));
+    decorateFarm(this, (x, y) => farmFree(x, y) && !this.isDirt(x, y));
+    spawnPet(this);
+    this.scatterDecor(farmFree, 700, 42);
   }
 
   // ---------- Đồ trang trí thiết kế tay ----------
@@ -605,6 +642,7 @@ export default class WorldScene extends Phaser.Scene {
     const pl = V.plaza;
     // Đường làng thiết kế tay: lối vào, phố chợ, quảng trường, đường đông, đường nam, ngõ tới từng nhà
     for (const [x0, y0, x1, y1] of V.roads) this.dirtArea(x0, y0, x1, y1);
+    this.plazaArea(pl.x0, pl.y0, pl.x1, pl.y1);
     for (const e of V.exit) this.exits.set(key(e.x, e.y), { map: 'farm', spawn: FARM.fromVillage });
     // Cuối đường phía đông: lên Mỏ đá (mở theo uy tín)
     this.dirtArea(50, 13, 51, 14);
@@ -652,15 +690,8 @@ export default class WorldScene extends Phaser.Scene {
 
     // Ao làng
     this.drawWater(40, 22, 45, 25);
-    this.addWall(40 * TILE + 6, 22 * TILE + 6, 6 * TILE - 12, 4 * TILE - 10);
-    for (let x = 40; x <= 45; x++)
-      for (let y = 22; y <= 25; y++) {
-        this.statics.set(key(x, y), (sel) => this.waterAction('pond', x, y, sel));
-        this.waterTiles.add(key(x, y));
-      }
 
-    // Quảng trường: cây cổ thụ ở giữa, bồn hoa 4 góc
-    this.tree(20 * TILE + 8, 15 * TILE);
+    // Quảng trường: đài phun nước ở giữa (decorateVillage), bồn hoa 4 góc
     V.flowerBeds.forEach((r, i) => this.flowerBed(r, i));
     // Hàng cây ven đường & các cụm cây
     V.trees.forEach(([x, y]) => this.tree(x * TILE + 8, (y + 1) * TILE));
@@ -679,7 +710,7 @@ export default class WorldScene extends Phaser.Scene {
 
     // NPC: do spawnScheduled() đặt theo lịch sinh hoạt (lễ hội thì tụ tập quảng trường)
     this.festSpots = fest ? (() => {
-      const spots = [[19, 11], [16, 13], [23, 13], [17, 15], [22, 15], [20, 16]];
+      const spots = [[20, 13], [16, 13], [24, 13], [18, 17], [22, 17], [20, 17]];
       const others = Object.keys(SCHEDULE).filter((id) => id !== fest.host);
       return Object.fromEntries(Object.keys(SCHEDULE).map((id) => {
         const [x, y] = fest.host === id ? spots[0] : spots[1 + others.indexOf(id)];
@@ -703,8 +734,8 @@ export default class WorldScene extends Phaser.Scene {
     });
 
     const inRect = (x, y, r) => x >= r.x0 - 1 && x <= r.x1 + 1 && y >= r.y0 - 1 && y <= r.y1 + 1;
-    const dirt = (x, y) => (this.groundLayer.getTileAt(x, y)?.index ?? 0) >= 16 && this.groundLayer.getTileAt(x, y).index <= 21;
-    this.scatterDecor((x, y) => !this.blocked.has(key(x, y)) && !dirt(x, y), 420, 99);
+    decorateVillage(this);
+    this.scatterDecor((x, y) => !this.blocked.has(key(x, y)) && !this.isDirt(x, y), 420, 99);
   }
 
   festivalDecor(f, pl) {
@@ -830,7 +861,7 @@ export default class WorldScene extends Phaser.Scene {
         m.sprite.setVisible(vis);
         m.name.setVisible(vis).setPosition(m.sprite.x, m.sprite.y - m.nameDy);
         if (!vis) continue;
-      } else {
+      } else if (m.bubble) {
         m.bubble.setVisible(m.data.product).setPosition(m.sprite.x, m.sprite.y - 20 + Math.sin(time / 250) * 1.5);
       }
       m.sprite.setDepth(m.sprite.y);

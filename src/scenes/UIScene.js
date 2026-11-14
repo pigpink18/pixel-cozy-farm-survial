@@ -4,6 +4,7 @@ import { isTouchDevice } from '../state.js';
 import { state, ui, bus, changed, save, toast, sfx, season, clockText, hotbarItems, selected, count, resetGame, waterCap, hearts, addItem, bagSlots, bagHasRoom } from '../state.js';
 import { skillLv, skillProgress, maxHp } from '../skills.js';
 import { birthdayText } from '../festivals.js';
+import { BOOK, ACHIEVEMENTS, bookDone, achDone, claim, claimable, trackProgress } from '../collection.js';
 import { craftRows, furnShopPanel, wallPanel, floorPanel } from '../shops.js';
 import { FURN, FURN_CATS, ownedCount, ensureHome } from '../furniture.js';
 import Lofi from '../lofi.js';
@@ -406,6 +407,7 @@ export default class UIScene extends Phaser.Scene {
   //  Cập nhật
   // =========================================================
   refresh() {
+    trackProgress();
     const s = season();
     this.dateText.setText(`${s.name} · Ngày ${state.day}/${DAYS_PER_SEASON} · Năm ${state.year}`);
     this.clockText.setText(`${clockText()} · ${WEATHER[state.weather]}`);
@@ -733,14 +735,15 @@ export default class UIScene extends Phaser.Scene {
     const c = (this.panelC = this.add.container(0, 0).setDepth(200));
     this.modalBg(c);
     c.add(box(this, 'ui_frame', x, y, w, h));
-    const tabs = [['inv', 'Túi đồ'], ['skills', 'Kỹ năng'], ['social', 'Quan hệ'], ['cal', 'Lịch']];
+    const nClaim = claimable();
+    const tabs = [['inv', 'Túi đồ'], ['skills', 'Kỹ năng'], ['social', 'Quan hệ'], ['cal', 'Lịch'], ['book', nClaim ? `Sưu tập (${nClaim})` : 'Sưu tập']];
     tabs.forEach(([id, label], i) => {
       const on = this.menuTab === id;
-      c.add(this.button(x + 84 + i * 130, y + 32, label, () => ((this.menuTab = id), sfx('click', 0.25), this.renderInventory()), 122, on ? 0xb07a2f : 0x45455a, 38));
+      c.add(this.button(x + 70 + i * 120, y + 32, label, () => ((this.menuTab = id), sfx('click', 0.25), this.renderInventory()), 114, on ? 0xb07a2f : id === 'book' && nClaim ? 0x3f7a3a : 0x45455a, 38));
     });
     this.coinTag(c, x + w - 20, y + 26);
     const body = { x, y: y + 64, w, h: h - 64 - 56 };
-    ({ inv: () => this.tabInventory(c, body), skills: () => this.tabSkills(c, body), social: () => this.tabSocial(c, body), cal: () => this.tabCalendar(c, body) })[this.menuTab]();
+    ({ inv: () => this.tabInventory(c, body), skills: () => this.tabSkills(c, body), social: () => this.tabSocial(c, body), cal: () => this.tabCalendar(c, body), book: () => this.tabBook(c, body) })[this.menuTab]();
     c.add(this.button(x + w / 2 - (this.menuTab === 'inv' ? 80 : 0), y + h - 30, 'Đóng', () => this.closeModal(), 140, 0x6b4a4a));
     if (this.menuTab === 'inv')
       c.add(this.button(x + w / 2 + 80, y + h - 30, 'Chơi lại', () => window.confirm('Xoá dữ liệu và chơi lại từ đầu?') && resetGame(), 140, 0x8a3b3b));
@@ -799,19 +802,68 @@ export default class UIScene extends Phaser.Scene {
     });
   }
 
-  tabSocial(c, { x, y, w }) {
-    Object.entries(NPCS).forEach(([id, n], i) => {
-      const ry = y + i * 70;
-      const st = state.npcs[id];
-      c.add(box(this, 'ui_row', x + 18, ry, w - 36, 64, 2));
-      c.add(this.fitIcon(x + 48, ry + 32, `face_${id}`, undefined, 50));
-      c.add(this.add.text(x + 84, ry + 6, `${n.name}  ${hearts(st.pts)}`, text(18)));
-      const loves = n.loves.map((l) => ITEMS[l].name).join(', ');
-      c.add(this.add.text(x + 84, ry + 34, `Sinh nhật: ${birthdayText(id)} · Thích: ${loves}`, text(13, '#cfcfe0')));
-      c.add(this.add.text(x + w - 30, ry + 10, `${st.talked ? '✓' : '○'} Trò chuyện\n${st.gifted ? '✓' : '○'} Tặng quà`, text(13, st.talked ? '#9be07a' : '#cfcfe0')).setOrigin(1, 0).setAlign('right'));
+  tabSocial(c, { x, y, w, h }) {
+    const ids = Object.keys(NPCS);
+    const perCol = Math.ceil(ids.length / 2);
+    const rowH = Math.min(64, Math.floor((h - (state.animals.length ? 30 : 0)) / perCol));
+    const cw = (w - 36) / 2;
+    ids.forEach((id, i) => {
+      const n = NPCS[id];
+      const rx = x + 18 + Math.floor(i / perCol) * cw, ry = y + (i % perCol) * rowH;
+      const st = (state.npcs[id] = state.npcs[id] || { pts: 0, talked: false, gifted: false, events: [] });
+      c.add(box(this, 'ui_row', rx + 2, ry, cw - 4, rowH - 4, 2));
+      c.add(this.fitIcon(rx + 28, ry + (rowH - 4) / 2, `face_${id}`, undefined, rowH - 14));
+      c.add(this.add.text(rx + 54, ry + 3, `${n.name}  ${hearts(st.pts)}`, text(16)));
+      c.add(this.add.text(rx + cw - 12, ry + 4, `${st.talked ? '✓' : '○'} nói  ${st.gifted ? '✓' : '○'} quà`, text(12, st.talked ? '#9be07a' : '#cfcfe0')).setOrigin(1, 0));
+      const loves = n.loves.map((l) => ITEMS[l]?.name).filter(Boolean).join(', ');
+      c.add(this.add.text(rx + 54, ry + 24, `SN: ${birthdayText(id)} · Thích: ${loves}`, { ...text(12, '#cfcfe0'), wordWrap: { width: cw - 64 } }));
     });
     if (state.animals.length)
-      c.add(this.add.text(x + 24, y + 5 * 70 + 6, `Vật nuôi: ${state.animals.map((a) => `${ANIMALS[a.type].name} ${a.name} ${hearts(a.pts)}`).join(' · ')}`, { ...text(13, '#ffe9a8'), wordWrap: { width: w - 48 } }));
+      c.add(this.add.text(x + 24, y + perCol * rowH + 4, `Vật nuôi: ${state.animals.map((a) => `${ANIMALS[a.type].name} ${a.name} ${hearts(a.pts)}`).join(' · ')}`, { ...text(13, '#ffe9a8'), wordWrap: { width: w - 48 } }));
+  }
+
+  // Sưu tập: lưới món theo nhóm (chưa có = bóng đen) + Thành tựu
+  tabBook(c, { x, y, w, h }) {
+    const sub = (this.bookSub = this.bookSub || 'book');
+    [['book', 'Bộ sưu tập'], ['ach', 'Thành tựu']].forEach(([id, label], i) =>
+      c.add(this.button(x + w / 2 - 75 + i * 150, y + 6, label, () => ((this.bookSub = id), this.renderInventory()), 140, sub === id ? 0x46607a : 0x3a3a4a, 30)));
+    const top = y + 30;
+    if (sub === 'book') {
+      const rowH = Math.floor((h - 30) / BOOK.length);
+      BOOK.forEach((b, i) => {
+        const ry = top + i * rowH;
+        const ids = b.items();
+        const got = ids.filter((id) => state.seen?.[id]).length;
+        c.add(this.add.text(x + 24, ry + rowH / 2, `${b.name}\n${got}/${ids.length}`, text(14, got === ids.length ? '#9be07a' : '#ffe9a8')).setOrigin(0, 0.5));
+        const cell = Math.min(34, rowH - 8);
+        ids.slice(0, 15).forEach((id, j) => {
+          const it = ITEMS[id];
+          const cx = x + 140 + j * (cell + 3), cy = ry + rowH / 2;
+          c.add(box(this, 'ui_slot', cx - cell / 2, cy - cell / 2, cell, cell, 2));
+          const ic = this.fitIcon(cx, cy, it.tex, it.frame, cell - 8);
+          if (!state.seen?.[id]) ic.setTint(0x000000).setAlpha(0.45);
+          else ic.setInteractive().on('pointerup', () => toast(`${it.name}${it.sell ? ` · bán ${it.sell} xu` : ''}`));
+          c.add(ic);
+        });
+        const k = `book_${b.id}`;
+        const done = bookDone(b), claimed = state.claimed?.[k];
+        c.add(this.button(x + w - 80, ry + rowH / 2, claimed ? 'Đã nhận' : `+${b.reward} xu`, () => (claim(k, b.reward), this.renderInventory()), 110, done && !claimed ? 0x3f7a3a : 0x3a3a4a, 30, !done || claimed));
+      });
+    } else {
+      const cols = 2, perCol = Math.ceil(ACHIEVEMENTS.length / cols);
+      const rowH = Math.floor((h - 34) / perCol), cw = (w - 36) / cols;
+      ACHIEVEMENTS.forEach((a, i) => {
+        const rx = x + 18 + Math.floor(i / perCol) * cw, ry = top + 4 + (i % perCol) * rowH;
+        const v = Math.min(a.goal, a.val()), done = achDone(a), claimed = state.claimed?.[a.id];
+        c.add(box(this, 'ui_row', rx + 2, ry, cw - 4, rowH - 4, 2));
+        c.add(this.add.text(rx + 12, ry + 3, `${done ? '✓' : '○'} ${a.name}`, text(15, done ? '#ffd34d' : '#ffffff')));
+        c.add(this.add.text(rx + 12, ry + 22, a.desc, text(12, '#cfcfe0')));
+        c.add(this.add.rectangle(rx + 12, ry + rowH - 14, 170, 7, 0x000000, 0.6).setOrigin(0, 0.5));
+        c.add(this.add.rectangle(rx + 12, ry + rowH - 14, 170 * (v / a.goal), 7, done ? 0xffd34d : 0x7ad34f).setOrigin(0, 0.5));
+        c.add(this.add.text(rx + 188, ry + rowH - 14, `${v}/${a.goal}`, text(11, '#cfcfe0')).setOrigin(0, 0.5));
+        c.add(this.button(rx + cw - 62, ry + (rowH - 4) / 2, claimed ? 'Đã nhận' : `+${a.reward} xu`, () => (claim(a.id, a.reward), this.renderInventory()), 100, done && !claimed ? 0x3f7a3a : 0x3a3a4a, 28, !done || claimed));
+      });
+    }
   }
 
   tabCalendar(c, { x, y, w }) {

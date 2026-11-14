@@ -94,6 +94,9 @@ export default class BootScene extends Phaser.Scene {
     for (const c of ['floor0', 'floor1', 'floor2', 'floor3', 'wall_top', 'wall_face', 'edge_l', 'edge_r', 'edge_t', 'beam', 'stalagmite', 'pebbles', 'puddle', 'crate']) this.load.image(`cave_${c}`, `assets/cave/${c}.png`); // tools/make_cave.py
     this.load.spritesheet('cave_torch', 'assets/cave/torch.png', { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('cave_lava', 'assets/cave/lava.png', { frameWidth: 16, frameHeight: 16 });
+    for (const t of ['path', 'water', 'plaza']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
+    for (const [k, w, h] of [['cat', 16, 16], ['catorange', 22, 17], ['dog', 16, 16], ['dogyellow', 21, 17]]) sheet(`cr_${k}`, `${NJ}critters/${k}.png`, w, h); // Ninja Adventure (CC0)
+    this.load.atlas('props', 'assets/props/props.png', 'assets/props/props.json'); // tools/make_props.py
     this.load.atlas('furn', 'assets/furn/furn.png', 'assets/furn/furn.json'); // nội thất trang trí (tools/make_furniture.py)
     for (const g of ['barcopper', 'bariron', 'bargold', 'gemgreen', 'gempurple', 'gemyellow', 'gemred']) this.load.image(g, `${NJ}items/${g}.png`);
 

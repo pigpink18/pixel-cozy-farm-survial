@@ -138,6 +138,19 @@ export default class WorldFX {
     }
   }
 
+  sparkleTiles(tiles) {
+    const n = Math.max(2, Math.round(tiles.length / 6));
+    for (let i = 0; i < n; i++) {
+      const sp = this.s.add.image(0, 0, 'fx_spark').setDepth(-840).setAlpha(0);
+      const blink = () => {
+        const [x, y] = tiles[Phaser.Math.Between(0, tiles.length - 1)];
+        sp.setPosition(x * TILE + Phaser.Math.Between(3, 13), y * TILE + Phaser.Math.Between(3, 13));
+        this.s.tweens.add({ targets: sp, alpha: { from: 0, to: 0.9 }, duration: 380, yoyo: true, delay: Phaser.Math.Between(300, 3500), onComplete: blink });
+      };
+      blink();
+    }
+  }
+
   // ---------- Bướm, cánh hoa, lá, đom đóm ----------
   spawnAmbient() {
     const sid = season().id;
@@ -215,10 +228,9 @@ export default class WorldFX {
 
     // Bụi chân khi đi trên đường đất
     const pl = s.player;
-    if (pl.body.speed > 10 && time > this.nextDust && s.groundLayer) {
+    if (pl.body.speed > 10 && time > this.nextDust && s.terrain) {
       this.nextDust = time + 230;
-      const idx = s.groundLayer.getTileAtWorldXY(pl.x, pl.body.bottom)?.index ?? 0;
-      if (idx >= 16 && idx <= 21) {
+      if (s.terrain.path.has(`${Math.floor(pl.x / TILE)},${Math.floor((pl.body.bottom - 1) / TILE)}`)) {
         const d = s.add.image(pl.x + Phaser.Math.Between(-3, 3), pl.body.bottom, 'fx_dust').setDepth(pl.depth - 1).setAlpha(0.8);
         s.tweens.add({ targets: d, y: d.y - 4, x: d.x + Phaser.Math.Between(-4, 4), alpha: 0, scale: 1.8, duration: 420, onComplete: () => d.destroy() });
       }

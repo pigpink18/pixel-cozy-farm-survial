@@ -106,12 +106,110 @@ def beans(stage):
     return px
 
 
+CAB = [(120, 176, 84), (176, 214, 128), (214, 236, 170)]
+CORN = [(214, 160, 40), (246, 206, 70), (255, 236, 140)]
+HUSK = [(120, 160, 60), (170, 196, 90)]
+EGG = [(70, 40, 90), (110, 64, 140), (170, 120, 200)]
+
+
+def blob(px, cx, cy, rx, ry, cols, hl=True):
+    for x in range(int(cx - rx) - 1, int(cx + rx) + 2):
+        for y in range(int(cy - ry) - 1, int(cy + ry) + 2):
+            d = ((x + .5 - cx) / rx) ** 2 + ((y + .5 - cy) / ry) ** 2
+            if d <= 1:
+                px[(x, y)] = cols[2] if hl and (x + .5 - cx) + (y + .5 - cy) < -rx * .5 else cols[0] if (x + .5 - cx) + (y + .5 - cy) > rx * .6 else cols[1]
+
+
+def cabbage(stage):
+    px = {}
+    if stage == 2:
+        leaf(px, 6, 12, 2, 1), leaf(px, 10, 12, 2, 1, True), leaf(px, 8, 11, 1, 1)
+    elif stage == 3:
+        leaf(px, 5, 12, 2, 2), leaf(px, 11, 12, 2, 2, True), blob(px, 8, 11, 3, 2.5, CAB)
+    else:
+        leaf(px, 4, 12, 2, 2), leaf(px, 12, 12, 2, 2, True), blob(px, 8, 10.5, 4.2, 3.8, CAB)
+        px[(8, 10)] = CAB[0]
+        px[(7, 9)] = CAB[0]
+    return px
+
+
+def cabbage_icon():
+    px = {}
+    blob(px, 8, 9, 5.5, 5, CAB)
+    leaf(px, 4, 12, 2, 1), leaf(px, 12, 12, 2, 1, True)
+    for y in range(6, 12):
+        px[(8, y)] = CAB[0]
+    return px
+
+
+def corn(stage):
+    px = {}
+    top = {2: 9, 3: 5, 4: 2}[stage]
+    for y in range(top, 15):
+        px[(8, y)] = STEM
+    for i, y in enumerate(range(13, top + 1, -3)):
+        leaf(px, 6 if i % 2 else 10, y, 2, 1, i % 2 == 0)
+    if stage == 4:
+        for y in range(6, 11):
+            px[(10, y)] = CORN[1] if y % 2 else CORN[2]
+            px[(11, y)] = CORN[0] if y % 2 else CORN[1]
+        px[(10, 11)] = HUSK[0]
+        px[(11, 11)] = HUSK[1]
+        px[(9, 7)] = HUSK[1]
+        px[(8, 1)] = CORN[2]
+        px[(7, 2)] = CORN[2]
+        px[(9, 2)] = CORN[2]
+    return px
+
+
+def corn_icon():
+    px = {}
+    for y in range(3, 13):
+        for x in range(6, 11):
+            if abs(x - 8) <= 2 - (1 if y in (3, 12) else 0):
+                px[(x, y)] = CORN[(x + y) % 2 + (1 if x < 8 else 0)]
+    for y in range(8, 15):
+        px[(5, y)] = HUSK[0]
+        px[(11, y)] = HUSK[1]
+    px[(6, 13)] = HUSK[0]
+    px[(10, 13)] = HUSK[1]
+    px[(8, 13)] = HUSK[0]
+    px[(8, 14)] = HUSK[0]
+    return px
+
+
+def eggplant(stage):
+    px = plant(min(2, stage - 1))
+    if stage >= 3:
+        leaf(px, 8, 7, 3, 2)
+    if stage == 4:
+        for cx, cy in ((5, 12), (11, 11)):
+            blob(px, cx, cy, 1.6, 2.6, EGG)
+            px[(cx, cy - 3)] = STEM
+    return px
+
+
+def eggplant_icon():
+    px = {}
+    blob(px, 8, 10, 3.6, 4.6, EGG)
+    for x in range(6, 11):
+        px[(x, 5)] = HUSK[0]
+    px[(8, 4)] = STEM
+    px[(8, 3)] = STEM
+    px[(7, 6)] = HUSK[1]
+    px[(9, 6)] = HUSK[1]
+    return px
+
+
 rows = [
     [seeds(), sprout(), plant(1), plant(2), potato_ripe()],
     [seeds(), sprout(), pumpkin(2), pumpkin(3), pumpkin(4)],
     [seeds(), sprout(), beans(2), beans(3), beans(4)],
+    [seeds(), sprout(), cabbage(2), cabbage(3), cabbage(4), cabbage_icon()],
+    [seeds(), sprout(), corn(2), corn(3), corn(4), corn_icon()],
+    [seeds(), sprout(), eggplant(2), eggplant(3), eggplant(4), eggplant_icon()],
 ]
-sheet = Image.new('RGBA', (16 * 6, 16 * 3), (0, 0, 0, 0))
+sheet = Image.new('RGBA', (16 * 6, 16 * len(rows)), (0, 0, 0, 0))
 for r, row in enumerate(rows):
     for c, px in enumerate(row):
         sheet.alpha_composite(render(px, outline=c > 0), (c * 16, r * 16))
