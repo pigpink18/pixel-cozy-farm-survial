@@ -35,11 +35,22 @@ export function makeFxTextures(scene) {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, w);
   });
+  // Cọ "đục lỗ" ánh sáng trong lớp bóng tối (trắng ở giữa, mờ dần ra rìa)
+  canvas('light_brush', 128, 128, (ctx, w) => {
+    const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.45, 'rgba(255,255,255,0.85)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, w);
+  });
   const px = (key, w, h, pts) =>
     canvas(key, w, h, (ctx) => pts.forEach(([x, y, c]) => ((ctx.fillStyle = c), ctx.fillRect(x, y, 1, 1))));
   px('fx_petal', 3, 2, [[0, 0, '#ffc8d6'], [1, 0, '#ffe0e8'], [1, 1, '#f39ab4'], [2, 1, '#ffc8d6']]);
   px('fx_leaf', 3, 3, [[1, 0, '#e8923f'], [0, 1, '#c8642e'], [1, 1, '#f2b24a'], [2, 1, '#e8923f'], [1, 2, '#9a4a2a']]);
   px('fx_spark', 3, 3, [[1, 0, '#ffffff'], [0, 1, '#dff4ff'], [1, 1, '#ffffff'], [2, 1, '#dff4ff'], [1, 2, '#ffffff']]);
+  px('fx_eyes', 4, 1, [[0, 0, '#ffffff'], [3, 0, '#ffffff']]); // mắt zombie phát sáng trong đêm
+  px('fx_eye', 1, 1, [[0, 0, '#ffffff']]);
   px('fx_dust', 2, 2, [[0, 0, '#c9a27a'], [1, 0, '#b48a62'], [0, 1, '#b48a62'], [1, 1, '#9c7452']]);
   // Bướm 2 khung (cánh mở / khép)
   canvas('fx_butterfly', 10, 4, (ctx) => {
@@ -61,9 +72,9 @@ const SKY = [
   [16 * 60, 1.0, 1.0, 1.0],
   [17.5 * 60, 1.04, 0.93, 0.8], // nắng chiều vàng
   [19 * 60, 0.98, 0.72, 0.72], // hoàng hôn cam hồng
-  [20.5 * 60, 0.55, 0.55, 0.82], // chạng vạng tím
-  [22 * 60, 0.4, 0.44, 0.7], // đêm xanh
-  [26 * 60, 0.36, 0.4, 0.66],
+  [20.5 * 60, 0.72, 0.66, 0.9], // chạng vạng tím (bóng tối do lớp tối lo, xem darkness)
+  [22 * 60, 0.62, 0.68, 0.95], // đêm xanh lạnh
+  [26 * 60, 0.6, 0.66, 0.92],
 ];
 function skyAt(t) {
   for (let i = 1; i < SKY.length; i++) {
@@ -81,15 +92,71 @@ export const nightFactor = (t = state.time) => Phaser.Math.Clamp((t - 18.5 * 60)
 export default class WorldFX {
   constructor(scene) {
     this.s = scene;
-    this.outdoor = ['farm', 'village', 'forest', 'quarry'].includes(scene.mapId);
+    this.outdoor = ['farm', 'village', 'forest', 'quarry', 'town'].includes(scene.mapId);
     this.follow = []; // bóng đi theo sprite di chuyển
     this.lights = [];
     this.parts = [];
     this.nextDust = 0;
+    this.sources = []; // nguồn sáng đục thủng bóng tối: { x, y, r, flicker }
+    this.darkness = 0;
     const cam = scene.cameras.main;
     // Màu trời bằng ColorMatrix (WebGL); nếu không có thì UIScene dùng lớp phủ tối như cũ
     this.cm = cam.postFX?.addColorMatrix?.() || null;
     scene.registry.set('skyFx', !!this.cm);
+    // Viền tối quanh màn hình — không khí u ám, mắt dồn vào giữa
+    if (this.outdoor) cam.postFX?.addVignette?.(0.5, 0.5, ['forest', 'town'].includes(scene.mapId) ? 0.78 : 0.86, 0.32);
+  }
+
+  // Nguồn sáng thêm (lửa, thùng phuy cháy...) — chỉ đục bóng tối, quầng sáng tự vẽ riêng
+  addSource(x, y, r, flicker = false) {
+    this.sources.push({ x, y, r, flicker });
+  }
+
+  // ---------- Bóng tối ban đêm: chỉ sáng quanh lửa, đèn, cửa sổ và quanh người chơi ----------
+  darknessLevel() {
+    const s = this.s;
+    if (!this.outdoor) return 0;
+    const zone = s.mapId === 'forest' || s.mapId === 'town';
+    let d = nightFactor() * (zone ? 0.92 : 0.84);
+    // trước bình minh (sau nửa đêm hoặc trước 6h) vẫn tối
+    const h = state.time / 60;
+    if (h < 6) d = Math.max(d, (zone ? 0.92 : 0.84) * Phaser.Math.Clamp((6 - h) / 1, 0, 1));
+    if (state.weather === 'rain') d = Math.max(d, 0.18);
+    if (zone && (state.zones?.[s.mapId]?.infection ?? 100) > 0) d = Math.max(d, 0.12); // vùng nhiễm: âm u cả ngày
+    return d;
+  }
+
+  updateDark(time) {
+    const s = this.s;
+    const d = (this.darkness = this.darknessLevel());
+    if (d <= 0.01) {
+      this.darkRT?.setVisible(false);
+      return;
+    }
+    const cam = s.cameras.main;
+    const v = cam.worldView;
+    if (!this.darkRT) {
+      const w = Math.ceil(cam.width / cam.zoom) + 8, h = Math.ceil(cam.height / cam.zoom) + 8;
+      this.darkRT = s.add.renderTexture(0, 0, w, h).setOrigin(0).setDepth(9350);
+      this.brush = s.make.image({ key: 'light_brush', add: false }).setOrigin(0.5);
+    }
+    const rt = this.darkRT.setVisible(true);
+    const ox = Math.floor(v.x) - 4, oy = Math.floor(v.y) - 4;
+    rt.setPosition(ox, oy);
+    rt.clear();
+    rt.fill(0x060a1c, d);
+    const hole = (x, y, r) => {
+      if (x + r < ox || y + r < oy || x - r > ox + rt.width || y - r > oy + rt.height) return;
+      this.brush.setPosition(x - ox, y - oy).setScale((r * 2) / 128);
+      rt.erase(this.brush);
+    };
+    // Người chơi luôn có chút ánh đèn quanh mình
+    const p = s.player;
+    hole(p.x, p.y - 8, 52 + Math.sin(time / 200) * 1.5);
+    for (const l of this.sources) {
+      const f = l.flicker ? 1 + Math.sin(time / 90 + l.x) * 0.05 + Math.sin(time / 37 + l.y) * 0.03 : 1;
+      hole(l.x, l.y, l.r * f);
+    }
   }
 
   // ---------- Bóng đổ ----------
@@ -123,6 +190,7 @@ export default class WorldFX {
       const g = this.s.add.image(x, y, 'fx_glow').setDisplaySize(size * k, size * k).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(9400).setAlpha(0);
       this.lights.push(g);
     }
+    this.sources.push({ x, y, r: size * 1.25, flicker: size >= 80 });
   }
 
   // ---------- Nước lấp lánh ----------
@@ -192,9 +260,14 @@ export default class WorldFX {
     if (this.cm) {
       const [r, g, b] = s.mapId === 'mine' ? [0.78, 0.74, 0.86] : ['home', 'shop', 'npchome'].includes(s.mapId) ? [1, 0.97, 0.92] : skyAt(t);
       this.cm.reset();
-      this.cm.set([r, 0, 0, 0, 0, 0, g, 0, 0, 0, 0, 0, b, 0, 0, 0, 0, 0, 1, 0]);
+      // Tận thế: ngoài trời bạc màu, ngả vàng xám
+      const k = this.outdoor ? [0.97, 0.95, 0.86] : [1, 1, 1];
+      this.cm.set([r * k[0], 0, 0, 0, 0, 0, g * k[1], 0, 0, 0, 0, 0, b * k[2], 0, 0, 0, 0, 0, 1, 0]);
+      if (this.outdoor) this.cm.saturate(-0.28, true);
     }
     for (const l of this.lights) l.setAlpha(Math.min(1, night * 1.2) * (0.92 + Math.sin(time / 300 + l.x) * 0.08));
+
+    this.updateDark(time);
 
     // Hạt bay
     const v = s.cameras.main.worldView;

@@ -27,7 +27,7 @@ export function energyCost(tool) {
   return sk && skillLv(sk) >= 5 ? Math.max(0, base - 1) : base;
 }
 
-export const maxHp = () => MAX_HP + (skillLv('combat') - 1) * 5;
+export const maxHp = () => MAX_HP + (skillLv('combat') - 1) * 5 + ((state.base?.fence || 0) >= 3 ? 30 : 0);
 
 function addXp(skill, n) {
   if (skill === 'cooking') skill = 'farming';
@@ -36,7 +36,7 @@ function addXp(skill, n) {
   state.skills[skill] = (state.skills[skill] || 0) + n;
   const after = skillLv(skill);
   if (after > before) {
-    sfx('success', 0.5);
+    sfx('levelup', 0.5);
     toast(`Lên cấp ${SKILLS[skill].name} ${after}!\n${SKILLS[skill].perk}`);
     changed();
   }

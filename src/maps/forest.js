@@ -4,6 +4,7 @@ import { state, bus, changed, sfx, addItem, xp, season, roomFor } from '../state
 import { bonusChance } from '../skills.js';
 import { mineEntryChoices } from './mine.js';
 import { decorateForest } from './decor.js';
+import { populateZone, container } from './zones.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -96,8 +97,14 @@ export function buildForest(s) {
   const onDirt = (x, y) => s.isDirt(x, y);
   s.forestFree = (x, y) => !s.blocked.has(key(x, y)) && !onDirt(x, y) && !s.lakeTiles.has(key(x, y)) && !s.decor.has(key(x, y));
   decorateForest(s);
+  // Đồ bỏ lại của người chạy nạn + zombie lang thang
+  container(s, 'car', 23, 5, { frame: 'car_white', w: 3 });
+  for (const [x, y] of [[13, 5], [36, 9], [45, 22]]) if (s.forestFree(x, y)) container(s, 'barrel', x, y);
+  for (const [x, y] of [[29, 13], [49, 35]]) if (s.forestFree(x, y)) container(s, 'cabinet', x, y);
   s.scatterDecor((x, y) => s.forestFree(x, y), 650, 777);
   spawnForage(s);
+  const nest = [[50, 30], [48, 33], [10, 33], [44, 14]].find(([x, y]) => s.forestFree(x, y) && s.forestFree(x + 1, y));
+  populateZone(s, 'forest', (x, y) => s.forestFree(x, y) && !s.statics.has(key(x, y)), nest ? [nest] : []);
 }
 
 // Đồ hái lượm: mọc mới mỗi ngày (tạo khi ghé rừng lần đầu trong ngày)

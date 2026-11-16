@@ -1,3 +1,4 @@
+import { prepareRotate, setupRotate } from './rotate.js';
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import WorldScene from './scenes/WorldScene.js';
@@ -6,9 +7,11 @@ import { state, bus, ui } from './state.js';
 import { initSkills } from './skills.js';
 import { ensureHome } from './furniture.js';
 import { ensureSeen } from './collection.js';
+import { ensureSurvival } from './survival.js';
 
 initSkills();
 ensureSeen();
+ensureSurvival();
 ensureHome(); // chuyển nội thất của save cũ sang hệ thống trang trí mới
 
 // iPhone/iPad (iOS 16.4+): vẫn phát âm thanh khi gạt công tắc im lặng
@@ -18,6 +21,7 @@ if (navigator.audioSession) navigator.audioSession.type = 'playback';
 document.fonts.load('32px VT323').catch(() => {}).finally(startGame);
 
 function startGame() {
+  prepareRotate();
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
@@ -31,6 +35,7 @@ function startGame() {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [BootScene, WorldScene, UIScene],
   });
+  setupRotate(game);
   // Chỉ khi dev: truy cập game từ console để debug
   if (import.meta.env.DEV) Object.assign(window, { __g: game, __state: state, __bus: bus, __ui: ui });
 }

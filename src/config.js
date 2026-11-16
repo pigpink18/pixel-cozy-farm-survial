@@ -123,7 +123,31 @@ export const ITEMS = {
   seed_cabbage: { name: 'Hạt bắp cải', tex: 'fp_crops2', frame: 19, seed: 'cabbage' },
   seed_corn: { name: 'Hạt bắp', tex: 'fp_crops2', frame: 25, seed: 'corn' },
   seed_eggplant: { name: 'Hạt cà tím', tex: 'fp_crops2', frame: 31, seed: 'eggplant' },
+  // ---------- Tận thế: vũ khí, đạn, vật liệu lục được, đồ sinh tồn (tools/make_survival.py) ----------
+  w_bat: { name: 'Gậy đóng đinh', tex: 'surv', frame: 'w_bat', sell: 40, weapon: true },
+  w_machete: { name: 'Dao rựa', tex: 'surv', frame: 'w_machete', sell: 120, weapon: true },
+  w_pistol: { name: 'Súng lục', tex: 'surv', frame: 'w_pistol', sell: 300, weapon: true },
+  w_shotgun: { name: 'Súng săn', tex: 'surv', frame: 'w_shotgun', sell: 700, weapon: true },
+  w_rifle: { name: 'Súng trường', tex: 'surv', frame: 'w_rifle', sell: 1500, weapon: true },
+  ammo_pistol: { name: 'Đạn súng lục', tex: 'surv', frame: 'ammo_pistol', sell: 4, loot: true },
+  ammo_shell: { name: 'Đạn súng săn', tex: 'surv', frame: 'ammo_shell', sell: 8, loot: true },
+  ammo_rifle: { name: 'Đạn súng trường', tex: 'surv', frame: 'ammo_rifle', sell: 12, loot: true },
+  scrap: { name: 'Sắt vụn', tex: 'surv', frame: 'scrap', sell: 6, loot: true },
+  cloth: { name: 'Vải vụn', tex: 'surv', frame: 'cloth', sell: 5, loot: true },
+  parts: { name: 'Linh kiện điện tử', tex: 'surv', frame: 'parts', sell: 30, loot: true },
+  fuel: { name: 'Can xăng', tex: 'surv', frame: 'fuel', sell: 35, loot: true },
+  battery: { name: 'Pin', tex: 'surv', frame: 'battery', sell: 40, loot: true },
+  gunpowder: { name: 'Thuốc súng', tex: 'surv', frame: 'gunpowder', sell: 20, loot: true },
+  milchip: { name: 'Chip quân sự', tex: 'surv', frame: 'milchip', sell: 250, loot: true },
+  bandage: { name: 'Băng gạc', tex: 'surv', frame: 'bandage', sell: 15, loot: true, heal: 25 },
+  medkit: { name: 'Bộ sơ cứu', tex: 'surv', frame: 'medkit', sell: 60, loot: true, heal: 70 },
+  canned: { name: 'Đồ hộp', tex: 'surv', frame: 'canned', sell: 20, loot: true, eat: { e: 40, h: 5 } },
+  water: { name: 'Chai nước sạch', tex: 'surv', frame: 'water', sell: 10, loot: true, eat: { e: 15, h: 5 } },
 };
+
+// Nông sản ăn sống được (đỡ đói) — tận thế phải tận dụng mọi thứ
+for (const [id, f] of Object.entries({ carrot: 8, tomato: 10, strawberry: 10, potato: 12, beans: 8, cabbage: 15, corn: 14, eggplant: 10, watermelon: 30, pumpkin: 25, egg: 10, milk: 15 }))
+  if (ITEMS[id] && !ITEMS[id].eat) ITEMS[id].eat = { e: f, h: 0, raw: true };
 
 export const TOOLS = {
   hoe: { name: 'Cuốc', tex: 'tool_hoe', energy: 2 },
@@ -336,7 +360,7 @@ export const NPCS = {
   ba: {
     birthday: { season: 1, day: 11 },
     gifts: { 2: { fish_chep: 1, dish_grill: 1 }, 4: { fish_gold: 1 } },
-    name: 'Anh Ba', sheet: 'Villager', role: null, loves: ['truffle', 'pumpkin'],
+    name: 'Anh Ba', sheet: 'Villager', role: 'guard', loves: ['truffle', 'pumpkin'],
     lines: ['Làng mình yên bình ha.', 'Nghe nói nấm cục bán được giá lắm.', 'Có rảnh ghé bảng nhiệm vụ coi nha.'],
   },
   nam: {

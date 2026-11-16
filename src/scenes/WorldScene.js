@@ -14,7 +14,11 @@ import { buildMine, mineAction, MINE_SPAWN } from '../maps/mine.js';
 import { buildHome, homeAction, HOME, decoPointer, decoMove } from '../maps/home.js';
 import { buildShop, SHOPS, SHOP_IN } from '../maps/shop.js';
 import { buildQuarry, QUARRY } from '../maps/quarry.js';
+import { buildTown, TOWN } from '../maps/town.js';
 import { buildNpcHome } from '../maps/npchome.js';
+import { heldWeapon } from '../combat.js';
+import { raidFarm } from '../maps/zones.js';
+import { FOOD_MAX } from '../survival.js';
 import { decorateVillage, decorateFarm, spawnPet } from '../maps/decor.js';
 import { SCHEDULE, HOUSES, NPC_HOUSE_IN, HOUSE_OPEN, slotNow } from '../npcs.js';
 import { energyCost, bonusChance, maxHp } from '../skills.js';
@@ -91,7 +95,7 @@ export default class WorldScene extends Phaser.Scene {
 
   create() {
     this.sea = season();
-    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h] };
+    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], town: [TOWN.w, TOWN.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h] };
     [this.mapW, this.mapH] = SIZES[this.mapId];
     this.worldW = this.mapW * TILE;
     this.worldH = this.mapH * TILE;
@@ -101,7 +105,7 @@ export default class WorldScene extends Phaser.Scene {
     this.objShadows = new Map();
     this.lakeTiles = new Set();
     this.fx = new WorldFX(this);
-    if (['farm', 'village', 'forest'].includes(this.mapId)) this.grassGround();
+    if (['farm', 'village', 'forest', 'town'].includes(this.mapId)) this.grassGround();
     else this.add.rectangle(0, 0, this.worldW, this.worldH, this.sea.ground).setOrigin(0).setDepth(-1000);
 
     this.blocked = new Set();
@@ -116,11 +120,13 @@ export default class WorldScene extends Phaser.Scene {
     this.objSprites = new Map();
     this.decor = new Map();
     this.waterTiles = new Set(); // ô nước câu được (tầm quăng xa hơn)
-    this.terrain = { path: new Set(), plaza: new Set(), water: new Set() }; // vẽ bằng ô tự nối (tools/make_terrain.py)
+    this.terrain = { path: new Set(), plaza: new Set(), water: new Set(), road: new Set() }; // vẽ bằng ô tự nối (tools/make_terrain.py)
     this.movers = []; // NPC + vật nuôi + quái
     this.path = null;
     this.combat = null;
     this.caveLight = null;
+    this.searching = false;
+    this.zoneId = null;
     this.knock = null;
 
     if (this.mapId === 'farm') this.buildFarm();
@@ -131,13 +137,14 @@ export default class WorldScene extends Phaser.Scene {
     else if (this.mapId === 'shop') buildShop(this, this.shopId);
     else if (this.mapId === 'quarry') buildQuarry(this);
     else if (this.mapId === 'npchome') buildNpcHome(this, this.houseId);
+    else if (this.mapId === 'town') buildTown(this);
     this.paintTerrain();
     // NPC theo lịch sinh hoạt (chủ tiệm do buildShop tự đặt sau quầy)
     this.place = this.mapId === 'shop' ? `shop:${this.shopId}` : this.mapId === 'npchome' ? `house:${this.houseId}` : this.mapId;
     ui.place = this.place;
     if (this.mapId !== 'shop') this.spawnScheduled();
 
-    const DEFAULT_SPAWN = { farm: FARM.bedSpawn, village: VILLAGE.fromFarm, forest: FOREST.fromFarm, mine: MINE_SPAWN, home: HOME.bedSpawn, shop: SHOP_IN.enter, quarry: QUARRY.fromVillage, npchome: NPC_HOUSE_IN.enter };
+    const DEFAULT_SPAWN = { farm: FARM.bedSpawn, village: VILLAGE.fromFarm, forest: FOREST.fromFarm, mine: MINE_SPAWN, home: HOME.bedSpawn, shop: SHOP_IN.enter, quarry: QUARRY.fromVillage, town: TOWN.fromVillage, npchome: NPC_HOUSE_IN.enter };
     const sp = this.spawnAt || DEFAULT_SPAWN[this.mapId];
     this.createPlayer(sp.x, sp.y);
 
@@ -247,14 +254,16 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   isDirt(x, y) {
-    return this.terrain.path.has(key(x, y)) || this.terrain.plaza.has(key(x, y));
+    const k = key(x, y);
+    return this.terrain.path.has(k) || this.terrain.plaza.has(k) || this.terrain.road.has(k);
   }
 
   // Vẽ mọi vùng địa hình đã khai báo: mỗi ô chọn hình theo 8 ô hàng xóm (mép cong, góc bo)
   paintTerrain() {
     const T = this.terrain;
-    const pathish = new Set([...T.path, ...T.plaza]); // đường đi lót dưới sân đá → không hở mép cỏ giữa đường & sân
-    const layers = [['path', pathish, -995], ['plaza', T.plaza, -994], ['water', T.water, -850]];
+    const pathish = new Set([...T.path, ...T.plaza, ...T.road]); // đường đi lót dưới sân đá → không hở mép cỏ giữa đường & sân
+    const paved = new Set([...T.plaza, ...T.road]); // vỉa hè lót dưới đường nhựa
+    const layers = [['path', pathish, -995], ['plaza', paved, -994], ['road', T.road, -993], ['water', T.water, -850]];
     const N8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
     for (const [kind, set, depth] of layers) {
       if (!set.size) continue;
@@ -467,6 +476,7 @@ export default class WorldScene extends Phaser.Scene {
     const farmFree = (x, y) => !isReserved(x, y) && !state.tiles[key(x, y)] && !state.objects[key(x, y)] && !this.blocked.has(key(x, y));
     decorateFarm(this, (x, y) => farmFree(x, y) && !this.isDirt(x, y));
     spawnPet(this);
+    raidFarm(this, [[62, 11], [17, 1], [20, 42]]);
     this.scatterDecor(farmFree, 700, 42);
   }
 
@@ -691,6 +701,10 @@ export default class WorldScene extends Phaser.Scene {
     // Ao làng
     this.drawWater(40, 22, 45, 25);
 
+    // Cổng phía nam: ra Thị trấn bỏ hoang (vùng zombie)
+    this.dirtArea(19, 32, 20, 33);
+    for (const x of [19, 20]) this.exits.set(key(x, 33), { map: 'town', spawn: TOWN.fromVillage });
+
     // Quảng trường: đài phun nước ở giữa (decorateVillage), bồn hoa 4 góc
     V.flowerBeds.forEach((r, i) => this.flowerBed(r, i));
     // Hàng cây ven đường & các cụm cây
@@ -913,6 +927,8 @@ export default class WorldScene extends Phaser.Scene {
     const act = () => {
       if (ui.modal || ui.transition || !this.target) return;
       this.inputMode = 'key';
+      // Cầm vũ khí ở vùng có zombie: nút hành động = tấn công (tự ngắm)
+      if (this.combat && heldWeapon()) return void this.combat.attack();
       const a = this.actionAt(this.target);
       if (a?.act !== false && a?.run) a.run();
       else if (a?.label) toast(a.label);
@@ -1060,17 +1076,28 @@ export default class WorldScene extends Phaser.Scene {
   foodAction() {
     const sel = selected();
     const it = sel.kind === 'item' && ITEMS[sel.id];
+    if (it?.heal) return { label: `Dùng ${it.name} (+${it.heal} máu)`, run: () => this.eat(sel.id), self: true };
     if (!it?.eat) return null;
-    return { label: `Ăn ${it.name} (+${it.eat.h} máu)`, run: () => this.eat(sel.id), self: true };
+    return { label: `Ăn ${it.name} (+${it.eat.e} no${it.eat.h ? `, +${it.eat.h} máu` : ''})`, run: () => this.eat(sel.id), self: true };
   }
 
   eat(id) {
     const it = ITEMS[id];
-    if (state.hp >= maxHp()) return toast('Bạn đang no và khoẻ rồi!');
+    const food = state.food ?? FOOD_MAX;
+    if (it.heal) {
+      if (state.hp >= maxHp()) return toast('Bạn đang khoẻ, chưa cần băng bó!');
+      addItem(id, -1);
+      state.hp = Math.min(maxHp(), state.hp + it.heal);
+      sfx('heal', 0.5);
+      this.floatText(this.player.x, this.player.y - 20, `+${it.heal}`, '#ff8a7a');
+      return changed();
+    }
+    if (food >= FOOD_MAX - 2 && state.hp >= maxHp()) return toast('Bạn đang no rồi!');
     addItem(id, -1);
-    state.hp = Math.min(maxHp(), state.hp + it.eat.h);
-    sfx('harvest', 0.35);
-    this.floatText(this.player.x, this.player.y - 20, `+${it.eat.h}`, '#ff8a7a');
+    state.food = Math.min(FOOD_MAX, food + it.eat.e);
+    state.hp = Math.min(maxHp(), state.hp + (it.eat.h || 0));
+    sfx('eat', 0.5);
+    this.floatText(this.player.x, this.player.y - 20, `+${it.eat.e} no`, '#ffd08a');
     toast(`Ngon quá! ${it.name}`);
     changed();
   }
@@ -1079,6 +1106,12 @@ export default class WorldScene extends Phaser.Scene {
     if (ui.modal || ui.transition || ui.hitTest(pointer.x, pointer.y)) return;
     if (ui.deco) return decoPointer(this, pointer.worldX, pointer.worldY);
     this.inputMode = pointer.wasTouch ? 'touch' : 'mouse';
+    const w = this.combat && heldWeapon();
+    if (w) {
+      // Súng: chạm đâu cũng bắn zombie gần nhất. Cận chiến: đánh nếu có zombie trong tầm, không thì đi tới chỗ chạm
+      const c = this.player.body.center;
+      if (w.gun || this.combat.nearest(w.range + 14, { x: c.x, y: c.y - 6 })) return void this.combat.attack();
+    }
     const food = this.foodAction();
     if (food) return food.run();
     let target = this.resolveTarget(pointer.worldX, pointer.worldY);
@@ -1564,6 +1597,7 @@ export default class WorldScene extends Phaser.Scene {
     ui.transition = true;
     this.cancelPath();
     this.player.setVelocity(0, 0);
+    sfx('door', 0.4);
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.restart({ map, spawn, ...extra }));
   }
@@ -1579,6 +1613,7 @@ export default class WorldScene extends Phaser.Scene {
     state.energy = Math.max(state.energy, 20);
     changed();
     const cam = this.cameras.main;
+    sfx('gameover', 0.6);
     cam.fadeOut(1000, 80, 0, 0);
     cam.once('camerafadeoutcomplete', () => {
       toast(`Bạn bị ngất! Ai đó đã đưa bạn về nhà. Mất ${lost} xu tiền thuốc.`);

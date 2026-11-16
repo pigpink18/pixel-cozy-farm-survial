@@ -138,11 +138,36 @@ def paint_plaza(d, side, x, y, m):
     return cobble(x, y)
 
 
+# ---------- Đường nhựa nứt (thị trấn bỏ hoang) ----------
+A0, A1, A2, A3 = rgb('#55565c'), rgb('#4a4b50'), rgb('#6a6b70'), rgb('#3a3b40')
+
+
+def paint_road(d, side, x, y, m):
+    if d < 0.6:
+        return None
+    if d < 1.6:
+        return OUTLINE
+    if d < 3:
+        return S2 if side in ('n', 'w') else S1  # mép vỉa hè
+    n = h2(x * 7 + 3, y * 3 + 1, 11)
+    if n < 0.05:
+        return A3
+    if n < 0.11:
+        return A2
+    if n > 0.97:
+        return LEAF_CRACK
+    return A0 if (x + y) % 5 else A1
+
+
+LEAF_CRACK = rgb('#5d7a3a')
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     sheet(paint_path, 3).save(os.path.join(OUT, 'path.png'))
     sheet(paint_water, 6).save(os.path.join(OUT, 'water.png'))
     sheet(paint_plaza, 2).save(os.path.join(OUT, 'plaza.png'))
+    sheet(paint_road, 2).save(os.path.join(OUT, 'road.png'))
     print('saved terrain sheets ->', OUT)
 
 

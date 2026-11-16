@@ -5,6 +5,7 @@ import { spawnDebris } from './farmLayout.js';
 import { growCrops } from './crops.js';
 import { morningNews } from './festivals.js';
 import { maxHp } from './skills.js';
+import { baseLv, baseMorning, FOOD_MAX } from './survival.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -93,7 +94,12 @@ export function newDay(passedOut) {
   } else {
     state.energy = MAX_ENERGY;
   }
-  state.hp = passedOut ? Math.round(maxHp() * 0.6) : maxHp();
+  // Tận thế: ngủ chỉ hồi một phần máu (Trạm y tế cấp 1 → hồi đầy), qua đêm bụng đói thêm
+  const rest = baseLv('medic') >= 1 ? maxHp() : Math.min(maxHp(), (state.hp || 0) + 40);
+  state.hp = passedOut ? Math.round(maxHp() * 0.5) : Math.max(rest, Math.round(maxHp() * 0.5));
+  state.food = Math.max(0, (state.food ?? FOOD_MAX) - 20);
+  baseMorning();
+  if (state.food < 30) notes.push('Bụng đói meo — ăn sáng đi nhé!');
   state.time = DAY_START;
   notes.push(...morningNews());
   return notes;

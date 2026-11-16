@@ -2,11 +2,11 @@ import Phaser from 'phaser';
 import { OBJECT_FRAMES, NINJA_FRAMES, NPCS, ANIMALS, MONSTERS, FISH } from '../config.js';
 import { makeUiTextures, FONT } from '../ui/theme.js';
 import { makeFxTextures } from '../fx.js';
+import { loadSfx } from '../audio.js';
 
 const TW = 'assets/tiny-wonder/';
 const NJ = 'assets/ninja/';
 const FP = 'assets/fp/'; // Farmer Pack — Pyong Hoo
-export const SFX = ['hoe', 'water', 'chop', 'pick', 'coin', 'harvest', 'click', 'cancel', 'success', 'grass', 'talk', 'plant', 'animal', 'hurt', 'swing', 'monster', 'alert', 'ladder', 'splash'];
 
 // Pixel art nhỏ vẽ bằng code cho những món bộ asset không có
 const PIXEL_ART = {
@@ -52,7 +52,7 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     const { width, height } = this.scale;
-    this.add.text(width / 2, height / 2 - 40, 'Nông Trại Nhỏ', { fontFamily: FONT, fontSize: '56px', color: '#fdd179' }).setOrigin(0.5);
+    this.add.text(width / 2, height / 2 - 40, 'Nông Trại Tận Thế', { fontFamily: FONT, fontSize: '56px', color: '#c8e07a' }).setOrigin(0.5);
     const bar = this.add.rectangle(width / 2 - 150, height / 2 + 10, 0, 12, 0xf4b467).setOrigin(0, 0.5);
     this.load.on('progress', (p) => (bar.width = 300 * p));
 
@@ -94,8 +94,10 @@ export default class BootScene extends Phaser.Scene {
     for (const c of ['floor0', 'floor1', 'floor2', 'floor3', 'wall_top', 'wall_face', 'edge_l', 'edge_r', 'edge_t', 'beam', 'stalagmite', 'pebbles', 'puddle', 'crate']) this.load.image(`cave_${c}`, `assets/cave/${c}.png`); // tools/make_cave.py
     this.load.spritesheet('cave_torch', 'assets/cave/torch.png', { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('cave_lava', 'assets/cave/lava.png', { frameWidth: 16, frameHeight: 16 });
-    for (const t of ['path', 'water', 'plaza']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
+    for (const t of ['path', 'water', 'plaza', 'road']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
     for (const [k, w, h] of [['cat', 16, 16], ['catorange', 22, 17], ['dog', 16, 16], ['dogyellow', 21, 17]]) sheet(`cr_${k}`, `${NJ}critters/${k}.png`, w, h); // Ninja Adventure (CC0)
+    this.load.atlas('surv', 'assets/surv/surv.png', 'assets/surv/surv.json'); // tools/make_survival.py
+    for (const z of ['walker', 'runner', 'brute', 'soldier']) sheet(`zom_${z}`, `assets/zombie/zom_${z}.png`, 32, 32); // tools/make_zombies.py
     this.load.atlas('props', 'assets/props/props.png', 'assets/props/props.json'); // tools/make_props.py
     this.load.atlas('furn', 'assets/furn/furn.png', 'assets/furn/furn.json'); // nội thất trang trí (tools/make_furniture.py)
     for (const g of ['barcopper', 'bariron', 'bargold', 'gemgreen', 'gempurple', 'gemyellow', 'gemred']) this.load.image(g, `${NJ}items/${g}.png`);
@@ -112,7 +114,7 @@ export default class BootScene extends Phaser.Scene {
     }
     for (const [k, f] of [['tool_hoe', 'hoe'], ['tool_can', 'wateringcan'], ['tool_axe', 'axe'], ['tool_pickaxe', 'pickaxe'], ['wood', 'wood'], ['stone', 'stone'], ['hay', 'hay'], ['truffle', 'truffle']])
       this.load.image(k, `${NJ}items/${f}.png`);
-    for (const s of SFX) this.load.audio(`sfx_${s}`, `assets/audio/sfx/${s}.wav`);
+    loadSfx(this.load);
   }
 
   create() {
@@ -163,6 +165,14 @@ export default class BootScene extends Phaser.Scene {
     for (const id of ['chicken', 'pig', 'cow'])
       this.anims.create({ key: `animal_${id}_walk`, frames: this.anims.generateFrameNumbers(`fp_${id}`, { start: 0, end: 3 }), frameRate: 6, repeat: -1 });
 
+    // Zombie: cùng bố cục với NPC (hàng 0–3 đi, 4–7 đứng)
+    for (const z of ['walker', 'runner', 'brute', 'soldier']) {
+      const zr = (r, rate) => ({ frames: this.anims.generateFrameNumbers(`zom_${z}`, { start: r * 4, end: r * 4 + 3 }), frameRate: rate, repeat: -1 });
+      ['down', 'up', 'left', 'right'].forEach((dir, i) => {
+        this.anims.create({ key: `zom_${z}_${dir}`, ...zr(i, 6) });
+        this.anims.create({ key: `zom_${z}_idle_${dir}`, ...zr(4 + i, 2) });
+      });
+    }
     // Quái: cột = hướng, hàng = khung hình
     for (const id of Object.keys(MONSTERS))
       ['down', 'up', 'left', 'right'].forEach((dir, col) =>

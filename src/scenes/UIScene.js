@@ -4,10 +4,11 @@ import { isTouchDevice } from '../state.js';
 import { state, ui, bus, changed, save, toast, sfx, season, clockText, hotbarItems, selected, count, resetGame, waterCap, hearts, addItem, bagSlots, bagHasRoom } from '../state.js';
 import { skillLv, skillProgress, maxHp } from '../skills.js';
 import { birthdayText } from '../festivals.js';
+import { FOOD_MAX, hungerTick, baseLv } from '../survival.js';
 import { BOOK, ACHIEVEMENTS, bookDone, achDone, claim, claimable, trackProgress } from '../collection.js';
 import { craftRows, furnShopPanel, wallPanel, floorPanel } from '../shops.js';
 import { FURN, FURN_CATS, ownedCount, ensureHome } from '../furniture.js';
-import Lofi from '../lofi.js';
+import AudioDirector from '../audio.js';
 import { growCrops } from '../crops.js';
 import Fishing from '../fishing.js';
 import { STORES } from '../config.js';
@@ -51,7 +52,7 @@ export default class UIScene extends Phaser.Scene {
     this.buildTouchControls();
 
     this.hintText = this.add.text(W / 2, H - SLOT - 44, '', textLight(this.isTouch ? 19 : 16, C.gold)).setOrigin(0.5);
-    this.toastText = this.add.text(W / 2, H - SLOT - 82, '', textLight(this.isTouch ? 21 : 19)).setOrigin(0.5, 1).setAlign('center').setAlpha(0).setDepth(400); // luôn nổi trên bảng cửa hàng
+    this.toastText = this.add.text(W / 2, H - SLOT - 82, '', textLight(this.isTouch ? 21 : 19)).setOrigin(0.5, 1).setAlign('center').setAlpha(0).setDepth(400).setWordWrapWidth(W - 120); // luôn nổi trên bảng cửa hàng
     this.keyHelp = this.add.text(W - 14, 64, 'Click: đi / làm việc  ·  WASD + Space\n1–9: chọn đồ  ·  I: túi đồ  ·  Esc: đóng', textLight(12)).setOrigin(1, 0).setAlign('right');
     this.applyTouchMode();
     // Chạm màn hình thật → bật nút điều khiển (kể cả khi máy tự nhận là máy tính)
@@ -77,12 +78,13 @@ export default class UIScene extends Phaser.Scene {
     on('changed', this.refresh);
     on('toast', this.showToast);
     on('hint', (h) => this.hintText.setText(h));
-    on('sfx', (name, volume) => this.cache.audio.exists(`sfx_${name}`) && this.sound.play(`sfx_${name}`, { volume: volume * 0.7 }));
+    on('sfx', (name, volume) => this.audio?.sfx(name, volume));
     on('dialog', this.openDialog);
     on('panel', this.openPanel);
     on('closePanel', () => this.closeModal());
     on('gain', (id, n) => this.showGain(id, n));
     on('levelUp', (lv, list) => {
+      sfx('levelup');
       const text = `Dân làng tin tưởng bạn hơn rồi! Uy tín lên cấp ${lv}.` + (list.length ? `\nMở khoá: ${list.join(', ')}` : '');
       if (ui.modal) this.showToast(text, 5000);
       else bus.emit('dialog', { face: 'portrait', name: `Uy tín cấp ${lv}!`, text, choices: [{ label: 'Tuyệt vời!', onClick: null }] });
@@ -91,10 +93,10 @@ export default class UIScene extends Phaser.Scene {
     on('openStorage', (key) => this.openStorage(key));
     // Đài radio trong nhà: đổi giai điệu
     on('radio', () => {
-      const list = ['spring', 'summer', 'autumn', 'winter', 'village'];
-      this.radioIdx = ((this.radioIdx ?? list.indexOf(season().id)) + 1) % list.length;
-      this.lofi?.play(list[this.radioIdx]);
-      this.showToast(state.muted ? 'Âm thanh đang tắt — bấm "Âm: tắt" để bật' : `Đài đang phát nhạc ${['mùa xuân', 'mùa hạ', 'mùa thu', 'mùa đông', 'làng quê'][this.radioIdx]} ♪`);
+      const name = this.audio?.nextRadio();
+      if (state.muted) return this.showToast('Âm thanh đang tắt — bấm nút "Âm: tắt" trên góc để bật');
+      if (state.musicOff) return this.showToast('Nhạc đang tắt — bấm nút "Nhạc: tắt" trên góc để bật');
+      this.showToast(name ? `Đài đang phát: ${name} ♪` : 'Đã tắt đài');
     });
     on('fishStart', (where) => this.fishing.start(where));
     on('action', () => this.fishing.active && this.fishing.press());
@@ -108,7 +110,7 @@ export default class UIScene extends Phaser.Scene {
       if (this.decoC) this.closeDecoBar();
       this.updateLeaveBtn();
       this.closeModal();
-      this.playMusic();
+      this.audio?.tick();
     });
     on('newDay', (notes) => {
       const s = season();
@@ -124,11 +126,13 @@ export default class UIScene extends Phaser.Scene {
       this.tweens.add({ targets: tip, alpha: 0.4, yoyo: true, repeat: -1, duration: 700 });
       this.sound.once('unlocked', () => {
         tip.destroy();
-        this.playMusic();
+        this.audio?.tick(true);
       });
     }
-    this.setupLofi();
+    this.audio = new AudioDirector(this);
     this.refresh();
+    // Thư chưa đọc khi mở game (vd. thư mở đầu tận thế)
+    if (state.mail?.length) this.time.delayedCall(1500, () => !ui.modal && this.showMail());
   }
 
   // =========================================================
@@ -156,7 +160,8 @@ export default class UIScene extends Phaser.Scene {
       const t = this.add.text(215, y, '', textLight(11)).setOrigin(0.5);
       return [b, t];
     };
-    [this.hpBar, this.hpText] = bar(88, 0xb55945);
+    [this.hpBar, this.hpText] = bar(76, 0xb55945);
+    [this.foodBar, this.foodText] = bar(98, 0xd9963a);
   }
 
   buildTopButtons() {
@@ -174,13 +179,18 @@ export default class UIScene extends Phaser.Scene {
         this.scale.startFullscreen();
         screen.orientation?.lock?.('landscape').catch(() => {});
       }, 0x46607a);
-    this.muteBtn = add('', 96, () => {
-      state.muted = !state.muted;
+    // Âm: bật → Nhạc: tắt (chỉ còn tiếng) → Âm: tắt
+    const soundLabel = () => (state.muted ? 'Âm: tắt' : state.musicOff ? 'Nhạc: tắt' : 'Âm: bật');
+    this.muteBtn = add('', 104, () => {
+      if (state.muted) state.muted = state.musicOff = false;
+      else if (state.musicOff) state.muted = true;
+      else state.musicOff = true;
       this.sound.mute = state.muted;
-      this.muteBtn.label.setText(state.muted ? 'Âm: tắt' : 'Âm: bật');
+      this.muteBtn.label.setText(soundLabel());
+      this.audio?.tick();
       save();
     }, 0x5b4a7a);
-    this.muteBtn.label.setText(state.muted ? 'Âm: tắt' : 'Âm: bật');
+    this.muteBtn.label.setText(soundLabel());
     this.bagBtn = add('Túi đồ (I)', 120, () => this.openInventory(), 0x8a6a2f);
     this.touchBtn = add('', 120, () => {
       state.touchPref = !this.isTouch;
@@ -416,6 +426,10 @@ export default class UIScene extends Phaser.Scene {
     this.lvBar.width = 62 * farmProgress();
     this.hpBar.width = 234 * Math.min(1, state.hp / maxHp());
     this.hpText.setText(`Máu ${state.hp}/${maxHp()}`);
+    const food = Math.round(state.food ?? FOOD_MAX);
+    this.foodBar.width = 234 * Math.min(1, food / FOOD_MAX);
+    this.foodBar.fillColor = food < 20 ? 0xd04a3a : 0xd9963a;
+    this.foodText.setText(`No ${food}/${FOOD_MAX}`);
 
     if (this.decoC) this.buildDecoBar();
     selected();
@@ -441,7 +455,7 @@ export default class UIScene extends Phaser.Scene {
     else if (ui.deco) this.toastText.setOrigin(0.5, 0).setPosition(this.W / 2, 8); // trang trí: trên cùng, không đè thanh đồ
     else this.toastText.setOrigin(0.5, 1).setPosition(this.W / 2, this.H - SLOT - 82);
     this.toastText.setText(msg).setAlpha(1);
-    this.tweens.add({ targets: this.toastText, alpha: 0, delay: duration, duration: 500 });
+    this.tweens.add({ targets: this.toastText, alpha: 0, delay: Math.max(duration, msg.length * 45), duration: 500 });
   }
 
   // =========================================================
@@ -453,6 +467,8 @@ export default class UIScene extends Phaser.Scene {
       while (this.acc >= TICK_MS) {
         this.acc -= TICK_MS;
         state.time += 10;
+        hungerTick();
+        if (baseLv('medic') >= 2 && ui.place === 'farm' && state.hp < maxHp()) state.hp += 1;
         const grew = growCrops();
         if (grew.length) bus.emit('cropsGrew', grew);
         // Chuồng trại xây xong
@@ -517,23 +533,6 @@ export default class UIScene extends Phaser.Scene {
   // =========================================================
   //  Âm thanh
   // =========================================================
-  setupLofi() {
-    const ctx = this.sound.context;
-    if (!ctx) return; // trình duyệt không có Web Audio
-    // Lọc bớt âm cao cho mọi hiệu ứng âm thanh → ấm, êm kiểu lofi
-    const warm = ctx.createBiquadFilter();
-    warm.type = 'lowpass';
-    warm.frequency.value = 2600;
-    this.sound.masterMuteNode.disconnect();
-    this.sound.masterMuteNode.connect(warm).connect(this.sound.masterVolumeNode);
-    this.lofi = new Lofi(ctx, this.sound.masterMuteNode);
-    this.playMusic();
-  }
-
-  playMusic() {
-    this.lofi?.play(this.mapId === 'village' ? 'village' : season().id);
-  }
-
   // =========================================================
   //  Phím tắt
   // =========================================================
@@ -640,6 +639,7 @@ export default class UIScene extends Phaser.Scene {
   //  Danh sách (cửa hàng, nhiệm vụ, tặng quà)
   // =========================================================
   openPanel(def) {
+    if (this.panelDef !== def) sfx('open', 0.5);
     this.closeModal();
     this.panelDef = def;
     this.panelPage = 0;
@@ -663,7 +663,7 @@ export default class UIScene extends Phaser.Scene {
   drawPanel(def) {
     const all = def.rows();
     this.panelC?.destroy();
-    const rowH = 60;
+    const rowH = def.rowH || 60;
     const per = Math.floor((this.H - 160) / rowH);
     const pages = Math.max(1, Math.ceil(all.length / per));
     this.panelPage = Math.min(this.panelPage || 0, pages - 1);
@@ -705,7 +705,7 @@ export default class UIScene extends Phaser.Scene {
       const tx = r.icon ? x + 76 : x + 28;
       if (r.icon) c.add(this.fitIcon(x + 44, ry + (rowH - 6) / 2, r.icon.tex, r.icon.frame, 42));
       c.add(this.add.text(tx, ry + 6, r.name, text(17)));
-      c.add(this.add.text(tx, ry + 30, r.desc || '', text(13, '#cfcfe0')));
+      c.add(this.add.text(tx, ry + 28, r.desc || '', { ...text(13, '#cfcfe0'), lineSpacing: -2, wordWrap: { width: w - (tx - x) - 24 - r.buttons.length * 90 } }));
       let bx = x + w - 24;
       [...r.buttons].reverse().forEach((b) => {
         bx -= 84;
@@ -720,7 +720,7 @@ export default class UIScene extends Phaser.Scene {
   // =========================================================
   openInventory(tab = 'inv') {
     this.closeModal();
-    sfx('click', 0.3);
+    sfx('open', 0.5);
     this.setModal('inv');
     this.menuTab = tab;
     this.invInfo = 'Chạm vào món đồ để xem thông tin (món dùng được sẽ được chọn luôn)';
@@ -758,13 +758,13 @@ export default class UIScene extends Phaser.Scene {
     ids.slice(0, cols * 4).forEach((id, i) => {
       const cx = gx + (i % cols) * cell, cy = gy + Math.floor(i / cols) * cell;
       const it = ITEMS[id];
-      const usable = it.seed || it.place || it.home || it.eat;
+      const usable = it.seed || it.place || it.home || it.eat || it.weapon || it.heal;
       const on = state.sel === `item:${id}`;
       const bg = box(this, 'ui_slot', cx + 2, cy + 2, cell - 4, cell - 4, 2).setInteractive({ useHandCursor: true });
       if (on) c.add(box(this, 'ui_sel', cx - 1, cy - 1, cell + 2, cell + 2, 3));
       bg.on('pointerup', () => {
         if (usable) state.sel = `item:${id}`;
-        const use = it.eat ? `ăn: +${it.eat.e} sức, +${it.eat.h} máu` : it.seed ? 'gieo vào đất đã cuốc' : it.place ? 'đặt trên nông trại' : it.home ? 'đặt trong nhà' : '';
+        const use = it.weapon ? 'vũ khí — cầm lên rồi bấm Làm / Space để đánh' : it.heal ? `chữa +${it.heal} máu` : it.eat ? `ăn: +${it.eat.e} no${it.eat.h ? `, +${it.eat.h} máu` : ''}` : it.seed ? 'gieo vào đất đã cuốc' : it.place ? 'đặt trên nông trại' : it.home ? 'đặt trong nhà' : '';
         this.invInfo = `${it.name} × ${count(id)}` + (it.sell ? ` · bán ${it.sell} xu` : '') + (use ? ` · ${use}${usable ? ' (đã chọn)' : ''}` : '');
         changed();
       });

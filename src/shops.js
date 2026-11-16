@@ -10,6 +10,7 @@ import { festivalChoice, specialLine, isBirthday, heartEvent } from './festivals
 import { LINES, PLACE_LINES, requestToday, tier, greeting } from './npcs.js';
 import { mineralPanel, geodePanel } from './maps/quarry.js';
 import { earnCoins } from './hayday.js';
+import { tradePanel } from './survivalPanels.js';
 
 const icon = (id) => ({ tex: ITEMS[id].tex, frame: ITEMS[id].frame });
 
@@ -412,6 +413,7 @@ export function talk(npcId, text, greet = true) {
     choices.push({ label, onClick: () => (open ? openPanel(shop) : toast('Cửa hàng mở từ 8:00 đến 18:00')) });
   }
   if (npc.role === 'ranch' && !state.pet) choices.push({ label: 'Nhận nuôi thú cưng', onClick: () => adoptDialog() });
+  if (npc.role === 'guard') choices.push({ label: 'Đổi hàng', onClick: () => openPanel(tradePanel) });
   if (npc.role === 'fisher') choices.push({ label: 'Bán cá (giá cao)', onClick: () => openPanel(fishBuyPanel) });
   if (npc.role === 'cook') choices.push({ label: 'Mua món ăn', onClick: () => openPanel(cookShopPanel) });
   if (npc.role === 'miner') {

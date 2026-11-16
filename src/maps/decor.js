@@ -5,7 +5,8 @@
 // ============================================================
 import Phaser from 'phaser';
 import { TILE } from '../config.js';
-import { state, toast, changed, sfx, addItem, roomFor } from '../state.js';
+import { state, toast, changed, sfx, addItem, roomFor, bus } from '../state.js';
+import { basePanel } from '../survivalPanels.js';
 import { ITEMS, FORAGE } from '../config.js';
 
 const key = (x, y) => `${x},${y}`;
@@ -30,7 +31,7 @@ export function prop(s, name, tx, ty, o = {}) {
   };
   if (tiles.some(bad)) return null;
   const tex = o.tex || 'props';
-  const img = s.add.image((tx + w / 2) * TILE + (o.dx || 0), (ty + 1) * TILE + (o.dy || 0), tex, o.tex ? undefined : name).setOrigin(0.5, 1);
+  const img = s.add.image((tx + w / 2) * TILE + (o.dx || 0), (ty + 1) * TILE + (o.dy || 0), tex, name ?? undefined).setOrigin(0.5, 1);
   img.setDepth(o.depth ?? (ty + 1) * TILE - 1);
   for (const [x, y] of tiles) s.removeDecor(key(x, y));
   if (solid) {
@@ -44,6 +45,17 @@ export function prop(s, name, tx, ty, o = {}) {
 function lamp(s, tx, ty) {
   const img = prop(s, 'lamp', tx, ty, { label: 'Đèn đường' });
   if (img) s.fx.light(img.x, img.y - 33, 46);
+  return img;
+}
+
+// Thùng phuy đốt lửa sưởi — nguồn sáng ban đêm ở vùng hoang
+export function fireBarrel(s, tx, ty) {
+  const img = prop(s, 'barrel', tx, ty, { tex: 'surv', label: 'Thùng phuy đốt lửa sưởi' });
+  if (!img) return null;
+  const fire = s.add.image(img.x, img.y - img.height + 3, 'surv', 'campfire0').setOrigin(0.5, 1).setScale(0.55).setDepth(img.depth + 1);
+  let fr = 0;
+  s.time.addEvent({ delay: 170, loop: true, callback: () => fire.active && fire.setFrame(`campfire${(fr = 1 - fr)}`) });
+  s.fx.light(img.x, img.y - img.height, 80);
   return img;
 }
 
@@ -99,13 +111,22 @@ export function waterside(s, seed) {
 
 // ---------------- Làng ----------------
 export function decorateVillage(s) {
-  // Đài phun nước giữa quảng trường (2 khung nước chảy)
-  const f = prop(s, 'fountain0', 19, 16, { w: 3, rows: 2, onPath: true, label: 'Đài phun nước của làng' });
+  // Lửa trại giữa quảng trường (trại người sống sót)
+  const f = prop(s, 'campfire0', 20, 15, { tex: 'surv', onPath: true, label: 'Lửa trại — mọi người quây quần mỗi tối' });
   if (f) {
     let fr = 0;
-    s.time.addEvent({ delay: 260, loop: true, callback: () => f.active && f.setFrame(`fountain${(fr = 1 - fr)}`) });
-    s.fx.sparkleTiles([[19, 15], [20, 15], [21, 15], [20, 14]]);
+    s.time.addEvent({ delay: 180, loop: true, callback: () => f.active && f.setFrame(`campfire${(fr = 1 - fr)}`) });
+    s.fx.light(f.x, f.y - 8, 90);
+    const glow = s.add.image(f.x, f.y - 8, 'fx_glow').setDisplaySize(60, 60).setTint(0xff9a40).setBlendMode(1).setDepth(9300).setAlpha(0.35);
+    s.tweens.add({ targets: glow, alpha: 0.2, yoyo: true, repeat: -1, duration: 300 });
   }
+  // Lều, tháp canh, bao cát ở cổng
+  for (const [x, y, k] of [[22, 20, 'tent_green'], [26, 20, 'tent_tan'], [36, 20, 'tent_green'], [40, 20, 'tent_tan'], [28, 5, 'tent_tan']]) prop(s, k, x, y, { tex: 'surv', w: 3, label: 'Lều của người sống sót' });
+  prop(s, 'watchtower', 1, 14, { tex: 'surv', w: 2, label: 'Tháp canh của trại' });
+  for (const [x, y] of [[16, 32], [22, 32], [1, 9], [1, 14]]) prop(s, 'sandbags', x, y, { tex: 'surv', w: 2, label: 'Bao cát' });
+  prop(s, 'barricade', 23, 31, { tex: 'surv', w: 2, label: 'Cổng nam → Thị trấn bỏ hoang (nguy hiểm!)' });
+  prop(s, 'car_red', 44, 4, { tex: 'surv', w: 3, label: 'Xe hỏng' });
+  prop(s, 'tires', 48, 11, { tex: 'surv', label: 'Lốp xe' });
   for (const [x, y] of [[16, 15], [23, 15]]) prop(s, 'bench', x, y, { w: 2, onPath: true, label: 'Ghế đá công viên' });
   // Đèn đường quanh quảng trường & dọc phố
   for (const [x, y] of [[14, 13], [26, 12], [14, 17], [26, 17], [11, 8], [24, 8], [37, 8], [8, 13], [30, 15], [38, 15], [18, 29], [22, 29], [35, 23], [3, 13]]) lamp(s, x, y);
@@ -139,7 +160,15 @@ export function decorateVillage(s) {
 // ---------------- Nông trại ----------------
 export function decorateFarm(s, isFree) {
   prop(s, 'mailbox', 12, 8, { label: 'Hộp thư — chưa có thư mới' });
-  prop(s, 'woodpile', 12, 6, { w: 2, label: 'Đống củi' });
+  prop(s, 'workbench', 12, 6, { tex: 'surv', w: 2, action: () => ({ label: 'Bàn chế tạo — nâng cấp căn cứ', run: () => bus.emit('panel', basePanel) }) });
+  prop(s, 'woodpile', 1, 9, { w: 2, label: 'Đống củi' });
+  // Phòng thủ theo cấp hàng rào
+  const fence = state.base?.fence || 0;
+  if (fence >= 1) for (const [x, y, k] of [[61, 10, 'sandbags'], [61, 13, 'sandbags'], [14, 1, 'sandbags'], [18, 1, 'sandbags'], [17, 41, 'sandbags'], [21, 41, 'sandbags']]) prop(s, k, x, y, { tex: 'surv', w: 2, label: 'Bao cát chắn lối' });
+  if (fence >= 2) for (const [x, y] of [[59, 9], [59, 14], [21, 39], [16, 39]]) prop(s, 'barricade', x, y, { tex: 'surv', w: 2, label: 'Rào thép gai' });
+  if (fence >= 3) prop(s, 'watchtower', 55, 9, { tex: 'surv', w: 2, label: 'Tháp canh' });
+  // Máy phát điện: đèn pha ban đêm
+  if ((state.base?.generator || 0) >= 1) for (const [x, y] of [[8, 9], [10, 18], [20, 12], [30, 12], [45, 12], [24, 8], [34, 8]]) s.fx.light(x * TILE + 8, y * TILE, 70);
   prop(s, 'well', 10, 5, { w: 2, action: (sel) => (sel.id === 'can' ? { label: 'Múc nước giếng vào bình', run: () => s.refill() } : { act: false, label: 'Giếng nước — chọn bình tưới để múc nước' }) });
   prop(s, 'scarecrow', 16, 22, { label: 'Bù nhìn canh ruộng' });
   for (const [x, y] of [[26, 10], [33, 10], [47, 10], [58, 10], [12, 13]]) lamp(s, x, y);

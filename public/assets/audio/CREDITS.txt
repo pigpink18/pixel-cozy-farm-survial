@@ -1,0 +1,3 @@
+Music & sound effects: "Ninja Adventure" asset pack by Pixel-boy & AAA — CC0 1.0 (public domain).
+https://pixel-boy.itch.io/ninja-adventure-asset-pack
+Converted with tools/make_audio.py. animal_0/search_0 are from earlier versions of the game.

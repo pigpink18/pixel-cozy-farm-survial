@@ -113,11 +113,60 @@ Object.assign(LINES, {
   },
 });
 
+// ---------- Tận thế: thoại mới (ghi đè) ----------
+Object.assign(LINES, {
+  lan: {
+    1: ['Hạt giống giờ quý hơn vàng đó cháu.', 'Trồng được gì thì trồng, đồ hộp rồi cũng hết.', 'Đêm qua lại nghe tiếng gầm ngoài hàng rào...'],
+    3: ['Ruộng nhà cháu là nồi cơm của cả trại đó.', 'Bà giữ mấy gói hạt giống từ trước khi dịch bùng phát.', 'Đừng ra ngoài lúc trời tối, tụi nó đông hơn nhiều.'],
+    5: ['Có cháu, cả trại có hy vọng sống tiếp.', 'Bà già rồi, mai mốt cháu giữ kho hạt giống giùm bà.', 'Cháu nhớ ăn uống đầy đủ, đói là không chạy nổi đâu.'],
+  },
+  tu: {
+    1: ['Sắt vụn, linh kiện — gặp là nhặt về cho chú.', 'Bàn chế tạo ở nông trại cháu đó, nâng cấp dần lên.', 'Hàng rào yếu thì đêm nào zombie cũng mò vào.'],
+    3: ['Chip quân sự chỉ có ở khu quân sự thôi, nguy hiểm lắm.', 'Gậy đóng đinh đánh zombie tốt, mà súng thì vẫn hơn.', 'Chú đang sửa cái radio, nếu chạy được thì gọi cứu viện.'],
+    5: ['Cháu là người giỏi nhất trại này rồi.', 'Thiếu vật liệu gì cứ nói, chú chế cho.', 'Có ngày mình sẽ dọn sạch cả vùng này, chú tin vậy.'],
+  },
+  mai: {
+    1: ['Gà bò là nguồn sống của trại, chăm kỹ nha.', 'Tiếng zombie làm tụi bò sợ, không chịu cho sữa.', 'Cô có mấy bé chó mèo cần chủ, nuôi đi cho vui nhà.'],
+    3: ['Trứng sữa của cháu đổi được đạn ở chỗ Anh Ba đó.', 'Có hàng rào chắc thì tụi vật nuôi mới yên.', 'Cô nhớ hồi xưa, làng mình yên bình lắm...'],
+    5: ['Cháu là chỗ dựa của cả trại.', 'Cô sẽ dạy cháu mọi thứ về chăn nuôi.', 'Khi nào hết dịch, mình mở lại chợ phiên nha.'],
+  },
+  ti: {
+    1: ['Anh chị có thấy zombie chưa? Em sợ lắm...', 'Anh Ba không cho em ra cổng nam.', 'Em đếm được 3 con zombie ngoài hàng rào hôm qua!'],
+    3: ['Lớn lên em cũng sẽ cầm súng bảo vệ trại!', 'Em nhặt được viên pin này, tặng anh chị nè.', 'Anh chị dẹp xong thị trấn thì cho em đi theo nha.'],
+    5: ['Anh chị là anh hùng của em!', 'Em vẽ hình anh chị đánh zombie dán ở lều đó.', 'Có anh chị ở đây em không sợ nữa.'],
+  },
+  ba: {
+    1: ['Tui gác cổng. Có đồ thì ghé đổi, tui có đạn.', 'Cổng nam ra thị trấn — đông zombie lắm, cẩn thận.', 'Phá ổ zombie đi, tụi nó đẻ ra từ đó đó.'],
+    3: ['Đồ hộp, rau củ đổi đạn được hết.', 'Zombie khổng lồ trâu lắm, dùng súng săn mới ăn thua.', 'Ban đêm tụi nó nhìn xa hơn, chạy cũng nhanh hơn.'],
+    5: ['Ông bạn là chiến binh số một của trại!', 'Có ông bạn rồi tui gác cổng yên tâm hẳn.', 'Bữa nào mình đi càn khu quân sự chung nha.'],
+  },
+  sau: {
+    1: ['Mỏ đá giờ là chỗ an toàn hiếm hoi.', 'Đá, quặng vẫn cần để xây tường.', 'Dưới hầm sâu cũng có thứ quái quỷ lắm.'],
+    3: ['Quặng sắt nung ra thép, làm rào chắc lắm.', 'Bác thấy xe quân sự bỏ lại ở phía đông...', 'Thuốc súng chế từ quặng với than đó.'],
+    5: ['Cháu cứng cỏi lắm, bác tin cháu.', 'Bác sẽ đi cùng cháu tới khu quân sự.', 'Nghề mỏ bác truyền cho cháu hết rồi.'],
+  },
+  nam: {
+    1: ['Cá là nguồn thịt sạch duy nhất còn lại.', 'Hồ trong rừng giờ có zombie lảng vảng, coi chừng.', 'Ông bán cá đổi đạn, giá cao đó.'],
+    3: ['Câu cá lúc trời sáng thôi, tối tụi nó ra đông.', 'Rừng hoang có cái ổ zombie, phá đi là yên.', 'Cá nướng xiên ăn chắc bụng lắm.'],
+    5: ['Con là người ông tin nhất.', 'Ông chỉ con chỗ cá vàng ở góc hồ phía tây.', 'Khi nào yên bình, ông con mình đi câu cả ngày.'],
+  },
+  hoa: {
+    1: ['Bếp của chị nuôi cả trại, có rau thì đem qua.', 'Ăn no mới có sức đánh zombie nha em.', 'Đồ hộp ăn mãi cũng ngán, rau tươi quý lắm.'],
+    3: ['Rau nhà em tươi ghê, cả trại khen đó.', 'Bé Bin cứ đòi theo em ra ngoài, em đừng cho nha.', 'Món bắp cải cuộn hồi sức tốt lắm.'],
+    5: ['Em là ân nhân của mẹ con chị.', 'Chị nấu riêng cho em, khỏi tính tiền.', 'Hết dịch, chị mở lại quán cho cả làng.'],
+  },
+  bin: {
+    1: ['Mẹ dặn em không được ra khỏi hàng rào...', 'Mẹ em nấu ăn ngon nhất trại!', 'Em nghe tiếng gầm gừ ngoài kia hoài à.'],
+    3: ['Buổi trưa em hay chạy qua nông trại coi gà con!', 'Em giấu một hộp kẹo dưới lều, cho anh chị nè.', 'Anh chị có súng hả? Ngầu quá!'],
+    5: ['Anh chị là siêu anh hùng!', 'Lớn lên em sẽ làm bác sĩ chữa cho mọi người.', 'Em vẽ tặng anh chị bức tranh trại mình nè.'],
+  },
+});
+
 // Câu theo nơi đang đứng
 export const PLACE_LINES = {
   forest: ['Trong rừng mát quá ha.', 'Suỵt... nhỏ tiếng kẻo cá chạy!'],
   quarry: ['Bụi đá nhiều quá, nhớ che mũi nha.', 'Chiều nào cũng có đá mới lộ ra.'],
-  farm: ['Nông trại cháu dạo này đẹp ghê.', 'Sáng sớm ra đồng không khí trong lành quá.'],
+  farm: ['Nông trại cháu là pháo đài của trại đó.', 'Rau xanh thế này, cả trại khỏi đói rồi.'],
   house: ['Vào chơi đi, đừng ngại!', 'Nhà hơi bừa, thông cảm nha.', 'Ngồi chơi uống miếng nước nè.'],
   village: [],
 };
@@ -159,7 +208,7 @@ export function requestToday(id, create = false) {
 
 export const greeting = () => {
   const h = state.time / 60;
-  return h < 11 ? 'Chào buổi sáng!' : h < 14 ? 'Trưa rồi, ăn cơm chưa?' : h < 18 ? 'Chiều mát ghê ha.' : 'Tối rồi mà còn đi dạo hả?';
+  return h < 11 ? 'Sáng rồi, còn sống là mừng!' : h < 14 ? 'Trưa rồi, ăn gì chưa?' : h < 18 ? 'Chiều rồi, đừng ra ngoài muộn.' : 'Tối rồi, ở trong hàng rào đi!';
 };
 
 export const npcName = (id) => NPCS[id]?.name || id;

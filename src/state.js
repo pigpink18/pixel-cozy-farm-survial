@@ -202,7 +202,7 @@ export function hotbarItems() {
     lv: state.toolLv[id] || 1,
   }));
   for (const [id, it] of Object.entries(ITEMS)) {
-    if ((it.seed || it.place || it.home || it.eat) && count(id) > 0) list.push({ key: `item:${id}`, tex: it.tex, frame: it.frame, name: it.name, item: id, n: count(id) });
+    if ((it.seed || it.place || it.home || (it.eat && !it.eat.raw) || it.weapon || it.heal) && count(id) > 0) list.push({ key: `item:${id}`, tex: it.tex, frame: it.frame, name: it.name, item: id, n: count(id) });
   }
   // Tối đa 12 ô; món đang chọn luôn có mặt
   const out = list.slice(0, 12);
