@@ -176,7 +176,7 @@ export default class Combat {
 
   placeEyes(m, time) {
     const sp = m.sprite, sc = m.cfg.scale || 1;
-    const dark = this.scene.fx?.darkness || 0;
+    const dark = this.scene.mapId === 'mine' ? 0.9 : this.scene.fx?.darkness || 0;
     const a = m.face === 'up' ? 0 : Phaser.Math.Clamp((dark - 0.2) * 2.2, 0, 1) * (0.85 + Math.sin(time / 260 + sp.x) * 0.15);
     const side = m.face === 'left' ? -1 : m.face === 'right' ? 1 : 0;
     const x = sp.x + side * 2 * sc, y = sp.y - 20 * sc;

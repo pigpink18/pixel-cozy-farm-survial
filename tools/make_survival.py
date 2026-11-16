@@ -434,6 +434,262 @@ def nest(fr):
     return c
 
 
+# ---------------- Kho trên nông trại (thay kho kiểu Hay Day) ----------------
+def container():
+    """Nhà kho: container sắt gỉ, cửa có thanh khoá, số sơn đã tróc."""
+    c = C(62, 42)
+    G, GL, GD = rgb('#4f6a5a'), rgb('#6f8a78'), rgb('#33463b')
+    c.rect(1, 2, 60, 9, GL)  # nóc
+    hline(c, 1, 60, 2, rgb('#8fa898'))
+    c.rect(1, 10, 60, 39, G)  # mặt bên
+    for x in range(3, 47, 3):  # sóng tôn
+        c.rect(x, 11, x, 38, GD)
+    hline(c, 1, 60, 10, GD), hline(c, 1, 60, 39, GD)
+    # cửa bên phải
+    c.rect(47, 10, 60, 39, rgb('#466052'))
+    c.rect(53, 10, 53, 39, GD)
+    for x in (49, 51, 56, 58):
+        c.rect(x, 12, x, 37, rgb('#7d9688'))
+    for y in (18, 31):
+        c.rect(48, y, 59, y, MET_D)
+    c.rect(52, 22, 54, 25, YELLOW)  # ổ khoá
+    c.set(53, 24, BLACK)
+    # chữ số sơn trắng đã tróc
+    c.rect(9, 15, 26, 22, CREAM_D)  # biển ghi chú đã bạc màu
+    c.rect(10, 16, 25, 21, CREAM)
+    for y in (17, 19):
+        hline(c, 12, 23 - (y % 3), y, GREY_D)
+    c.rect(32, 14, 41, 23, rgb('#3a5246'))  # vệt sơn đè
+    # gỉ sét chảy
+    rnd = random.Random(7)
+    for _ in range(26):
+        x, y = rnd.randint(2, 58), rnd.randint(11, 37)
+        c.set(x, y, RUST)
+        if rnd.random() < 0.5:
+            c.set(x, y + 1, RUST_L)
+    for x in range(2, 60, 7):
+        c.rect(x, 36, x + 2, 38, RUST)
+    hline(c, 1, 60, 40, rgb('#2a2a2a'))
+    return outline(c)
+
+
+def grainbin():
+    """Kho thóc: bồn tôn tròn mái chóp, thang sắt, bao tải lúa chất cạnh."""
+    c = C(44, 56)
+    T1, T2, T3 = rgb('#a8a49a'), rgb('#cfcbc0'), rgb('#77736a')
+    # thân trụ
+    c.rect(4, 18, 31, 52, T1)
+    c.rect(4, 18, 9, 52, T2)
+    c.rect(26, 18, 31, 52, T3)
+    for y in range(21, 52, 4):
+        hline(c, 4, 31, y, T3)
+    # mái chóp
+    for i in range(12):
+        hline(c, 17 - i - 1, 18 + i, 6 + i, T2 if i % 3 else T1)
+        c.set(17 - i - 1, 6 + i, T2), c.set(18 + i, 6 + i, T3)
+    c.rect(15, 3, 20, 6, T3)
+    hline(c, 3, 32, 18, T3)
+    # thang
+    for x in (29, 33):
+        c.rect(x, 14, x, 52, MET_D)
+    for y in range(17, 52, 4):
+        hline(c, 29, 33, y, MET_D)
+    # cửa xả & gỉ
+    c.rect(12, 42, 19, 50, rgb('#5a564e'))
+    c.rect(13, 43, 18, 49, rgb('#3e3b35'))
+    rnd = random.Random(3)
+    for _ in range(20):
+        x, y = rnd.randint(5, 30), rnd.randint(19, 50)
+        c.set(x, y, RUST)
+    # bao tải lúa
+    for x, y in ((31, 47), (38, 47), (34, 41)):
+        c.ellipse(x + 3, y + 3, 4.2, 3.6, SAND, SAND_D)
+        hline(c, x + 1, x + 5, y + 1, SAND_L)
+        c.set(x + 3, y, SAND_D)
+    hline(c, 2, 42, 53, rgb('#3a3a32'))
+    return outline(c)
+
+
+# ---------------- Nhà máy trên nông trại (Chú Tư xây bằng đồ lục được) ----------------
+TIN, TIN_L, TIN_D = rgb('#8e8a80'), rgb('#b8b4a8'), rgb('#5e5a52')
+BRICK, BRICK_L, BRICK_D = rgb('#a0583a'), rgb('#c47a52'), rgb('#6e3a26')
+PLANK, PLANK_L, PLANK_D = rgb('#8a6a48'), rgb('#ad8a62'), rgb('#5e4630')
+
+
+def tin_roof(c, x0, x1, y0, y1):
+    c.rect(x0, y0, x1, y1, TIN)
+    for x in range(x0, x1 + 1, 3):
+        c.rect(x, y0, x, y1, TIN_D)
+    hline(c, x0, x1, y0, TIN_L)
+    hline(c, x0, x1, y1, TIN_D)
+    rnd = random.Random(x0 * 7 + y0)
+    for _ in range((x1 - x0) // 3):
+        c.set(rnd.randint(x0, x1), rnd.randint(y0, y1), RUST)
+
+
+def mill():
+    """Cối xay gió sắt gỉ: tháp giàn, lán tôn nhỏ dưới chân (cánh quạt vẽ riêng để quay)."""
+    c = C(40, 68)
+    # tháp giàn
+    for y in range(14, 58):
+        k = (y - 14) / 44
+        xl, xr = int(17 - 9 * k), int(22 + 9 * k)
+        c.set(xl, y, MET_D), c.set(xr, y, MET_D)
+        if y % 8 == 0:
+            hline(c, xl, xr, y, MET)
+        if y % 8 < 4:
+            c.set(int(xl + (xr - xl) * ((y % 8) / 8)), y, MET)
+    c.rect(16, 9, 23, 15, TIN_D)  # hộp số
+    c.rect(17, 10, 22, 14, TIN)
+    c.rect(24, 10, 33, 12, MET_D)  # đuôi
+    c.rect(30, 6, 35, 15, RUST)
+    c.rect(31, 7, 34, 14, RUST_L)
+    # lán tôn dưới chân
+    c.rect(4, 52, 35, 65, PLANK)
+    for x in range(6, 35, 4):
+        c.rect(x, 52, x, 65, PLANK_D)
+    tin_roof(c, 2, 37, 47, 52)
+    c.rect(16, 56, 23, 65, PLANK_D)  # cửa
+    c.rect(17, 57, 22, 65, rgb('#3a2c20'))
+    c.ellipse(8, 62, 3.5, 3, SAND, SAND_D)  # bao bột
+    return outline(c)
+
+
+def mill_fan():
+    c = C(30, 30)
+    import math
+    for i in range(6):
+        if i == 4:
+            continue  # gãy 1 cánh
+        a = i * math.pi / 3
+        for r in range(3, 14):
+            x, y = 15 + math.cos(a) * r, 15 + math.sin(a) * r
+            for w in range(-1, 2):
+                c.set(int(x - math.sin(a) * w), int(y + math.cos(a) * w), MET_L if r < 9 else (RUST if r % 4 == 0 else MET))
+    c.ellipse(15, 15, 2.5, 2.5, MET_D, MET_D)
+    return outline(c)
+
+
+def bakery():
+    """Lò bánh: lò gạch đất nung hình vòm, ống khói, mái tôn che, đống củi."""
+    c = C(56, 52)
+    tin_roof(c, 2, 53, 6, 12)  # mái che trên cột
+    for x in (4, 50):
+        c.rect(x, 12, x + 1, 49, PLANK_D)
+    # lò vòm
+    c.ellipse(24, 38, 17, 14, BRICK, BRICK_D)
+    c.rect(7, 38, 41, 49, BRICK)
+    for y in range(28, 49, 4):
+        for x in range(8 + (y // 4 % 2) * 3, 41, 6):
+            c.set(x, y, BRICK_D)
+    c.rect(9, 30, 18, 33, BRICK_L)
+    c.ellipse(24, 42, 6, 5.5, BLACK, BLACK)  # miệng lò
+    c.rect(19, 42, 29, 49, BLACK)
+    c.rect(20, 45, 28, 48, FIRE)
+    c.rect(22, 46, 26, 47, FIRE_L)
+    c.rect(34, 0, 39, 26, BRICK_D)  # ống khói
+    c.rect(35, 1, 38, 25, BRICK)
+    # củi
+    for i, y in enumerate((44, 47)):
+        for x in range(44, 54, 3):
+            c.ellipse(x + 1, y, 1.6, 1.4, WD, WDD)
+    hline(c, 2, 53, 50, rgb('#3a3028'))
+    return outline(c)
+
+
+def dairy():
+    """Xưởng sữa: lán gỗ chắp vá tấm tôn, bình sữa nhôm trước cửa."""
+    c = C(54, 54)
+    c.rect(4, 20, 49, 50, PLANK)
+    for x in range(6, 49, 5):
+        c.rect(x, 20, x, 50, PLANK_D)
+    hline(c, 4, 49, 30, PLANK_L)
+    c.rect(30, 26, 42, 36, TIN)  # miếng tôn vá
+    for x in range(31, 42, 3):
+        c.rect(x, 26, x, 36, TIN_D)
+    c.rect(8, 33, 14, 39, RUST)  # miếng vá gỉ
+    # mái tôn dốc
+    for i in range(14):
+        hline(c, 2 + i // 3, 51 - i // 3, 6 + i, TIN if i % 3 else TIN_L)
+    for x in range(4, 51, 3):
+        c.rect(x, 7, x, 19, TIN_D)
+    c.rect(11, 9, 18, 12, RUST)
+    # cửa đôi + cửa sổ
+    c.rect(18, 34, 31, 50, PLANK_D)
+    c.rect(24, 34, 25, 50, rgb('#3a2c20'))
+    c.rect(36, 39, 44, 45, rgb('#3a4a58'))
+    c.rect(36, 42, 44, 42, PLANK_D)
+    # bình sữa
+    for x in (6, 12):
+        c.rect(x, 44, x + 4, 51, MET_L)
+        c.rect(x + 1, 42, x + 3, 43, MET)
+        c.rect(x, 47, x + 4, 47, MET)
+    hline(c, 2, 51, 52, rgb('#3a3028'))
+    return outline(c)
+
+
+def juicer():
+    """Máy ép nước tự chế: khung sắt trục vít trên thùng phuy, sọt trái cây."""
+    c = C(36, 46)
+    c.rect(6, 22, 25, 43, RUST)  # thùng phuy
+    c.rect(6, 22, 9, 43, RUST_L)
+    for y in (27, 35, 42):
+        hline(c, 6, 25, y, rgb('#5a3420'))
+    c.ellipse(15, 22, 10, 2.5, rgb('#5a3420'))
+    # khung ép
+    for x in (5, 26):
+        c.rect(x, 4, x + 1, 22, MET_D)
+    c.rect(4, 3, 28, 6, MET)
+    hline(c, 4, 28, 3, MET_L)
+    c.rect(15, 6, 16, 16, MET_L)  # trục vít
+    for y in range(7, 16, 2):
+        hline(c, 14, 17, y, MET_D)
+    c.rect(9, 0, 22, 2, WD)  # tay quay
+    c.rect(11, 16, 20, 19, WD)  # mâm ép
+    c.rect(26, 30, 29, 33, MET)  # vòi
+    c.set(28, 34, rgb('#e86a3a')), c.set(28, 36, rgb('#e86a3a'))
+    # sọt trái cây
+    c.rect(27, 38, 35, 44, WD)
+    hline(c, 27, 35, 41, WDD)
+    for x, col in ((28, RED_L), (30, ORANGE), (32, RED), (34, YELLOW)):
+        c.set(x, 37, col), c.set(x + 1, 37, col), c.set(x, 36, col)
+    hline(c, 2, 35, 45, rgb('#3a3028'))
+    return outline(c)
+
+
+def stall():
+    """Sạp bán ven đường: khung gỗ, bạt sọc bạc màu bị rách, thùng hàng."""
+    c = C(40, 50)
+    for x in (3, 35):
+        c.rect(x, 12, x + 1, 46, PLANK_D)
+    # bạt sọc
+    for x in range(1, 39):
+        col = rgb('#b85a4a') if (x // 5) % 2 else CREAM_D
+        for y in range(4, 14 + (x % 5 == 2)):
+            c.set(x, y, col)
+    for x in range(1, 39, 5):
+        c.rect(x, 14, x + 2, 15, rgb('#b85a4a') if (x // 5) % 2 else CREAM_D)
+    c.rect(22, 6, 25, 11, T)  # lỗ rách
+    c.set(21, 8, T), c.set(26, 9, T)
+    hline(c, 1, 38, 4, rgb('#d8cdb4'))
+    # quầy
+    c.rect(2, 30, 37, 45, PLANK)
+    hline(c, 2, 37, 30, PLANK_L)
+    for x in range(4, 37, 6):
+        c.rect(x, 31, x, 45, PLANK_D)
+    # hàng trên quầy
+    c.rect(5, 25, 13, 29, WD)
+    for x, col in ((6, ORANGE), (8, RED), (10, GREEN), (12, YELLOW)):
+        c.set(x, 24, col), c.set(x + 1, 24, col)
+    c.rect(17, 24, 22, 29, MET)  # đồ hộp
+    hline(c, 17, 22, 26, RED)
+    c.rect(26, 22, 33, 29, CANVAS)  # bao
+    hline(c, 2, 37, 47, rgb('#3a3028'))
+    c.rect(28, 37, 34, 42, CREAM)  # bảng giá
+    hline(c, 29, 33, 39, GREY_D)
+    return outline(c)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     sprites = {
@@ -449,6 +705,8 @@ def main():
         'trashcan': trashcan(), 'milcrate': milcrate(), 'barrel': barrel(), 'cabinet': cabinet(), 'ruinwall': ruinwall(),
         'tires': tires(), 'workbench': workbench(), 'watchtower': watchtower(), 'cone': cone(),
         'blood0': blood(1), 'blood1': blood(2), 'bones': bones(), 'nest0': nest(0), 'nest1': nest(1),
+        'container': container(), 'grainbin': grainbin(),
+        'f_mill': mill(), 'f_mill_fan': mill_fan(), 'f_bakery': bakery(), 'f_dairy': dairy(), 'f_juicer': juicer(), 'f_stand': stall(),
     }
     W_MAX = 256
     x = y = row_h = 0

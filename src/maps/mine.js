@@ -1,4 +1,5 @@
-// Hầm mỏ: mỗi tầng sinh ngẫu nhiên đá, quặng, quái vật và một cầu thang ẩn
+// Hầm ngầm quân sự bỏ hoang: mỗi tầng sinh ngẫu nhiên phòng & hành lang, đống đổ nát, phế liệu,
+// zombie (càng sâu càng nhiều zombie lính) và một cầu thang ẩn dưới đống đổ nát
 import Phaser from 'phaser';
 import { TILE, MINE_W, MINE_H, MONSTERS, ITEMS, TOOLS } from '../config.js';
 import { state, changed, toast, sfx, addItem, selected, useEnergy, toolLv, xp, bagHasRoom } from '../state.js';
@@ -8,12 +9,12 @@ import Combat from '../combat.js';
 const key = (x, y) => `${x},${y}`;
 export const MINE_SPAWN = { x: 3, y: 4 };
 
-// Chủ đề hang: hầm mỏ trong rừng = đất; Hang sâu (Mỏ đá) = băng → dung nham → pha lê
+// Khu trong hầm: lối vào từ rừng = hầm chỉ huy; Tầng sâu (Bãi phế liệu) = kho lạnh → phòng lò hơi → phòng thí nghiệm
 export const THEMES = {
-  earth: { name: 'Hầm mỏ', floor: 0xc09e84, wallTint: 0xa88a72, rock: 0xa89a8c, dark: 0x060302, darkA: 0.93, playerLight: 64 },
-  ice: { name: 'Hang băng', floor: 0xbcd6f2, wallTint: 0x9cbce4, rock: 0xc8e4f8, dark: 0x02060e, darkA: 0.9, playerLight: 68 },
-  lava: { name: 'Hang dung nham', floor: 0xc88a70, wallTint: 0x9a5a48, rock: 0xc98a78, dark: 0x0a0200, darkA: 0.9, playerLight: 62 },
-  crystal: { name: 'Hang pha lê', floor: 0xb4a8e0, wallTint: 0x8a7ac8, rock: 0xb4a4d8, dark: 0x04020c, darkA: 0.92, playerLight: 66 },
+  earth: { name: 'Hầm chỉ huy', floor: 0xe0dcd0, wallTint: 0xd8d4c8, rock: 0xd8d0c4, dark: 0x05070a, darkA: 0.9, playerLight: 64, lamp: 0xeef4ff },
+  ice: { name: 'Kho lạnh', floor: 0xd4e6f6, wallTint: 0xb8d0ea, rock: 0xd8e8f8, dark: 0x02060e, darkA: 0.9, playerLight: 68, lamp: 0xd8ecff },
+  lava: { name: 'Phòng lò hơi', floor: 0xe8bca8, wallTint: 0xc89080, rock: 0xd8a898, dark: 0x0a0200, darkA: 0.9, playerLight: 62, lamp: 0xffb070 },
+  crystal: { name: 'Phòng thí nghiệm', floor: 0xcfe6d0, wallTint: 0xa8c8b0, rock: 0xc8dccc, dark: 0x020a04, darkA: 0.92, playerLight: 66, lamp: 0xc8ffd0 },
 };
 export const themeOf = (zone, floor) => (zone !== 'deep' ? 'earth' : floor <= 10 ? 'ice' : floor <= 20 ? 'lava' : 'crystal');
 // Hang sâu khó như hầm mỏ +20 tầng
@@ -49,52 +50,50 @@ function oreFor(floor, theme) {
   if (r < 0.22) return 'ore_copper';
   return null;
 }
-const rockName = (type) => (type === 'stone' ? 'Đá' : type === 'crystal' ? 'Cụm pha lê' : ITEMS[type].name);
-const rockTex = (type) => (type === 'stone' ? 'objects' : type.startsWith('gem') ? 'ore_gem' : type === 'crystal' ? 'q_crystal' : type.startsWith('geode') ? `q_${type}` : type);
+const rockName = (type) => (type === 'stone' ? 'Đống bê tông vỡ' : type === 'crystal' ? 'Bình hoá chất' : type.startsWith('gem') ? 'Két sắt nhỏ' : `Đống ${ITEMS[type].name.toLowerCase()}`);
+const rockTex = (type) => (type === 'stone' ? 'cave_rubble' : type.startsWith('gem') ? 'ore_gem' : type === 'crystal' ? 'q_crystal' : type.startsWith('geode') ? `q_${type}` : type);
 
-// Sinh hình hang tự nhiên (cellular automata), chỉ giữ vùng nối liền với lối vào
+// Sinh mặt bằng hầm: phòng chữ nhật nối nhau bằng hành lang rộng 2 ô (luôn đi tới được hết)
 function genCave(W, H) {
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const wall = [];
-    const forcedFloor = (x, y) => x >= MINE_SPAWN.x - 1 && x <= MINE_SPAWN.x + 3 && y >= MINE_SPAWN.y && y <= MINE_SPAWN.y + 3;
-    const forcedWall = (x, y) => x < 1 || y < 2 || x >= W - 1 || y >= H - 1 || (y === MINE_SPAWN.y - 1 && x >= MINE_SPAWN.x - 1 && x <= MINE_SPAWN.x + 3);
-    for (let y = 0; y < H; y++) {
-      wall.push([]);
-      for (let x = 0; x < W; x++) wall[y].push(forcedWall(x, y) ? true : forcedFloor(x, y) ? false : Math.random() < 0.45);
-    }
-    const count = (x, y, r) => {
-      let n = 0;
-      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-        if (!dx && !dy) continue;
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H || wall[ny][nx]) n++;
-      }
-      return n;
-    };
-    for (let it = 0; it < 5; it++) {
-      const next = wall.map((row) => row.slice());
-      for (let y = 0; y < H; y++)
-        for (let x = 0; x < W; x++) {
-          if (forcedWall(x, y)) next[y][x] = true;
-          else if (forcedFloor(x, y)) next[y][x] = false;
-          else next[y][x] = count(x, y, 1) >= 5 || (it < 2 && count(x, y, 2) <= 3);
-        }
-      for (let y = 0; y < H; y++) wall[y] = next[y];
-    }
-    // Giữ vùng đi tới được từ lối vào
-    const seen = new Set([key(MINE_SPAWN.x, MINE_SPAWN.y)]);
-    const q = [[MINE_SPAWN.x, MINE_SPAWN.y]];
-    while (q.length) {
-      const [x, y] = q.pop();
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H || wall[ny][nx] || seen.has(key(nx, ny))) continue;
-        seen.add(key(nx, ny));
-        q.push([nx, ny]);
-      }
-    }
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!wall[y][x] && !seen.has(key(x, y))) wall[y][x] = true;
-    if (seen.size >= (W - 2) * (H - 3) * 0.42 || attempt === 11) return wall;
+  const wall = Array.from({ length: H }, () => Array(W).fill(true));
+  const carve = (x0, y0, x1, y1) => {
+    for (let y = Math.max(4, y0); y <= Math.min(H - 2, y1); y++) for (let x = Math.max(1, x0); x <= Math.min(W - 2, x1); x++) wall[y][x] = false;
+  };
+  const rooms = [{ x0: MINE_SPAWN.x - 1, y0: MINE_SPAWN.y, x1: MINE_SPAWN.x + 4, y1: MINE_SPAWN.y + 4 }];
+  for (let tries = 0; rooms.length < 9 && tries < 300; tries++) {
+    const w = 4 + Math.floor(Math.random() * 6), h = 3 + Math.floor(Math.random() * 4);
+    const x0 = 1 + Math.floor(Math.random() * (W - w - 2)), y0 = 4 + Math.floor(Math.random() * (H - h - 5));
+    const r = { x0, y0, x1: x0 + w - 1, y1: y0 + h - 1 };
+    if (rooms.some((o) => r.x0 <= o.x1 + 2 && r.x1 >= o.x0 - 2 && r.y0 <= o.y1 + 2 && r.y1 >= o.y0 - 2)) continue;
+    rooms.push(r);
   }
+  const mid = (r) => [Math.floor((r.x0 + r.x1) / 2), Math.floor((r.y0 + r.y1) / 2)];
+  for (const r of rooms) carve(r.x0, r.y0, r.x1, r.y1);
+  // Nối mỗi phòng với phòng gần nhất đã nối (cây khung) + vài lối vòng
+  const linked = [rooms[0]];
+  const corridor = (a, b) => {
+    const [ax, ay] = mid(a), [bx, by] = mid(b);
+    if (Math.random() < 0.5) {
+      carve(Math.min(ax, bx), ay, Math.max(ax, bx), ay + 1);
+      carve(bx, Math.min(ay, by), bx + 1, Math.max(ay, by));
+    } else {
+      carve(ax, Math.min(ay, by), ax + 1, Math.max(ay, by));
+      carve(Math.min(ax, bx), by, Math.max(ax, bx), by + 1);
+    }
+  };
+  for (const r of rooms.slice(1)) {
+    const [rx, ry] = mid(r);
+    const near = linked.reduce((best, o) => {
+      const [ox, oy] = mid(o);
+      const d = Math.abs(ox - rx) + Math.abs(oy - ry);
+      return d < best.d ? { o, d } : best;
+    }, { o: null, d: 1e9 }).o;
+    corridor(r, near);
+    linked.push(r);
+  }
+  for (let i = 0; i < 2; i++) corridor(rooms[1 + Math.floor(Math.random() * (rooms.length - 1))], rooms[1 + Math.floor(Math.random() * (rooms.length - 1))]);
+  wall[MINE_SPAWN.y - 1][MINE_SPAWN.x] = true; // vách treo thang lên
+  return wall;
 }
 
 // Bóng tối trong hang: lớp tối phủ cả bản đồ, khoét lỗ sáng quanh người chơi, đuốc, dung nham, pha lê
@@ -184,8 +183,8 @@ export function buildMine(s) {
   s.add.image(lad.x * TILE, lad.y * TILE, 'element', 'ladderUp').setOrigin(0).setDepth(-800);
   s.statics.set(key(lad.x, lad.y), () =>
     zone === 'deep'
-      ? { label: 'Lên Mỏ đá', run: () => s.changeMap('quarry', { x: 38, y: 7 }) } // trước cửa Hang sâu (QUARRY.caveFront)
-      : { label: 'Lên khỏi hầm mỏ', run: () => s.changeMap('forest', { x: 32, y: 6 }) }
+      ? { label: 'Lên Bãi phế liệu', run: () => s.changeMap('quarry', { x: 38, y: 7 }) } // trước cửa hầm sâu (QUARRY.caveFront)
+      : { label: 'Lên khỏi hầm quân sự', run: () => s.changeMap('forest', { x: 32, y: 6 }) }
   );
   addGlow(s, lad.x * TILE + 8, lad.y * TILE + 14, 46, 0xffe0a0, false); // ánh sáng lọt từ trên xuống
 
@@ -214,14 +213,16 @@ export function buildMine(s) {
     if (torches.some(([a, b]) => Math.abs(a - x) + Math.abs(b - y) < 9)) continue;
     if (x === lad.x && y === lad.y) continue;
     torches.push([x, y]);
-    const t = s.add.sprite(x * TILE + 8, y * TILE + 8, 'cave_torch', 0).setDepth(-890).play('cave_torch');
-    t.anims.setProgress(Math.random());
-    addGlow(s, x * TILE + 8, y * TILE + 8, theme === 'ice' ? 38 : 42, 0xffa040, true);
+    // Đèn huỳnh quang: phần lớn sáng ổn định, vài cái chập chờn
+    const t = s.add.sprite(x * TILE + 8, y * TILE + 8, 'cave_torch', 0).setDepth(-890).setTint(T.lamp);
+    const flick = Math.random() < 0.35;
+    if (flick) s.time.addEvent({ delay: 90, loop: true, callback: () => t.active && t.setFrame(Math.random() < 0.12 ? 1 : 0) });
+    addGlow(s, x * TILE + 8, y * TILE + 10, 46, T.lamp, flick);
   }
   // Cột chống gỗ dựng sát vách
   for (const [x, y] of faces.slice(0, Math.floor(faces.length / 9))) {
     if (torches.some(([a, b]) => a === x && b === y) || (x === lad.x && y === lad.y) || isWall(x, y + 1)) continue;
-    s.add.image(x * TILE + 8, (y + 2) * TILE - 2, 'cave_beam').setOrigin(0.5, 1).setDepth(-889).setTint(theme === 'ice' ? 0xd8e8ff : 0xffffff);
+    s.add.image(x * TILE + 8, (y + 2) * TILE - 2, 'cave_beam').setOrigin(0.5, 1).setDepth(-889);
   }
   // Lối vào: đường ray, xe goòng, thùng gỗ
   const ry = MINE_SPAWN.y + 2;
@@ -251,15 +252,15 @@ export function buildMine(s) {
         solid(x + dx, y, s.add.sprite((x + dx) * TILE + 8, y * TILE + 8, 'cave_lava', 0).setDepth(-945).play('cave_lava'));
         s.waterTiles.delete(key(x + dx, y));
       }
-      addGlow(s, x * TILE + 16, y * TILE + 8, 44, 0xff6a30, true);
+      addGlow(s, x * TILE + 16, y * TILE + 8, 44, 0x80ff60, true);
     } else if (theme !== 'lava' && pud < 3 && r < 0.15 && !isWall(x + 1, y) && !used.has(key(x + 1, y))) {
       pud++;
       used.add(key(x, y)), used.add(key(x + 1, y));
       s.add.image(x * TILE + 16, y * TILE + 8, 'cave_puddle').setDepth(-944).setAlpha(theme === 'ice' ? 0.9 : 0.75).setTint(theme === 'ice' ? 0xcfeaff : 0xffffff);
     } else if ((theme === 'crystal' || theme === 'ice') && glow < 6 && besideWall && r < 0.2 && safe(x, y)) {
       glow++;
-      solid(x, y, s.add.image(x * TILE + 8, (y + 1) * TILE, 'q_crystal').setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1).setTint(theme === 'ice' ? 0xd8f0ff : 0xe0b8ff));
-      addGlow(s, x * TILE + 8, y * TILE + 6, 40, theme === 'ice' ? 0x8fd3f0 : 0xc08aff, false);
+      solid(x, y, s.add.image(x * TILE + 8, (y + 1) * TILE, 'q_crystal').setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1).setTint(theme === 'ice' ? 0xc8e8ff : 0xffffff));
+      addGlow(s, x * TILE + 8, y * TILE + 6, 40, theme === 'ice' ? 0x8fd3f0 : 0x90ff70, false);
     }
   }
 
@@ -284,15 +285,19 @@ export function buildMine(s) {
   }
   s.ladderRock = rocks.length ? key(...rocks[Math.floor(Math.random() * rocks.length)]) : null;
 
-  // Quái vật (ở chỗ trống, xa lối vào)
-  s.combat = new Combat(s);
-  const types = Object.entries(MONSTERS).filter(([, m]) => s.mineEff >= m.minFloor).map(([t]) => t);
-  const n = Math.min(3 + Math.floor(s.mineEff / 3), 10);
+  // Zombie (ở chỗ trống, xa lối vào): càng sâu càng nhiều lính & con to khoẻ
+  s.combat = new Combat(s, null);
+  const eff = s.mineEff;
+  const pool = ['walker', 'walker', 'runner'];
+  if (eff >= 4) pool.push('soldier', 'soldier');
+  if (eff >= 10) pool.push('brute', 'soldier');
+  if (eff >= 20) pool.push('soldier', 'brute', 'runner');
+  const n = Math.min(3 + Math.floor(eff / 3), 11);
   let placed = 0;
   for (const [x, y] of rest) {
     if (placed >= n) break;
     if (Math.abs(x - MINE_SPAWN.x) + Math.abs(y - MINE_SPAWN.y) < 8) continue;
-    s.combat.spawn(types[Math.floor(Math.random() * types.length)], x, y);
+    s.combat.spawnZombie(pool[Math.floor(Math.random() * pool.length)], x, y);
     placed++;
   }
 
@@ -301,8 +306,8 @@ export function buildMine(s) {
   if (!state.hasSword) {
     state.hasSword = true;
     state.sel = 'tool:sword';
-    toast('Bạn nhặt được một thanh kiếm cũ ở lối vào hầm! (đã thêm vào thanh công cụ)');
-  } else toast(zone === 'deep' ? `Hang sâu — tầng ${floor} · ${T.name}` : `Hầm mỏ — tầng ${floor}`);
+    toast('Bạn nhặt được một thanh kiếm quân dụng ở lối vào hầm! (đã thêm vào thanh công cụ)');
+  } else toast(zone === 'deep' ? `Tầng hầm sâu — tầng ${floor} · ${T.name}` : `Hầm quân sự — tầng ${floor}`);
   changed();
 }
 
@@ -317,8 +322,8 @@ function renderRock(s, x, y) {
     s.objWalls.delete(k);
     return;
   }
-  const img = s.add.image(x * TILE + 8, (y + 1) * TILE, rockTex(o.type), o.type === 'stone' ? 'rock' : undefined).setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1);
-  if (o.type === 'stone') img.setTint(THEMES[s.mineTheme].rock);
+  const img = s.add.image(x * TILE + 8, (y + 1) * TILE, rockTex(o.type)).setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1);
+
   if (Math.random() < 0.5) img.setFlipX(true);
   s.mineSprites.set(k, img);
   s.blocked.add(k);

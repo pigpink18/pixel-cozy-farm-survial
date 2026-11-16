@@ -1,6 +1,6 @@
 // ============================================================
-//  Mỏ đá (phía đông làng): đá & quặng mọc lại mỗi ngày, tảng đá lớn, hốc đá,
-//  bàn đập hốc đá, xe goòng bán khoáng sản, lối vào Hang sâu
+//  Bãi phế liệu (phía đông trại): bê tông vỡ & đống phế liệu (đồng, thép, bo mạch) mọc lại mỗi ngày,
+//  đống sắt vụn lớn, hộp khoá quân dụng, bàn phá khoá, xe thu mua phế liệu, cửa xuống tầng hầm sâu
 // ============================================================
 import { TILE, ITEMS } from '../config.js';
 import { state, bus, changed, toast, sfx, addItem, count, xp, toolLv, bagHasRoom, useEnergy } from '../state.js';
@@ -28,12 +28,12 @@ export const QUARRY = {
 
 // Yêu cầu cuốc chim & độ cứng
 const NODES = {
-  stone: { name: 'Đá', hp: 2, lv: 1 },
-  ore_copper: { name: 'Quặng đồng', hp: 3, lv: 1 },
-  ore_iron: { name: 'Quặng sắt', hp: 5, lv: 2 },
-  ore_gold: { name: 'Quặng vàng', hp: 7, lv: 3 },
-  geode: { name: 'Hốc đá', hp: 3, lv: 1 },
-  boulder: { name: 'Tảng đá lớn', hp: 10, lv: 2 },
+  stone: { name: 'Bê tông vỡ', hp: 2, lv: 1 },
+  ore_copper: { name: 'Đống dây đồng', hp: 3, lv: 1 },
+  ore_iron: { name: 'Đống thép vụn', hp: 5, lv: 2 },
+  ore_gold: { name: 'Đống bo mạch', hp: 7, lv: 3 },
+  geode: { name: 'Hộp khoá quân dụng', hp: 3, lv: 1 },
+  boulder: { name: 'Đống sắt vụn lớn', hp: 10, lv: 2 },
 };
 const TIER = ['', 'thường', 'đồng', 'sắt', 'vàng'];
 
@@ -56,25 +56,25 @@ const inRect = (x, y, [x0, y0, x1, y1], pad = 0) => x >= x0 - pad && x <= x1 + p
 
 export function buildQuarry(s) {
   const Q = QUARRY;
-  // Nền đất đá
-  s.add.rectangle(0, 0, s.worldW, s.worldH, 0xc9a77c).setOrigin(0).setDepth(-999);
+  // Nền sỏi đá xám, vệt dầu loang
+  s.add.rectangle(0, 0, s.worldW, s.worldH, 0x8c877c).setOrigin(0).setDepth(-999);
   const r = rng(99);
-  for (let i = 0; i < 520; i++)
-    s.add.rectangle(r() * s.worldW, r() * s.worldH, 2 + r() * 3, 2, r() < 0.5 ? 0xb08f66 : 0xdcbf96).setDepth(-990);
-  // Lối đi: đất nện + đường ray
-  for (const [x0, y0, x1, y1] of Q.paths) s.add.rectangle(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, 0xb89870).setOrigin(0).setDepth(-985);
-  // Hình ray vẽ theo chiều dọc → đoạn ngang xoay 90°
-  for (let x = 1; x <= 36; x++) s.add.image(x * TILE + 8, 15 * TILE, 'q_rail').setRotation(Math.PI / 2).setDepth(-980);
-  for (let y = 8; y <= 15; y++) s.add.image(38 * TILE, y * TILE + 8, 'q_rail').setDepth(-980);
+  for (let i = 0; i < 620; i++)
+    s.add.rectangle(r() * s.worldW, r() * s.worldH, 2 + r() * 3, 2, r() < 0.5 ? 0x77726a : 0xa29d92).setDepth(-990);
+  for (let i = 0; i < 14; i++) s.add.ellipse(r() * s.worldW, r() * s.worldH, 20 + r() * 26, 8 + r() * 8, 0x3a3836, 0.35).setDepth(-988);
+  // Lối đi nhựa đường + đường ray cũ
+  for (const [x0, y0, x1, y1] of Q.paths) s.add.rectangle(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, 0x5e5c58).setOrigin(0).setDepth(-985);
+  for (let x = 1; x <= 36; x++) s.add.image(x * TILE + 8, 15 * TILE, 'q_rail').setRotation(Math.PI / 2).setDepth(-980).setTint(0xb0aaa0);
+  for (let y = 8; y <= 15; y++) s.add.image(38 * TILE, y * TILE + 8, 'q_rail').setDepth(-980).setTint(0xb0aaa0);
 
-  // Vách núi phía bắc (3 hàng) + viền
+  // Tường bê tông phía bắc (3 hàng) + viền
   for (let x = 0; x < Q.w; x++) {
-    s.add.image(x * TILE, 0, 'relief', 5 * 20 + 5).setOrigin(0).setDepth(-950);
-    s.add.image(x * TILE, TILE, 'relief', 6 * 20 + 5).setOrigin(0).setDepth(-950);
-    s.add.image(x * TILE, 2 * TILE, 'relief', 7 * 20 + 5).setOrigin(0).setDepth(-950);
+    s.add.image(x * TILE, 0, 'relief', 5 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
+    s.add.image(x * TILE, TILE, 'relief', 6 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
+    s.add.image(x * TILE, 2 * TILE, 'relief', 7 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
   }
   s.addWall(0, 0, s.worldW, 3 * TILE - 4);
-  const edge = (x, y) => s.add.image(x * TILE, y * TILE, 'relief', 6 * 20 + 2).setOrigin(0).setDepth(-950);
+  const edge = (x, y) => s.add.image(x * TILE, y * TILE, 'relief', 6 * 20 + 2).setOrigin(0).setDepth(-950).setTint(0x9a968e);
   for (let y = 3; y < Q.h; y++) {
     if (!Q.exit.some((e) => e.y === y)) edge(0, y);
     edge(Q.w - 1, y);
@@ -86,18 +86,33 @@ export function buildQuarry(s) {
   s.addWall(0, s.worldH - TILE, s.worldW, TILE);
   for (const e of Q.exit) s.exits.set(key(e.x, e.y), { map: 'village', spawn: Q.toVillage });
 
-  // Mỏm đá cao
-  const F = (t, b, l, rr) => (t ? 5 : b ? 7 : 6) * 20 + (l ? 1 : rr ? 3 : 2);
-  for (const [x0, y0, x1, y1] of Q.plateaus) {
-    s.nineSlice('relief', F, x0, y0, x1, y1, -940);
+  // Container & xe nát chất đống (thay mỏm đá)
+  const tints = [0xffffff, 0xd8a090, 0xa0b8d8, 0xe0d0a0];
+  Q.plateaus.forEach(([x0, y0, x1, y1], i) => {
     s.addWall(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE - 4);
+    for (let cx = x0, k = 0; cx + 3 <= x1 + 1; cx += 4, k++) {
+      s.add.image(cx * TILE, (y1 + 1) * TILE, 'surv', 'container').setOrigin(0, 1).setDepth((y1 + 1) * TILE - 2).setTint(tints[(i + k) % 4]);
+      if (y1 - y0 >= 4) s.add.image(cx * TILE + 2, (y1 - 1) * TILE, 'surv', 'container').setOrigin(0, 1).setDepth((y1 - 1) * TILE - 2).setTint(tints[(i + k + 1) % 4]);
+    }
+    if (x1 - x0 + 1 < 4) s.add.image(x0 * TILE, (y1 + 1) * TILE, 'surv', 'car_white').setOrigin(0, 1).setDepth((y1 + 1) * TILE - 2).setTint(0xb8b0a0);
+  });
+  for (const [x, y, f] of [[15, 10, 'car_red'], [30, 9, 'car_blue'], [22, 24, 'car_white'], [36, 25, 'car_red']]) {
+    s.add.image(x * TILE, (y + 1) * TILE, 'surv', f).setOrigin(0, 1).setDepth((y + 1) * TILE - 1).setTint(0xc0b8a8);
+    s.addWall(x * TILE + 2, y * TILE + 2, 48, 12);
+    for (let dx = 0; dx < 3; dx++) s.blocked.add(key(x + dx, y));
+  }
+  for (const [x, y] of [[4, 9], [25, 12], [34, 20], [14, 26]]) {
+    s.add.image(x * TILE + 8, (y + 1) * TILE, 'surv', 'tires').setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1);
+    s.addWall(x * TILE + 2, y * TILE + 4, 12, 10);
+    s.blocked.add(key(x, y));
   }
 
-  // Hang sâu
+  // Cửa xuống tầng hầm sâu
   const c = Q.cave;
-  const cave = s.add.image(c.x * TILE, (c.y + 1) * TILE, 'nature', 'cave').setOrigin(0, 1).setDepth((c.y + 1) * TILE).setTint(0xe0b08a);
+  const cave = s.add.image(c.x * TILE, (c.y + 1) * TILE, 'q_door').setOrigin(0, 1).setDepth((c.y + 1) * TILE);
   s.addWall(cave.x + 2, cave.y - 34, 44, 32);
-  s.add.text(cave.x + 24, cave.y - 50, 'Hang sâu', { fontFamily: 'VT323', fontSize: '40px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5).setDepth(9000);
+  s.fx.light(cave.x + 40, cave.y - 18, 22);
+  s.add.text(cave.x + 24, cave.y - 50, 'Hầm sâu', { fontFamily: 'VT323', fontSize: '40px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5).setDepth(9000);
   for (let x = c.x; x < c.x + 3; x++) s.statics.set(key(x, c.y), () => caveAction(s));
 
   // Bàn đập hốc đá
@@ -107,9 +122,9 @@ export function buildQuarry(s) {
   s.addWall(a.x * TILE + 2, a.y * TILE + 4, 28, 11);
   for (const x of [a.x, a.x + 1]) {
     s.blocked.add(key(x, a.y));
-    s.statics.set(key(x, a.y), () => ({ label: 'Bàn đập hốc đá', run: () => bus.emit('panel', geodePanel) }));
+    s.statics.set(key(x, a.y), () => ({ label: 'Bàn phá khoá', run: () => bus.emit('panel', geodePanel) }));
   }
-  sign(s, a.x + 2, a.y - 1, 'Đập hốc đá');
+  sign(s, a.x + 2, a.y - 1, 'Phá hộp khoá');
 
   // Xe goòng: bán khoáng sản
   const ct = Q.cart;
@@ -118,7 +133,7 @@ export function buildQuarry(s) {
   s.addWall(ct.x * TILE + 2, ct.y * TILE + 4, 28, 11);
   for (const x of [ct.x, ct.x + 1]) {
     s.blocked.add(key(x, ct.y));
-    s.statics.set(key(x, ct.y), () => ({ label: 'Xe goòng — bán khoáng sản', run: () => bus.emit('panel', mineralPanel) }));
+    s.statics.set(key(x, ct.y), () => ({ label: 'Xe thu mua phế liệu', run: () => bus.emit('panel', mineralPanel) }));
   }
 
   // Đá & quặng (mọc lại mỗi ngày)
@@ -127,7 +142,7 @@ export function buildQuarry(s) {
   for (const k of Object.keys(state.quarry.nodes)) renderNode(s, k);
   if (!state.quarryVisited) {
     state.quarryVisited = true;
-    toast('Mỏ đá! Đá & quặng mọc lại mỗi sáng. Hốc đá mang tới bàn đập để mở ra đá quý.');
+    toast('Bãi phế liệu! Bê tông & phế liệu có lại mỗi sáng. Hộp khoá mang tới bàn phá khoá để mở.');
   }
 }
 
@@ -188,7 +203,7 @@ function renderNode(s, k) {
   const objs = [];
   let img;
   if (o.type === 'boulder') img = s.add.image(x * TILE + 16, (y + 2) * TILE, 'q_boulder').setOrigin(0.5, 1).setDepth((y + 2) * TILE - 1);
-  else if (o.type === 'stone') img = s.add.image(x * TILE + 8, (y + 1) * TILE, 'objects', 'rock').setOrigin(0.5, 1).setTint(0xd6c2a8);
+  else if (o.type === 'stone') img = s.add.image(x * TILE + 8, (y + 1) * TILE, 'cave_rubble').setOrigin(0.5, 1);
   else if (o.type === 'geode') img = s.add.image(x * TILE + 8, (y + 1) * TILE - 1, 'q_geode').setOrigin(0.5, 1);
   else img = s.add.image(x * TILE + 8, (y + 1) * TILE, o.type).setOrigin(0.5, 1);
   if (o.type !== 'boulder') img.setDepth((y + 1) * TILE - 1);
@@ -257,16 +272,16 @@ function nodeAction(s, k, sel) {
 }
 
 function caveAction(s) {
-  if (!unlocked('deepcave')) return { act: false, label: `Hang sâu — mở ở uy tín cấp ${needLevel('deepcave')}` };
+  if (!unlocked('deepcave')) return { act: false, label: `Hầm sâu — mở ở uy tín cấp ${needLevel('deepcave')}` };
   return {
-    label: 'Vào Hang sâu',
+    label: 'Xuống tầng hầm sâu',
     run: () =>
       bus.emit('dialog', {
         face: 'portrait',
-        name: 'Hang sâu',
+        name: 'Tầng hầm sâu',
         text: state.deepDeepest
-          ? `Tầng sâu nhất đã tới: ${state.deepDeepest}. Tầng 1–10 hang băng, 11–20 hang dung nham, từ 21 hang pha lê. Thang máy dừng mỗi 5 tầng:`
-          : 'Gió lạnh thổi ra từ lòng núi... Hang sâu có quặng quý và quái vật mạnh hơn hầm mỏ trong rừng. Mang theo kiếm và đồ ăn nhé!',
+          ? `Tầng sâu nhất đã tới: ${state.deepDeepest}. Tầng 1–10 kho lạnh, 11–20 phòng lò hơi, từ 21 phòng thí nghiệm. Thang máy dừng mỗi 5 tầng:`
+          : 'Hơi lạnh phả ra từ cửa thép... Tầng hầm sâu của căn cứ có phế liệu quý, hộp khoá và nhiều zombie lính hơn hầm trong rừng. Mang theo vũ khí và đồ ăn nhé!',
         choices: [...mineEntryChoices(s, 'deep'), { label: 'Thôi', onClick: null }],
       }),
   };
@@ -286,12 +301,12 @@ function crack(id) {
   addItem(out, n);
   xp('mining', 2);
   sfx(out.startsWith('gem') || out === 'bar_gold' ? 'success' : 'pick', 0.5);
-  toast(`Cốp! ${ITEMS[id].name} mở ra: ${n} ${ITEMS[out].name}${out.startsWith('gem') ? ' ✨' : ''}`);
+  toast(`Cạch! ${ITEMS[id].name} mở ra: ${n} ${ITEMS[out].name}${out.startsWith('gem') ? ' ✨' : ''}`);
   changed();
 }
 
 export const geodePanel = {
-  title: 'Bàn đập hốc đá',
+  title: 'Bàn phá khoá',
   rows() {
     return Object.keys(GEODE_LOOT).map((id) => ({
       icon: { tex: ITEMS[id].tex },
@@ -314,10 +329,10 @@ export const geodePanel = {
 // ---------- Xe goòng: bán khoáng sản ----------
 const MINERALS = () => Object.keys(ITEMS).filter((id) => /^(ore_|gem_|bar_|geode)/.test(id) || id === 'stone');
 export const mineralPanel = {
-  title: 'Xe goòng — bán khoáng sản',
+  title: 'Xe thu mua phế liệu',
   rows() {
     const ids = MINERALS().filter((id) => count(id) > 0);
-    if (!ids.length) return [{ name: 'Chưa có khoáng sản nào trong túi', desc: 'Đập đá, quặng và hốc đá rồi quay lại bán nhé', buttons: [] }];
+    if (!ids.length) return [{ name: 'Chưa có phế liệu nào trong túi', desc: 'Đập bê tông, đống phế liệu và hộp khoá rồi quay lại bán nhé', buttons: [] }];
     return ids.map((id) => ({
       icon: { tex: ITEMS[id].tex, frame: ITEMS[id].frame },
       name: `${ITEMS[id].name} × ${count(id)}`,

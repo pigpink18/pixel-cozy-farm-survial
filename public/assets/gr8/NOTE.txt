@@ -1,1 +1,0 @@
-Thu nhỏ từ GAME/farm/Gr8FarmPack bằng tools/make_buildings.py

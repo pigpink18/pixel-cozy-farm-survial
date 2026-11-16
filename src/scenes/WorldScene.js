@@ -540,7 +540,7 @@ export default class WorldScene extends Phaser.Scene {
       this.addWall(s.x * TILE + 3, s.y * TILE + 8, 10, 8);
       this.statics.set(key(s.x, s.y), () => ({
         act: false,
-        label: `Đất xây ${BUILDINGS[id].name} — đặt xây ở Xưởng mộc của Chú Tư trong làng`,
+        label: `Đất xây ${BUILDINGS[id].name} — nhờ Chú Tư ở Xưởng mộc trong trại xây`,
       }));
       return;
     }
@@ -661,12 +661,12 @@ export default class WorldScene extends Phaser.Scene {
       if (qOpen) this.exits.set(key(51, y), { map: 'quarry', spawn: QUARRY.fromVillage });
       else {
         this.addWall(50 * TILE, y * TILE, 2 * TILE, TILE);
-        for (const x of [49, 50, 51]) this.statics.set(key(x, y), () => ({ act: false, label: `Đường lên Mỏ đá — mở ở uy tín cấp ${needLevel('quarry')}` }));
+        for (const x of [49, 50, 51]) this.statics.set(key(x, y), () => ({ act: false, label: `Đường tới Bãi phế liệu — mở ở uy tín cấp ${needLevel('quarry')}` }));
       }
     }
     this.add.image(49 * TILE + 8, 13 * TILE, 'nature', 'sign').setOrigin(0.5, 1).setDepth(13 * TILE);
     this.add
-      .text(49 * TILE + 8, 12 * TILE - 4, qOpen ? 'Mỏ đá →' : `Mỏ đá (uy tín ${needLevel('quarry')})`, { fontFamily: 'VT323', fontSize: '36px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
+      .text(49 * TILE + 8, 12 * TILE - 4, qOpen ? 'Bãi phế liệu →' : `Bãi phế liệu (uy tín ${needLevel('quarry')})`, { fontFamily: 'VT323', fontSize: '36px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
       .setScale(0.25)
       .setOrigin(0.5, 1)
       .setDepth(9000);

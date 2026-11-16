@@ -171,8 +171,8 @@ export function decorateFarm(s, isFree) {
   if ((state.base?.generator || 0) >= 1) for (const [x, y] of [[8, 9], [10, 18], [20, 12], [30, 12], [45, 12], [24, 8], [34, 8]]) s.fx.light(x * TILE + 8, y * TILE, 70);
   prop(s, 'well', 10, 5, { w: 2, action: (sel) => (sel.id === 'can' ? { label: 'Múc nước giếng vào bình', run: () => s.refill() } : { act: false, label: 'Giếng nước — chọn bình tưới để múc nước' }) });
   prop(s, 'scarecrow', 16, 22, { label: 'Bù nhìn canh ruộng' });
-  for (const [x, y] of [[26, 10], [33, 10], [47, 10], [58, 10], [12, 13]]) lamp(s, x, y);
-  prop(s, 'signpost', 21, 13, { label: '↓ Rừng · Hầm mỏ   → Làng' });
+  for (const [x, y] of [[26, 10], [33, 10], [49, 10], [58, 10], [12, 13]]) lamp(s, x, y);
+  prop(s, 'signpost', 21, 13, { label: '↓ Rừng · Hầm quân sự   → Trại' });
   prop(s, 'bench', 34, 14, { w: 2, label: 'Ghế ngồi ngắm ao' });
   prop(s, 'haybale', 27, 5, { label: 'Rơm' });
   waterside(s, 17);
@@ -191,7 +191,7 @@ export function decorateForest(s) {
     if (logs < 7 && r() < 0.4) { if (free(x + 1, y) && !nearPath(x + 1, y) && prop(s, 'log', x, y, { w: 2, label: 'Khúc gỗ mục' })) logs++; }
     else if (bushes < 12 && prop(s, r() < 0.5 ? 'berry_red' : 'berry_blue', x, y, { label: 'Bụi quả dại (chưa chín)' })) bushes++;
   }
-  prop(s, 'signpost', 21, 8, { label: '→ Hầm mỏ   ← Hồ cá' });
+  prop(s, 'signpost', 21, 8, { label: '→ Hầm quân sự   ← Hồ cá' });
   waterside(s, 41);
   patches(s, free, 46, 123, ['mush_red', 'mush_brown', 'grass0', 'grass1', 'wild_purple', 'wild_yellow', 'stones']);
 }

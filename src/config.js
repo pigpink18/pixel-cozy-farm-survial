@@ -63,9 +63,9 @@ export const ITEMS = {
   juice_melon: { name: 'Nước ép dưa hấu', tex: 'fp_goods', frame: 10, sell: 330, good: true },
   tea_flower: { name: 'Trà hoa', tex: 'fp_goods', frame: 11, sell: 70, good: true },
   storage_chest: { name: 'Rương chứa đồ', tex: 'objects', frame: 'chestStore', sell: 0, place: true, homePlace: true },
-  ore_copper: { name: 'Quặng đồng', tex: 'ore_copper', sell: 5 },
-  ore_iron: { name: 'Quặng sắt', tex: 'ore_iron', sell: 10 },
-  ore_gold: { name: 'Quặng vàng', tex: 'ore_gold', sell: 25 },
+  ore_copper: { name: 'Dây đồng phế liệu', tex: 'ore_copper', sell: 5 },
+  ore_iron: { name: 'Thép phế liệu', tex: 'ore_iron', sell: 10 },
+  ore_gold: { name: 'Bo mạch mạ vàng', tex: 'ore_gold', sell: 25 },
   bar_copper: { name: 'Thỏi đồng', tex: 'barcopper', sell: 60 },
   bar_iron: { name: 'Thỏi sắt', tex: 'bariron', sell: 120 },
   bar_gold: { name: 'Thỏi vàng', tex: 'bargold', sell: 250 },
@@ -73,9 +73,9 @@ export const ITEMS = {
   gem_purple: { name: 'Thạch anh tím', tex: 'gempurple', sell: 100 },
   gem_yellow: { name: 'Hoàng ngọc', tex: 'gemyellow', sell: 180 },
   gem_red: { name: 'Hồng ngọc', tex: 'gemred', sell: 250 },
-  geode: { name: 'Hốc đá', tex: 'q_geode', sell: 30 },
-  geode_ice: { name: 'Hốc băng', tex: 'q_geode_ice', sell: 60 },
-  geode_fire: { name: 'Hốc lửa', tex: 'q_geode_fire', sell: 100 },
+  geode: { name: 'Hộp khoá quân dụng', tex: 'q_geode', sell: 30 },
+  geode_ice: { name: 'Hộp khoá kho lạnh', tex: 'q_geode_ice', sell: 60 },
+  geode_fire: { name: 'Hộp khoá lò hơi', tex: 'q_geode_fire', sell: 100 },
   // Cá
   fish_ro: { name: 'Cá rô', tex: 'fish_ro', sell: 30, fish: true },
   shrimp: { name: 'Tôm càng', tex: 'food_shrimp', sell: 45, fish: true },
@@ -218,9 +218,9 @@ export const RECIPES = [
   { id: 'fence', out: 2, cost: { wood: 1 }, desc: 'Rào chắn trang trí, đặt lên cỏ' },
   { id: 'sprinkler', out: 1, cost: { wood: 5, stone: 5 }, desc: 'Tự tưới 8 ô đất xung quanh mỗi sáng' },
   { id: 'storage_chest', out: 1, cost: { wood: 30 }, desc: 'Cất đồ & nông sản — đặt ở nông trại hoặc trong nhà' },
-  { id: 'bar_copper', out: 1, cost: { ore_copper: 5, wood: 2 }, desc: 'Nung quặng — dùng nâng cấp công cụ' },
-  { id: 'bar_iron', out: 1, cost: { ore_iron: 5, wood: 2 }, desc: 'Nung quặng — dùng nâng cấp công cụ' },
-  { id: 'bar_gold', out: 1, cost: { ore_gold: 5, wood: 2 }, desc: 'Nung quặng — dùng nâng cấp công cụ' },
+  { id: 'bar_copper', out: 1, cost: { ore_copper: 5, wood: 2 }, desc: 'Nấu chảy phế liệu — dùng nâng cấp công cụ' },
+  { id: 'bar_iron', out: 1, cost: { ore_iron: 5, wood: 2 }, desc: 'Nấu chảy phế liệu — dùng nâng cấp công cụ' },
+  { id: 'bar_gold', out: 1, cost: { ore_gold: 5, wood: 2 }, desc: 'Nấu chảy phế liệu — dùng nâng cấp công cụ' },
 ];
 
 // ============================================================
@@ -242,17 +242,17 @@ export const STORES = {
   silo: { name: 'Kho thóc', desc: 'Chứa nông sản (rau củ, trái cây)', caps: [0, 50, 80, 120, 180, 250], upgrade: [null, { coins: 400, wood: 20 }, { coins: 900, wood: 30, stone: 20 }, { coins: 1800, bar_copper: 3, wood: 40 }, { coins: 3500, bar_iron: 3, stone: 40 }] },
   barn: { name: 'Nhà kho', desc: 'Chứa sản phẩm, đồ chế biến, nguyên liệu', caps: [0, 50, 80, 120, 180, 250], upgrade: [null, { coins: 400, stone: 20 }, { coins: 900, wood: 20, stone: 30 }, { coins: 1800, bar_copper: 3, stone: 40 }, { coins: 3500, bar_iron: 3, wood: 40 }] },
 };
-// Nhà máy: level = cấp nông trại cần, cost = chi phí xây, slots = số món xếp hàng, recipes: out ← cost trong min phút (giờ game)
+// Nhà máy: level = cấp nông trại cần, cost = đồ lục được mang tới Chú Tư để nhờ xây (frame: hình trong atlas 'surv'), slots = số món xếp hàng, recipes: out ← cost trong min phút (giờ game)
 export const FACTORIES = {
   mill: {
-    name: 'Cối xay', tex: 'gr8_mill', level: 2, cost: { coins: 300, wood: 20 }, slots: 3,
+    name: 'Cối xay gió', frame: 'f_mill', level: 2, cost: { scrap: 10, parts: 2, wood: 15 }, slots: 3,
     recipes: [
       { out: 'flour', n: 1, cost: { potato: 2 }, min: 60 },
       { out: 'feed', n: 3, cost: { carrot: 1, potato: 1 }, min: 40 },
     ],
   },
   juicer: {
-    name: 'Quầy ép nước', tex: 'gr8_juicer', level: 2, cost: { coins: 350, wood: 15, stone: 10 }, slots: 3,
+    name: 'Máy ép nước', frame: 'f_juicer', level: 2, cost: { scrap: 8, parts: 3, fuel: 1 }, slots: 3,
     recipes: [
       { out: 'juice_carrot', n: 1, cost: { carrot: 3 }, min: 40 },
       { out: 'juice_tomato', n: 1, cost: { tomato: 3 }, min: 60 },
@@ -261,7 +261,7 @@ export const FACTORIES = {
     ],
   },
   bakery: {
-    name: 'Lò bánh', tex: 'gr8_bakery', level: 3, cost: { coins: 800, wood: 30, stone: 20 }, slots: 3,
+    name: 'Lò bánh', frame: 'f_bakery', level: 3, cost: { scrap: 12, fuel: 4, parts: 3, stone: 15 }, slots: 3,
     recipes: [
       { out: 'bread', n: 1, cost: { flour: 2, egg: 1 }, min: 120 },
       { out: 'cookie', n: 1, cost: { flour: 1, strawberry: 2 }, min: 90 },
@@ -269,7 +269,7 @@ export const FACTORIES = {
     ],
   },
   dairy: {
-    name: 'Xưởng sữa', tex: 'gr8_dairy', level: 4, cost: { coins: 1200, wood: 30, stone: 30 }, slots: 3,
+    name: 'Xưởng sữa', frame: 'f_dairy', level: 4, cost: { scrap: 18, cloth: 8, parts: 5, battery: 2 }, slots: 3,
     recipes: [
       { out: 'butter', n: 1, cost: { milk: 2 }, min: 90 },
       { out: 'cheese', n: 1, cost: { milk: 3 }, min: 150 },
@@ -355,7 +355,7 @@ export const NPCS = {
     birthday: { season: 3, day: 12 },
     gifts: { 2: { geode: 3, ore_iron: 5 }, 4: { bar_gold: 2, gem_red: 1 } },
     name: 'Bác Sáu', sheet: 'Miner', role: 'miner', loves: ['gem_red', 'dish_grill'],
-    lines: ['Mỏ đá này bác đào mấy chục năm rồi.', 'Hốc đá đem đập ra nhiều khi có ngọc đó.', 'Đá mọc lại mỗi sáng.'],
+    lines: ['Bãi phế liệu này bác lục mấy năm rồi.', 'Hộp khoá quân dụng phá ra nhiều khi có ngọc đó.', 'Phế liệu có lại mỗi sáng.'],
   },
   ba: {
     birthday: { season: 1, day: 11 },
@@ -410,7 +410,7 @@ export const FESTIVALS = [
 // ---------- Kỹ năng ----------
 export const SKILLS = {
   farming: { name: 'Trồng trọt', perk: 'Thêm nông sản khi thu hoạch; cấp 5: cuốc/tưới tốn ít sức hơn' },
-  mining: { name: 'Khai khoáng', perk: 'Thêm quặng/đá khi đập; cấp 5: cuốc chim tốn ít sức hơn' },
+  mining: { name: 'Nhặt phế liệu', perk: 'Thêm phế liệu/đá khi đập; cấp 5: cuốc chim tốn ít sức hơn' },
   foraging: { name: 'Hái lượm', perk: 'Thêm gỗ & đồ hái lượm; cấp 5: rìu tốn ít sức hơn' },
   fishing: { name: 'Câu cá', perk: 'Vùng xanh trong mini-game rộng hơn' },
   combat: { name: 'Chiến đấu', perk: 'Kiếm gây thêm sát thương, máu tối đa cao hơn' },

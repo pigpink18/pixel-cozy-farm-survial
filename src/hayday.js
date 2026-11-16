@@ -22,7 +22,7 @@ export function farmProgress() {
 }
 // Tên những thứ mở khoá ở đúng cấp lv
 export function unlocksAt(lv) {
-  const name = (id) => ITEMS[id]?.name || BUILDINGS[id]?.name || ANIMALS[id]?.name || { bag: 'Ba lô lớn', rod: 'Cần câu', quarry: 'Mỏ đá (cuối đường phía đông làng)', deepcave: 'Hang sâu trong Mỏ đá', home2: 'Nâng cấp nhà gỗ rộng (Xưởng mộc)', home3: 'Nâng cấp nhà lớn (Xưởng mộc)' }[id] || id;
+  const name = (id) => ITEMS[id]?.name || BUILDINGS[id]?.name || ANIMALS[id]?.name || { bag: 'Ba lô lớn', rod: 'Cần câu', quarry: 'Bãi phế liệu (cuối đường phía đông trại)', deepcave: 'Tầng hầm sâu ở Bãi phế liệu', home2: 'Nâng cấp nhà gỗ rộng (Xưởng mộc)', home3: 'Nâng cấp nhà lớn (Xưởng mộc)' }[id] || id;
   return [
     ...Object.entries(UNLOCK_LEVEL).filter(([, l]) => l === lv).map(([id]) => name(id)),
     ...Object.values(FACTORIES).filter((f) => f.level === lv).map((f) => f.name),
@@ -123,15 +123,38 @@ export function upgradeStore(k) {
 // ---------- Nhà máy ----------
 export const factoryBuilt = (id) => !!state.factories[id];
 
+// Nhờ Chú Tư xây: mang đồ lục được tới, chú dựng xong sau FAC_BUILD_MIN phút (giờ game)
+export const FAC_BUILD_MIN = 180;
+export const facBuilding = (id) => state.facBuild?.[id] != null;
+export const facLeft = (id) => Math.max(1, (state.facBuild?.[id] ?? absMin()) - absMin());
+export const facLack = (id) => {
+  const f = FACTORIES[id];
+  const miss = Object.entries(f.cost).filter(([k, n]) => have(k) < n);
+  return miss.length ? `Còn thiếu: ${miss.map(([k, n]) => `${n - have(k)} ${ITEMS[k].name}`).join(', ')}` : null;
+};
 export function buildFactory(id) {
   const f = FACTORIES[id];
   if (farmLevel() < f.level) return toast(`Cần uy tín cấp ${f.level} để xây ${f.name}`);
-  if (!payCost(f.cost)) return toast(`Chưa đủ: ${costText(f.cost)}`);
-  state.factories[id] = { queue: [] };
-  farmXp(10);
-  sfx('success');
-  toast(`Đã xây ${f.name}! Chạm vào để sản xuất.`);
+  if (factoryBuilt(id) || facBuilding(id)) return;
+  const lack = facLack(id);
+  if (lack) return toast(lack);
+  if (!payCost(f.cost)) return;
+  state.facBuild = { ...(state.facBuild || {}), [id]: absMin() + FAC_BUILD_MIN };
+  sfx('fanfare', 0.5);
+  toast(`Chú Tư nhận đồ rồi! ${f.name} sẽ dựng xong sau ${FAC_BUILD_MIN / 60} tiếng.`);
   changed();
+}
+// Gọi mỗi nhịp đồng hồ & sang ngày mới: công trình nào tới giờ thì hoàn thành
+export function finishFactories(force = false) {
+  const done = [];
+  for (const [id, t] of Object.entries(state.facBuild || {})) {
+    if (!force && absMin() < t) continue;
+    delete state.facBuild[id];
+    state.factories[id] = { queue: [] };
+    farmXp(10);
+    done.push(FACTORIES[id].name);
+  }
+  return done;
 }
 
 export const readyCount = (id) => (state.factories[id]?.queue || []).filter((q) => q.done <= absMin()).length;

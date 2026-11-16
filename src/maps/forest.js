@@ -56,20 +56,22 @@ export function buildForest(s) {
   s.lakeTiles = new Set();
   for (const lk of [F.lake, F.lake2]) s.addWater(s.pondShape(lk, lk.lobes), 'lake');
 
-  // Hang mỏ
+  // Cửa hầm ngầm quân sự
   const c = F.cave;
-  const cave = s.add.image(c.x * TILE, (c.y + 1) * TILE, 'nature', 'cave').setOrigin(0, 1).setDepth((c.y + 1) * TILE);
+  const cave = s.add.image(c.x * TILE, (c.y + 1) * TILE, 'q_door').setOrigin(0, 1).setDepth((c.y + 1) * TILE);
+  s.fx.shadow(cave.x + 24, cave.y - 1, 50);
   s.addWall(cave.x + 2, cave.y - 34, 44, 32);
+  s.fx.light(cave.x + 40, cave.y - 18, 22); // đèn báo đỏ
   for (let x = c.x; x < c.x + 3; x++)
     s.statics.set(key(x, c.y), () => ({
-      label: 'Vào hầm mỏ',
+      label: 'Vào hầm quân sự',
       run: () =>
         bus.emit('dialog', {
           face: 'portrait',
-          name: 'Hầm mỏ',
+          name: 'Hầm ngầm quân sự',
           text: state.mineDeepest
             ? `Tầng sâu nhất đã tới: ${state.mineDeepest}. Thang máy dừng mỗi 5 tầng. Chọn tầng muốn xuống:`
-            : 'Một cái hang tối om... Nghe nói bên dưới có quặng quý và quái vật. Vào thử chứ?',
+            : 'Cửa hầm thép của quân đội đã bị phá khoá... Bên dưới tối om, có tiếng gầm gừ vọng lên. Nghe nói trong đó còn nhiều phế liệu quý và hòm quân dụng. Xuống chứ?',
           choices: [...mineEntryChoices(s), { label: 'Thôi', onClick: null }],
         }),
     }));

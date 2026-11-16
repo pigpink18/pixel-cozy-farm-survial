@@ -14,6 +14,7 @@ import Fishing from '../fishing.js';
 import { STORES } from '../config.js';
 import { absMin } from '../hayday.js';
 import { BUILDINGS } from '../config.js';
+import { finishFactories } from '../hayday.js';
 import { farmLevel, farmProgress, onHour, storeFor, storeUsed, storeCap, storable, upgradeStore, costText as hdCost } from '../hayday.js';
 
 import { text, textLight, box, buttonKey, C } from '../ui/theme.js';
@@ -471,6 +472,13 @@ export default class UIScene extends Phaser.Scene {
         if (baseLv('medic') >= 2 && ui.place === 'farm' && state.hp < maxHp()) state.hp += 1;
         const grew = growCrops();
         if (grew.length) bus.emit('cropsGrew', grew);
+        // Nhà máy Chú Tư xây xong
+        for (const name of finishFactories()) {
+          sfx('fanfare', 0.5);
+          toast(`Chú Tư đã dựng xong ${name}! Chạm vào để sản xuất.`);
+          bus.emit('buildingDone');
+          save();
+        }
         // Chuồng trại xây xong
         for (const [id, done] of Object.entries(state.buildDone || {})) {
           if (state.buildings[id] !== 'building') delete state.buildDone[id];

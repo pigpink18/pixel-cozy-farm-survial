@@ -70,7 +70,7 @@ export const LINES = {
   },
   tu: {
     1: ['Gỗ, đá cần bao nhiêu chú cũng có.', 'Chuồng trại muốn bền thì phải chọn gỗ tốt.', 'Nhà cháu hơi chật đó, muốn nới rộng thì nói chú.'],
-    3: ['Chiều chiều chú hay lên Mỏ đá lựa đá đẹp về làm đồ.', 'Cái cuốc chim mà nâng cấp lên sắt thì đập đá ngọt lắm.', 'Chú đang đóng một bộ bàn ghế mới, rảnh ghé coi.'],
+    3: ['Chiều chiều chú hay lên Bãi phế liệu lựa sắt về làm đồ.', 'Cái cuốc chim mà nâng cấp lên sắt thì đập đá ngọt lắm.', 'Chú đang đóng một bộ bàn ghế mới, rảnh ghé coi.'],
     5: ['Chú làm mộc cả đời, giờ mới gặp người chịu khó như cháu.', 'Có món nội thất nào cháu thích, chú bớt giá cho!', 'Hồi trẻ chú cũng mơ có trang trại như của cháu vậy đó.'],
   },
   mai: {
@@ -89,9 +89,9 @@ export const LINES = {
     5: ['Ông bạn đúng là dân làng chính hiệu rồi!', 'Bữa nào rảnh mình đi câu chung nha, tui chỉ chỗ cá to.', 'Có ông bạn rồi làng mình vui hẳn.'],
   },
   sau: {
-    1: ['Mỏ đá này bác đào mấy chục năm rồi.', 'Hốc đá đừng có bán, đem đập ra nhiều khi có ngọc đó.', 'Đá mọc lại mỗi sáng, chăm lên đây là có của ăn của để.'],
-    3: ['Hang sâu càng xuống càng lạnh, rồi tới chỗ nóng như lò rèn.', 'Muốn đập quặng vàng phải có cuốc chim sắt nghe chưa.', 'Hồng ngọc nằm sâu dưới hang dung nham, quý lắm.'],
-    5: ['Cái nghề đào mỏ này bác truyền lại cho cháu đó!', 'Hồi trẻ bác từng thấy cả một vách pha lê dưới hang sâu...', 'Cháu cứng cỏi lắm, bác tin cháu xuống tận đáy hang được.'],
+    1: ['Bãi phế liệu này bác lục mấy năm rồi.', 'Hộp khoá đừng có bán, đem phá ra nhiều khi có ngọc đó.', 'Phế liệu có lại mỗi sáng, chăm lên đây là có của ăn của để.'],
+    3: ['Tầng hầm sâu càng xuống càng lạnh, rồi tới phòng lò hơi nóng hừng hực.', 'Muốn đập đống bo mạch phải có cuốc chim sắt nghe chưa.', 'Hồng ngọc nằm trong hộp khoá lò hơi, quý lắm.'],
+    5: ['Cái nghề lục phế liệu này bác truyền lại cho cháu đó!', 'Hồi xưa bác từng thấy cả phòng thí nghiệm dưới đáy hầm...', 'Cháu cứng cỏi lắm, bác tin cháu xuống tận đáy hầm được.'],
   },
 };
 
@@ -141,9 +141,9 @@ Object.assign(LINES, {
     5: ['Ông bạn là chiến binh số một của trại!', 'Có ông bạn rồi tui gác cổng yên tâm hẳn.', 'Bữa nào mình đi càn khu quân sự chung nha.'],
   },
   sau: {
-    1: ['Mỏ đá giờ là chỗ an toàn hiếm hoi.', 'Đá, quặng vẫn cần để xây tường.', 'Dưới hầm sâu cũng có thứ quái quỷ lắm.'],
-    3: ['Quặng sắt nung ra thép, làm rào chắc lắm.', 'Bác thấy xe quân sự bỏ lại ở phía đông...', 'Thuốc súng chế từ quặng với than đó.'],
-    5: ['Cháu cứng cỏi lắm, bác tin cháu.', 'Bác sẽ đi cùng cháu tới khu quân sự.', 'Nghề mỏ bác truyền cho cháu hết rồi.'],
+    1: ['Bãi phế liệu giờ là mỏ vàng của dân sống sót.', 'Sắt thép vẫn cần để xây tường.', 'Dưới hầm quân sự có zombie lính, cẩn thận.'],
+    3: ['Thép phế liệu nấu chảy ra, làm rào chắc lắm.', 'Bác thấy xe quân sự bỏ lại ở phía đông...', 'Hộp khoá quân dụng nhiều khi có cả đá quý đó.'],
+    5: ['Cháu cứng cỏi lắm, bác tin cháu.', 'Bác sẽ đi cùng cháu tới khu quân sự.', 'Nghề lục phế liệu bác truyền cho cháu hết rồi.'],
   },
   nam: {
     1: ['Cá là nguồn thịt sạch duy nhất còn lại.', 'Hồ trong rừng giờ có zombie lảng vảng, coi chừng.', 'Ông bán cá đổi đạn, giá cao đó.'],

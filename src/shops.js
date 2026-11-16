@@ -1,9 +1,9 @@
 // Cửa hàng, chế tạo, NPC, nhiệm vụ — tạo dữ liệu cho UIScene hiển thị
 import { timeText } from './crops.js';
-import { ITEMS, CROPS, BUILDINGS, ANIMALS, ANIMAL_NAMES, RECIPES, NPCS, SEASON_LINES, HAY_PRICE, SHOP_OPEN, SHOP_CLOSE, TOOLS, TOOL_TIERS, TIER_BARS, ROD_PRICE, FISH, FORAGE, COOKING, BAG_BIG, BAG_PRICE } from './config.js';
+import { ITEMS, CROPS, BUILDINGS, ANIMALS, ANIMAL_NAMES, RECIPES, NPCS, SEASON_LINES, HAY_PRICE, SHOP_OPEN, SHOP_CLOSE, TOOLS, TOOL_TIERS, TIER_BARS, ROD_PRICE, FISH, FORAGE, COOKING, BAG_BIG, BAG_PRICE, FACTORIES } from './config.js';
 import { state, bus, changed, toast, sfx, has, count, addItem, season, hearts, itemName, ui, roomFor } from './state.js';
 import { makeQuest } from './day.js';
-import { unlocked, needLevel, absMin, farmLevel } from './hayday.js';
+import { unlocked, needLevel, absMin, farmLevel, factoryBuilt, facBuilding, facLeft, facLack, buildFactory } from './hayday.js';
 import { FURN, FURN_CATS, WALLS, FLOORS, HOME_LEVELS, homeLv, ensureHome, addOwned, ownedCount } from './furniture.js';
 export const BUILD_MIN = 60; // xây chuồng mất 60 phút trong game (~36 giây)
 import { festivalChoice, specialLine, isBirthday, heartEvent } from './festivals.js';
@@ -108,7 +108,7 @@ export const storePanel = {
 
 // ---------- Xưởng mộc ----------
 export const carpenterPanel = {
-  title: 'Xưởng mộc của Chú Tư',
+  title: 'Chú Tư — nhờ xây công trình',
   face: 'face_tu',
   rows() {
     const rows = Object.entries(BUILDINGS).map(([id, b]) => {
@@ -140,6 +140,18 @@ export const carpenterPanel = {
               ],
       };
     });
+    // Nhà máy trên nông trại: trả bằng đồ lục được ở vùng zombie
+    for (const [id, f] of Object.entries(FACTORIES)) {
+      const lock = farmLevel() < f.level ? `Cần uy tín cấp ${f.level}` : null;
+      const lack = facLack(id);
+      const done = factoryBuilt(id), busy = facBuilding(id);
+      rows.push({
+        icon: { tex: 'surv', frame: f.frame },
+        name: `${f.name} — ${Object.entries(f.cost).map(([k, n]) => `${n} ${ITEMS[k].name}`).join(' + ')}`,
+        desc: done ? 'Đã dựng xong trên nông trại' : busy ? `Chú đang dựng — xong sau ${facLeft(id)} phút` : lock || lack || 'Đủ đồ rồi — bấm Nhờ xây!',
+        buttons: done || busy ? [] : lock ? [{ label: `Cấp ${f.level}`, disabled: true, onClick: () => {} }] : [{ label: 'Nhờ xây', disabled: !!lack, onClick: () => buildFactory(id) }],
+      });
+    }
     // Nâng cấp nhà
     ensureHome();
     const nextHome = HOME_LEVELS[homeLv() + 1];
@@ -417,8 +429,8 @@ export function talk(npcId, text, greet = true) {
   if (npc.role === 'fisher') choices.push({ label: 'Bán cá (giá cao)', onClick: () => openPanel(fishBuyPanel) });
   if (npc.role === 'cook') choices.push({ label: 'Mua món ăn', onClick: () => openPanel(cookShopPanel) });
   if (npc.role === 'miner') {
-    choices.push({ label: 'Bán khoáng sản', onClick: () => openPanel(mineralPanel) });
-    choices.push({ label: 'Đập hốc đá', onClick: () => openPanel(geodePanel) });
+    choices.push({ label: 'Bán phế liệu', onClick: () => openPanel(mineralPanel) });
+    choices.push({ label: 'Phá hộp khoá', onClick: () => openPanel(geodePanel) });
   }
   if (req && has(req.item, req.qty)) {
     choices.push({

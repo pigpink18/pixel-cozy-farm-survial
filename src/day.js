@@ -6,6 +6,7 @@ import { growCrops } from './crops.js';
 import { morningNews } from './festivals.js';
 import { maxHp } from './skills.js';
 import { baseLv, baseMorning, FOOD_MAX } from './survival.js';
+import { finishFactories } from './hayday.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -31,6 +32,8 @@ export function newDay(passedOut) {
       notes.push(`${BUILDINGS[id].name} đã xây xong!`);
     }
   }
+
+  for (const name of finishFactories(true)) notes.push(`Chú Tư đã dựng xong ${name}!`);
 
   // 4. NPC: reset trò chuyện / quà trong ngày
   for (const n of Object.values(state.npcs)) {

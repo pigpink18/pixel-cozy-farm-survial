@@ -71,7 +71,6 @@ export default class BootScene extends Phaser.Scene {
     sheet('fp_bushes', FP + 'bushes.png');
     sheet('fp_soil', FP + 'soil.png');
     sheet('fp_goods', FP + 'goods.png'); // tools/make_goods.py
-    for (const b of ['silo', 'warehouse', 'mill', 'bakery', 'dairy', 'juicer', 'stand']) this.load.image(`gr8_${b}`, `assets/gr8/${b}.png`);
     this.load.image('coin', NJ + 'items/coin.png');
     sheet('fp_fence', FP + 'fences.png'); // tools/make_fences.py: 0 ngang, 1 dọc, 2 cột, 3 đầu trái, 4 đầu phải
     sheet('fp_crops2', FP + 'crops2.png'); // tools/make_crops.py: khoai tây, bí ngô, đậu que // vẽ bằng tools/make_soil.py: 0–2 đất khô, 3–5 đất ướt
@@ -90,8 +89,9 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('food_lifepot', `${NJ}food/lifepot.png`);
     sheet('interior', 'assets/interior/interior.png');
     sheet('twfurn', TW + 'furniture.png');
-    for (const q of ['geode', 'geode_ice', 'geode_fire', 'boulder', 'anvil', 'cart', 'crystal', 'rail']) this.load.image(`q_${q}`, `assets/quarry/${q}.png`); // tools/make_quarry.py
-    for (const c of ['floor0', 'floor1', 'floor2', 'floor3', 'wall_top', 'wall_face', 'edge_l', 'edge_r', 'edge_t', 'beam', 'stalagmite', 'pebbles', 'puddle', 'crate']) this.load.image(`cave_${c}`, `assets/cave/${c}.png`); // tools/make_cave.py
+    for (const q of ['geode', 'geode_ice', 'geode_fire', 'boulder', 'anvil', 'cart', 'crystal', 'rail', 'door']) this.load.image(`q_${q}`, `assets/quarry/${q}.png`); // tools/make_quarry.py
+    for (const c of ['floor0', 'floor1', 'floor2', 'floor3', 'wall_top', 'wall_face', 'edge_l', 'edge_r', 'edge_t', 'beam', 'stalagmite', 'pebbles', 'puddle', 'crate', 'rubble']) this.load.image(`cave_${c}`, `assets/cave/${c}.png`); // tools/make_bunker.py
+    for (const o of ['ore_copper', 'ore_iron', 'ore_gold', 'ore_gem']) this.load.image(o, `assets/cave/${o}.png`); // đống phế liệu & két sắt
     this.load.spritesheet('cave_torch', 'assets/cave/torch.png', { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('cave_lava', 'assets/cave/lava.png', { frameWidth: 16, frameHeight: 16 });
     for (const t of ['path', 'water', 'plaza', 'road']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
@@ -126,7 +126,6 @@ export default class BootScene extends Phaser.Scene {
     addFrames('nhouse', NINJA_FRAMES.house);
     addFrames('nature', NINJA_FRAMES.nature);
     addFrames('element', NINJA_FRAMES.element);
-    this.makeOres();
     makeUiTextures(this);
     makeFxTextures(this);
     this.makeFish();
@@ -195,28 +194,6 @@ export default class BootScene extends Phaser.Scene {
       ctx.fillRect(0, 0, 16, 16);
       ctx.globalCompositeOperation = 'destination-in';
       ctx.drawImage(src, 0, 0);
-      tex.refresh();
-    }
-  }
-
-  // Quặng = đá + đốm màu (vẽ bằng code)
-  makeOres() {
-    const src = this.textures.get('objects').getSourceImage();
-    const [rx, ry] = OBJECT_FRAMES.rock;
-    const spots = [[5, 6], [9, 8], [6, 10], [10, 11], [8, 5], [4, 9]];
-    const ores = { ore_copper: ['#e07a3a', '#ffb070'], ore_iron: ['#c8d4e0', '#ffffff'], ore_gold: ['#f2c63a', '#fff2a0'], ore_gem: ['#b06af0', '#7ae8f0'] };
-    for (const [k, [c1, c2]] of Object.entries(ores)) {
-      const tex = this.textures.createCanvas(k, 16, 16);
-      const ctx = tex.getContext();
-      ctx.drawImage(src, rx, ry, 16, 16, 0, 0, 16, 16);
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.fillStyle = 'rgba(70,60,55,0.35)';
-      ctx.fillRect(0, 0, 16, 16);
-      ctx.globalCompositeOperation = 'source-over';
-      spots.forEach(([x, y], i) => {
-        ctx.fillStyle = i % 2 ? c2 : c1;
-        ctx.fillRect(x, y + 1, 2, 2);
-      });
       tex.refresh();
     }
   }
