@@ -508,10 +508,11 @@ export default class UIScene extends Phaser.Scene {
     this.tweens.add({ targets: top, y: { from: -56, to: 0 }, duration: 600, ease: 'Sine.easeOut' });
     this.tweens.add({ targets: bot, y: { from: this.H, to: this.H - 64 }, duration: 600, ease: 'Sine.easeOut' });
     this.cineCap = this.add.text(this.W / 2, this.H - 32, '', { fontFamily: FONT, fontSize: '30px', color: '#fff3d6', align: 'center' }).setOrigin(0.5).setAlpha(0);
-    const skip = this.add.text(this.W - 14, 28, 'Bỏ qua ▶▶', { fontFamily: FONT, fontSize: '24px', color: '#c8c0b0' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    // lùi vào trong: góc màn iPhone bo tròn che mất chữ
+    const skip = this.add.text(this.W - 56, 28, 'Bỏ qua ▶▶', { fontFamily: FONT, fontSize: '24px', color: '#c8c0b0' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
     skip.on('pointerup', () => bus.emit('cineSkip'));
     c.add([this.cineCap, skip]);
-    this.cineRect = new Phaser.Geom.Rectangle(this.W - 160, 0, 160, 56);
+    this.cineRect = new Phaser.Geom.Rectangle(this.W - 210, 0, 210, 56);
     this.uiRects.push(this.cineRect);
   }
 

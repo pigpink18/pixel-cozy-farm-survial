@@ -24,11 +24,17 @@ function measure() {
   }
   const cs = getComputedStyle(probe);
   const px = (v) => parseFloat(v) || 0;
+  // App ngoài màn hình chính (iPhone): innerHeight bị trừ sẵn thanh trạng thái dù trang vẫn vẽ được ở đó
+  // → lấy thẳng kích thước màn hình thật (screen luôn báo theo chiều dọc: đảo lại khi đang nằm ngang).
+  const portrait = window.innerHeight >= window.innerWidth;
+  const sLong = Math.max(screen.width, screen.height), sShort = Math.min(screen.width, screen.height);
+  const scrW = standalone() ? (portrait ? sShort : sLong) : 0;
+  const scrH = standalone() ? (portrait ? sLong : sShort) : 0;
   return {
-    W: Math.max(window.innerWidth, document.documentElement.clientWidth),
+    W: Math.max(window.innerWidth, document.documentElement.clientWidth, scrW),
     // Phủ kín tới mép dưới màn hình (100lvh). Thanh Safari trên iOS mới là lớp trong suốt đè lên trang,
     // chừa phần đó ra thì lộ một khúc trống → phủ luôn.
-    H: Math.max(window.innerHeight, probe.offsetHeight),
+    H: Math.max(window.innerHeight, probe.offsetHeight, scrH),
     top: px(cs.paddingTop), right: px(cs.paddingRight), bottom: px(cs.paddingBottom), left: px(cs.paddingLeft),
   };
 }
@@ -120,7 +126,7 @@ export function setupRotate(game) {
   window.addEventListener('orientationchange', () => setTimeout(relayout, 250));
   window.visualViewport?.addEventListener('resize', () => setTimeout(relayout, 60));
   relayout();
-  if (/[?&]debug/.test(location.search)) debugBox(game);
+  if (/[?&]debug/.test(location.search) || localStorage.getItem('ashenDebug')) debugBox(game);
 }
 
 // ?debug: in số đo màn hình thật lên góc màn hình (để dò lỗi hở viền trên iPhone)
