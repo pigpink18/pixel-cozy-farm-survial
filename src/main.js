@@ -25,10 +25,15 @@ Promise.all([document.fonts.load('32px VT323'), document.fonts.load('32px AshenG
 
 function startGame() {
   prepareRotate();
+  // Màn điện thoại dài (19.5:9...) → kéo dài bề ngang game cho phủ kín màn hình, không chừa viền đen
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const aspect = Math.max(vw, vh) / Math.max(1, Math.min(vw, vh));
+  // ?fixed: giữ khung 960x540 (dùng khi chạy thử tự động)
+  const GAME_W = /[?&]fixed/.test(location.search) ? 960 : Math.round(Math.min(1200, Math.max(960, 540 * aspect)));
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    width: 960,
+    width: GAME_W,
     height: 540,
     backgroundColor: '#1d1d27',
     pixelArt: true,
