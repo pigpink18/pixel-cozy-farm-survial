@@ -216,6 +216,15 @@ export default class WorldScene extends Phaser.Scene {
       if (exit) this.changeMap(exit.map, exit.spawn);
     };
     bus.on('leaveRoom', onLeave);
+    // Xoay máy làm đổi bề ngang game: dựng lại màn chơi + giao diện cho vừa khung mới
+    const onResized = () => {
+      if (ui.cine || ui.transition || this.penMove) return;
+      const { tx, ty } = this.playerTile();
+      this.scene.stop('UI');
+      this.scene.restart({ map: this.mapId, spawn: { x: tx, y: ty }, shop: this.shopId, house: this.houseId, back: this.houseBack, pen: this.penId, ruin: this.ruinIdx, kind: this.ruinKind, floor: this.mineFloor, zone: this.mineZone });
+    };
+    this.game.events.on('gameResized', onResized);
+    this.events.once('shutdown', () => this.game.events.off('gameResized', onResized));
     this.events.once('shutdown', () => {
       bus.off('leaveRoom', onLeave);
       bus.off('passout', onPassout);

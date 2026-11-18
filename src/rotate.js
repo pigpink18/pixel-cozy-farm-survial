@@ -26,9 +26,9 @@ function measure() {
   const px = (v) => parseFloat(v) || 0;
   return {
     W: Math.max(window.innerWidth, document.documentElement.clientWidth),
-    // App ngoài màn hình chính (không có thanh Safari): phủ kín tới đáy (100lvh).
-    // Trong Safari: chỉ dùng phần nhìn thấy (thanh công cụ Safari che đáy màn hình).
-    H: standalone() ? Math.max(window.innerHeight, probe.offsetHeight) : window.visualViewport?.height || window.innerHeight,
+    // Phủ kín tới mép dưới màn hình (100lvh). Thanh Safari trên iOS mới là lớp trong suốt đè lên trang,
+    // chừa phần đó ra thì lộ một khúc trống → phủ luôn.
+    H: Math.max(window.innerHeight, probe.offsetHeight),
     top: px(cs.paddingTop), right: px(cs.paddingRight), bottom: px(cs.paddingBottom), left: px(cs.paddingLeft),
   };
 }
@@ -46,6 +46,12 @@ function layout() {
     Object.assign(g.style, { position: 'fixed', left: `${m.left}px`, top: '0px', width: `${m.W - m.left - m.right}px`, height: `${m.H}px` });
   } else Object.assign(g.style, { width: '', height: '', left: '', top: '', position: '' });
   return rot;
+}
+
+// Bề ngang game theo tỉ lệ khung (cao cố định 540); ?fixed giữ 960 khi chạy thử tự động
+export function pickWidth(aspect) {
+  if (/[?&]fixed/.test(location.search)) return 960;
+  return Math.round(Math.min(1200, Math.max(960, 540 * aspect)));
 }
 
 // Kích thước khung game (chưa xoay): dài x ngắn — main.js dùng để chọn bề ngang game cho vừa
@@ -102,6 +108,13 @@ export function setupRotate(game) {
     layout();
     sm.getParentBounds();
     sm.refresh();
+    // Xoay máy / đổi kích thước làm tỉ lệ khung khác hẳn → đổi bề ngang game cho phủ kín lại
+    const box = gameBox();
+    const want = pickWidth(box.w / Math.max(1, box.h));
+    if (Math.abs(want - sm.gameSize.width) > 8) {
+      sm.setGameSize(want, 540);
+      game.events.emit('gameResized', want);
+    }
   };
   window.addEventListener('resize', () => setTimeout(relayout, 60));
   window.addEventListener('orientationchange', () => setTimeout(relayout, 250));
