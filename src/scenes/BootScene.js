@@ -198,6 +198,8 @@ export default class BootScene extends Phaser.Scene {
         this.anims.create({ key: `zom_${z}_${dir}`, ...zr(i, 6) });
         this.anims.create({ key: `zom_${z}_idle_${dir}`, ...zr(4 + i, 2) });
       });
+      // ngã xuống (hàng 8–9 của sheet, tools/make_zombies_human.py)
+      this.anims.create({ key: `zom_${z}_die`, frames: this.anims.generateFrameNumbers(`zom_${z}`, { start: 32, end: 39 }), frameRate: 12, repeat: 0 });
     }
     // Quái: cột = hướng, hàng = khung hình
     for (const id of Object.keys(MONSTERS))

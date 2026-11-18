@@ -2,19 +2,57 @@
 //  Luôn nằm ngang: khi điện thoại đang dọc (hoặc bật khoá xoay màn hình),
 //  xoay cả khung game 90° bằng CSS và đổi toạ độ chạm cho khớp —
 //  người chơi chỉ cần nghiêng máy sang trái là chơi, không cần bật xoay màn hình.
+//
+//  Kích thước: phủ kín màn hình (dùng chiều cao lớn nhất 100lvh — innerHeight trên iPhone hay bị
+//  trừ thanh trạng thái/thanh Safari → hở một khúc), nhưng CHỪA vùng an toàn của Dynamic Island / tai thỏ
+//  (env(safe-area-inset-*)). Màn dọc: đảo thì Dynamic Island ở mép trên → chừa phía trên.
 // ============================================================
 const el = () => document.getElementById('game');
 const touch = () => navigator.maxTouchPoints > 0 && !!window.matchMedia?.('(pointer: coarse)').matches;
+const standalone = () => navigator.standalone === true || !!window.matchMedia?.('(display-mode: standalone)').matches;
 export const isRotated = () => el()?.classList.contains('rot');
+
+// Đo vùng an toàn + chiều cao màn hình lớn nhất bằng một phần tử thăm dò
+let probe = null;
+function measure() {
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;left:0;top:0;width:100vw;height:100vh;height:100lvh;visibility:hidden;pointer-events:none;' +
+      'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);box-sizing:border-box;';
+    document.body.appendChild(probe);
+  }
+  const cs = getComputedStyle(probe);
+  const px = (v) => parseFloat(v) || 0;
+  return {
+    W: Math.max(window.innerWidth, document.documentElement.clientWidth),
+    // App ngoài màn hình chính (không có thanh Safari): phủ kín tới đáy (100lvh).
+    // Trong Safari: chỉ dùng phần nhìn thấy (thanh công cụ Safari che đáy màn hình).
+    H: standalone() ? Math.max(window.innerHeight, probe.offsetHeight) : window.visualViewport?.height || window.innerHeight,
+    top: px(cs.paddingTop), right: px(cs.paddingRight), bottom: px(cs.paddingBottom), left: px(cs.paddingLeft),
+  };
+}
 
 function layout() {
   const g = el();
-  const W = window.innerWidth, H = window.innerHeight;
-  const rot = touch() && H > W;
+  const m = measure();
+  const rot = touch() && m.H > m.W;
   g.classList.toggle('rot', rot);
-  if (rot) Object.assign(g.style, { width: `${H}px`, height: `${W}px`, left: `${W}px` });
-  else Object.assign(g.style, { width: '', height: '', left: '' });
+  if (rot) {
+    // khung xoay 90°: chiều dài = chiều cao màn hình trừ vùng Dynamic Island phía trên; phủ tới tận mép dưới
+    Object.assign(g.style, { width: `${m.H - m.top}px`, height: `${m.W}px`, left: `${m.W}px`, top: `${m.top}px` });
+  } else if (touch()) {
+    // điện thoại nằm ngang thật: Dynamic Island ở mép trái/phải → chừa hai bên
+    Object.assign(g.style, { position: 'fixed', left: `${m.left}px`, top: '0px', width: `${m.W - m.left - m.right}px`, height: `${m.H}px` });
+  } else Object.assign(g.style, { width: '', height: '', left: '', top: '', position: '' });
   return rot;
+}
+
+// Kích thước khung game (chưa xoay): dài x ngắn — main.js dùng để chọn bề ngang game cho vừa
+export function gameBox() {
+  const g = el();
+  const a = isRotated() ? g.offsetWidth : g.offsetWidth, b = g.offsetHeight;
+  return { w: Math.max(a, b), h: Math.min(a, b) };
 }
 
 // Gọi trước khi tạo game (để Phaser đo đúng khung ngay từ đầu)
@@ -51,11 +89,14 @@ export function setupRotate(game) {
     const c = this.canvas;
     this.canvasBounds.setTo(c.offsetLeft, c.offsetTop, c.offsetWidth, c.offsetHeight);
   };
-  // Điểm chạm trên màn hình → toạ độ trong khung đã xoay 90° chiều kim đồng hồ
+  // Điểm chạm trên màn hình → toạ độ trong khung đã xoay 90° chiều kim đồng hồ (khung bắt đầu ở top = vùng an toàn)
   const im = game.input;
   const origPtr = im.transformPointer.bind(im);
-  im.transformPointer = (pointer, pageX, pageY, wasMove) =>
-    isRotated() ? origPtr(pointer, pageY, window.innerWidth - pageX, wasMove) : origPtr(pointer, pageX, pageY, wasMove);
+  im.transformPointer = (pointer, pageX, pageY, wasMove) => {
+    if (!isRotated()) return origPtr(pointer, pageX, pageY, wasMove);
+    const top = el().offsetTop;
+    return origPtr(pointer, pageY - top, window.innerWidth - pageX, wasMove);
+  };
 
   const relayout = () => {
     layout();
@@ -64,5 +105,6 @@ export function setupRotate(game) {
   };
   window.addEventListener('resize', () => setTimeout(relayout, 60));
   window.addEventListener('orientationchange', () => setTimeout(relayout, 250));
+  window.visualViewport?.addEventListener('resize', () => setTimeout(relayout, 60));
   relayout();
 }

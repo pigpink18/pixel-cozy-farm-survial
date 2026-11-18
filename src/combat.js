@@ -1,7 +1,7 @@
 // Chiến đấu: quái hầm mỏ + zombie + ổ zombie. Vũ khí cận chiến & súng tự ngắm.
 import Phaser from 'phaser';
 import { TILE, MONSTERS, ITEMS } from './config.js';
-import { state, ui, changed, sfx, addItem, selected, toolLv, xp, toast, count } from './state.js';
+import { state, ui, bus, changed, sfx, addItem, selected, toolLv, xp, toast, count } from './state.js';
 import { skillLv } from './skills.js';
 import { WEAPONS, ZOMBIES, ZOMBIE_DROPS, reduceInfection, zoneState } from './survival.js';
 import { nightFactor } from './fx.js';
@@ -13,6 +13,9 @@ export function heldWeapon() {
   if (sel.kind === 'item' && WEAPONS[sel.id]) return { id: sel.id, ...WEAPONS[sel.id] };
   return null;
 }
+
+// giọng zombie: khổng lồ trầm, zombie chạy cao/gắt
+const ZPITCH = { walker: 1, runner: 1.18, brute: 0.72, soldier: 0.9 };
 
 export default class Combat {
   constructor(scene, zone = null) {
@@ -110,7 +113,7 @@ export default class Combat {
     const night = nightFactor();
     for (const m of [...this.monsters]) {
       const sp = m.sprite;
-      if (!sp.active) continue;
+      if (!sp.active || !sp.body) continue;
       sp.setDepth(m.zombie || m.nest ? sp.y : sp.y + 8);
       if (m.bar) {
         const show = m.hp < m.maxHp;
@@ -141,6 +144,7 @@ export default class Combat {
       const dp = Math.hypot(dxp, dyp);
       // Zombie đánh trại ban đêm: đi tới cổng / mồi nhử (src/raid.js)
       const st = m.raid && s.raid ? s.raid.steer(m, time, dp) : null;
+      if (!sp.active || !sp.body) continue; // bẫy / tháp canh vừa hạ con này trong steer()
       let dx = dxp, dy = dyp, d = dp;
       if (st) {
         dx = st.x - sp.x;
@@ -159,14 +163,12 @@ export default class Combat {
         if (dp < reach && time > this.invulnUntil) this.hurtPlayer(m, dxp, dyp, dp);
         continue;
       }
-      if (d < sight || time < m.aggro || st) {
+      const chasing = d < sight || time < m.aggro || !!st;
+      if (m.zombie) this.voice(m, chasing, dp, time);
+      if (chasing) {
         if (m.zombie && dp < 220) this.chaseAt = time; // nhạc đánh nhau
         vx = (dx / d) * speed;
         vy = (dy / d) * speed;
-        if (m.zombie && time > this.nextGroan && dp < 120) {
-          this.nextGroan = time + Phaser.Math.Between(2500, 5000);
-          sfx('groan', 0.25);
-        }
       } else if (time > m.next) {
         m.next = time + Phaser.Math.Between(1000, 2500);
         const a = Math.random() * Math.PI * 2;
@@ -206,6 +208,9 @@ export default class Combat {
     this.invulnUntil = s.time.now + 900;
     state.hp = Math.max(0, state.hp - m.cfg.dmg);
     sfx('hurt', 0.5);
+    if (m.zombie) sfx('zbite', 0.6, ZPITCH[m.type] || 1);
+    bus.emit('hurtFlash');
+    s.burst(s.player.x, s.player.y - 14, 'fx_blood', 6, 0xffffff, 12, 10, 420);
     s.player.setTint(0xff6060);
     s.time.delayedCall(180, () => s.player.clearTint());
     s.knock = { x: (dx / (d || 1)) * 140, y: (dy / (d || 1)) * 140, until: s.time.now + 140 };
@@ -277,16 +282,16 @@ export default class Combat {
     // Cận chiến
     this.lastSwing = now;
     s.playAction('attack');
-    sfx('swing', 0.4);
+    sfx('slash', 0.5);
     const f = s.facing;
     const hx = c.x + f.x * 12, hy = c.y + f.y * 12 - 4;
-    this.drawArc(hx, hy, f);
+    this.drawSlash(hx, hy, f, w.id);
     const bonus = w.id === 'sword' ? (toolLv('sword') - 1) * 6 : 0;
     const dmg = w.dmg + bonus + (skillLv('combat') - 1);
     for (const t of [...this.monsters]) {
       const p = this.aimPoint(t);
       if (Phaser.Math.Distance.Between(hx, hy, p.x, p.y) > w.range + (t.nest ? 12 : 0)) continue;
-      this.hit(t, dmg, f);
+      this.hit(t, dmg, f, true);
     }
     return true;
   }
@@ -356,6 +361,28 @@ export default class Combat {
     });
   }
 
+  // Vệt chém lưỡi liềm quét theo hướng vung, màu theo vũ khí
+  drawSlash(x, y, f, wid) {
+    const s = this.scene;
+    const tint = { sword: 0xcfe8ff, w_machete: 0xe8f4ff, w_bat: 0xffe0b0 }[wid] || 0xffffff;
+    const ang = Math.atan2(f.y, f.x) * Phaser.Math.RAD_TO_DEG;
+    const main = s.add.image(x - f.x * 6, y - f.y * 6, 'fx_slash').setDepth(9500).setTint(tint).setAngle(ang - 60).setScale(0.8).setAlpha(1);
+    s.tweens.add({ targets: main, angle: ang + 45, scale: 1.15, duration: 200, ease: 'Cubic.easeOut' });
+    s.tweens.add({ targets: main, alpha: 0, delay: 90, duration: 170, onComplete: () => main.destroy() });
+    // viền tối mảnh phía trong cho nổi trên nền sáng
+    const edge = s.add.image(main.x, main.y, 'fx_slash').setDepth(9499).setTint(0x2a3a5a).setAngle(ang - 62).setScale(0.74).setAlpha(0.5);
+    s.tweens.add({ targets: edge, angle: ang + 43, scale: 1.08, alpha: 0, duration: 230, ease: 'Cubic.easeOut', onComplete: () => edge.destroy() });
+    // bóng mờ đuổi theo
+    const ghost = s.add.image(main.x, main.y, 'fx_slash').setDepth(9498).setTint(tint).setAngle(ang - 85).setScale(0.7).setAlpha(0.4);
+    s.tweens.add({ targets: ghost, angle: ang + 15, scale: 1, alpha: 0, duration: 280, ease: 'Cubic.easeOut', onComplete: () => ghost.destroy() });
+    // vài tia sáng văng ra ở đầu lưỡi
+    for (let i = 0; i < 4; i++) {
+      const a = (ang + Phaser.Math.Between(-30, 50)) * Phaser.Math.DEG_TO_RAD;
+      const sp = s.add.image(x, y, 'fx_spark').setDepth(9501).setTint(tint);
+      s.tweens.add({ targets: sp, x: x + Math.cos(a) * 16, y: y + Math.sin(a) * 16, alpha: 0, scale: 0.4, duration: 220, onComplete: () => sp.destroy() });
+    }
+  }
+
   drawArc(x, y, f) {
     const s = this.scene;
     const g = s.add.graphics().setDepth(9500);
@@ -376,23 +403,98 @@ export default class Combat {
     this.attack();
   }
 
-  hit(m, dmg, f) {
+  hit(m, dmg, f, melee = false) {
     const s = this.scene;
     if (!m.sprite.active) return;
+    // đòn chí mạng (cận chiến): x1.6 sát thương, hiệu ứng mạnh hơn
+    const crit = melee && Math.random() < 0.12;
+    if (crit) dmg = Math.round(dmg * 1.6);
     m.hp -= dmg;
-    sfx('monster', 0.4);
-    m.sprite.setTintFill(0xffffff);
+    const p = this.aimPoint(m);
+    if (m.zombie) {
+      sfx('zhit', 0.45, ZPITCH[m.type] || 1);
+      sfx('impact', crit ? 0.7 : 0.5);
+    } else sfx('monster', 0.4);
+    m.sprite.setTintFill(crit ? 0xffe08a : 0xffffff);
     s.time.delayedCall(90, () => m.sprite.active && m.sprite.clearTint());
+    // nén méo khi trúng đòn
+    const sc = m.cfg.scale || 1;
+    s.tweens.add({ targets: m.sprite, scaleX: { from: sc * 1.25, to: sc }, scaleY: { from: sc * 0.8, to: sc }, duration: 200, ease: 'Back.easeOut' });
     if (!m.nest) {
       m.knockUntil = s.time.now + 160;
       m.aggro = s.time.now + 8000;
-      m.sprite.setVelocity(f.x * 160, f.y * 160);
+      m.sprite.setVelocity(f.x * (crit ? 240 : 160), f.y * (crit ? 240 : 160));
     }
     if (m.zombie && !m.bar) this.hpBar(m);
-    const p = this.aimPoint(m);
-    s.floatText(p.x, p.y - 6, `-${dmg}`, '#ffe08a');
+    this.impactFx(p.x, p.y, f, crit, m.zombie || m.nest);
+    this.popNumber(p.x, p.y - 8, crit ? `${dmg}!` : `-${dmg}`, crit);
     if (m.zombie || m.nest) this.splat(m.sprite.x, m.sprite.y, false);
-    if (m.hp <= 0) this.kill(m);
+    if (m.hp <= 0) this.kill(m, f);
+  }
+
+  // Khựng hình một nhịp ngắn khi chém trúng — cảm giác "chém có lực"
+  hitStop(ms) {
+    const s = this.scene;
+    if (this.stopping) return;
+    this.stopping = true;
+    const world = s.physics.world;
+    world.pause();
+    s.anims.pauseAll?.();
+    // setTimeout (không dùng đồng hồ của scene): đổi bản đồ giữa chừng vẫn chắc chắn chạy lại
+    setTimeout(() => {
+      world.resume();
+      s.anims.resumeAll?.();
+      this.stopping = false;
+    }, ms);
+  }
+
+  // Tia lửa + vòng chấn động + máu văng theo hướng chém
+  impactFx(x, y, f, crit, bleed) {
+    const s = this.scene;
+    const ring = s.add.circle(x, y, 3).setStrokeStyle(crit ? 2 : 1.5, crit ? 0xffe08a : 0xffffff, 0.9).setDepth(9510);
+    s.tweens.add({ targets: ring, scale: crit ? 4.5 : 3, alpha: 0, duration: crit ? 320 : 220, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
+    s.burst(x, y, 'fx_spark', crit ? 9 : 5, crit ? 0xffe08a : 0xffffff, crit ? 18 : 12, 6, 300);
+    if (!bleed) return;
+    const base = Math.atan2(f.y || 0.0001, f.x);
+    for (let i = 0; i < (crit ? 14 : 8); i++) {
+      const a = base + Phaser.Math.FloatBetween(-0.7, 0.7);
+      const dist = Phaser.Math.Between(10, crit ? 30 : 22);
+      const drop = s.add.image(x, y, 'fx_blood').setDepth(9505).setScale(Phaser.Math.FloatBetween(0.8, 1.6));
+      const tx = x + Math.cos(a) * dist, ty = y + Math.sin(a) * dist * 0.6 + 8;
+      s.tweens.add({
+        targets: drop, x: tx, duration: 320, ease: 'Quad.easeOut',
+        onComplete: () => {
+          // giọt máu đọng lại trên đất rồi mờ dần
+          drop.setDepth(-690);
+          s.tweens.add({ targets: drop, alpha: 0, delay: 6000, duration: 2000, onComplete: () => drop.destroy() });
+        },
+      });
+      s.tweens.add({ targets: drop, y: { from: y, to: ty - 10 }, duration: 140, ease: 'Quad.easeOut', yoyo: false, onComplete: () => s.tweens.add({ targets: drop, y: ty, duration: 180, ease: 'Quad.easeIn' }) });
+    }
+  }
+
+  // Số sát thương nảy lên (chí mạng: to, vàng cam, chữ CHÍ MẠNG)
+  popNumber(x, y, txt, crit) {
+    const s = this.scene;
+    const t = s.add.text(x, y, txt, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: crit ? '56px' : '40px', color: crit ? '#ffb43c' : '#fff3d6', stroke: '#2a0c0c', strokeThickness: 8 }).setOrigin(0.5).setDepth(9600).setScale(0.12);
+    s.tweens.add({ targets: t, scale: 0.28, duration: 140, ease: 'Back.easeOut' });
+    s.tweens.add({ targets: t, y: y - (crit ? 22 : 16), x: x + Phaser.Math.Between(-6, 6), alpha: 0, delay: 260, duration: 600, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
+    if (crit) {
+      const c = s.add.text(x, y - 12, 'CHÍ MẠNG', { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '32px', color: '#ffe08a', stroke: '#2a0c0c', strokeThickness: 6 }).setOrigin(0.5).setDepth(9600).setScale(0.25);
+      s.tweens.add({ targets: c, y: c.y - 14, alpha: 0, delay: 300, duration: 700, onComplete: () => c.destroy() });
+    }
+  }
+
+  // Tiếng zombie: gầm lên khi vừa phát hiện người chơi, rên rỉ khi lang thang (to/nhỏ theo khoảng cách)
+  voice(m, chasing, dp, time) {
+    const near = Phaser.Math.Clamp(1 - dp / 260, 0, 1);
+    if (chasing && !m.chasing && near > 0) sfx('zsnarl', 0.25 + 0.4 * near, ZPITCH[m.type] || 1);
+    m.chasing = chasing;
+    if (!m.nextMoan) m.nextMoan = time + Phaser.Math.Between(1500, 6000);
+    if (time > m.nextMoan) {
+      m.nextMoan = time + Phaser.Math.Between(chasing ? 3500 : 6000, chasing ? 7000 : 12000);
+      if (near > 0.05) sfx(chasing && Math.random() < 0.4 ? 'groan' : 'zmoan', 0.12 + 0.35 * near, ZPITCH[m.type] || 1);
+    }
   }
 
   splat(x, y, big) {
@@ -401,9 +503,21 @@ export default class Combat {
     s.tweens.add({ targets: b, alpha: 0, delay: 15000, duration: 3000, onComplete: () => b.destroy() });
   }
 
-  kill(m) {
+  kill(m, f = { x: 0, y: 0 }) {
     const s = this.scene;
     const { x, y } = m.sprite;
+    if (m.zombie) {
+      // xác ngã xuống theo hướng bị chém, vũng máu loang ra, mờ dần
+      const sc = m.cfg.scale || 1;
+      const pool = s.add.ellipse(x, y - 2, 6 * sc, 3 * sc, 0x6a0c10, 0.8).setDepth(-695);
+      s.tweens.add({ targets: pool, scaleX: 3.2, scaleY: 2.6, duration: 900, ease: 'Quad.easeOut' });
+      s.tweens.add({ targets: pool, alpha: 0, delay: 9000, duration: 3000, onComplete: () => pool.destroy() });
+      const body = s.add.sprite(x, y, `zom_${m.type}`, 32).setOrigin(0.5, 1).setScale(sc).setDepth(y - 1).setFlipX(f.x < 0 || (f.x === 0 && m.face === 'left'));
+      body.play(`zom_${m.type}_die`);
+      s.tweens.add({ targets: body, x: x + f.x * 6, duration: 300, ease: 'Quad.easeOut' });
+      s.tweens.add({ targets: body, alpha: 0, delay: 2200, duration: 900, onComplete: () => body.destroy() });
+      this.impactFx(x, y - 12, f, true, true);
+    }
     this.monsters.splice(this.monsters.indexOf(m), 1);
     const i = s.movers.indexOf(m);
     if (i >= 0) s.movers.splice(i, 1);

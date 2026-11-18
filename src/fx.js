@@ -51,6 +51,18 @@ export function makeFxTextures(scene) {
   px('fx_spark', 3, 3, [[1, 0, '#ffffff'], [0, 1, '#dff4ff'], [1, 1, '#ffffff'], [2, 1, '#dff4ff'], [1, 2, '#ffffff']]);
   px('fx_eyes', 4, 1, [[0, 0, '#ffffff'], [3, 0, '#ffffff']]); // mắt zombie phát sáng trong đêm
   px('fx_eye', 1, 1, [[0, 0, '#ffffff']]);
+  // Vệt chém lưỡi liềm (trắng sáng ở mép ngoài, mờ dần vào trong) — xoay theo hướng vung
+  canvas('fx_slash', 48, 48, (ctx, w) => {
+    const c = w / 2;
+    for (let i = 0; i < 7; i++) {
+      ctx.beginPath();
+      ctx.lineWidth = 7 - i;
+      ctx.strokeStyle = `rgba(255,255,255,${0.12 + i * 0.13})`;
+      ctx.arc(c, c, 18 - i * 0.4, -1.25 + i * 0.05, 1.25 - i * 0.05);
+      ctx.stroke();
+    }
+  });
+  px('fx_blood', 2, 2, [[0, 0, '#c42a24'], [1, 0, '#8a1414'], [0, 1, '#8a1414'], [1, 1, '#5e0c0e']]);
   px('fx_dust', 2, 2, [[0, 0, '#c9a27a'], [1, 0, '#b48a62'], [0, 1, '#b48a62'], [1, 1, '#9c7452']]);
   // Bướm 2 khung (cánh mở / khép)
   canvas('fx_butterfly', 10, 4, (ctx) => {

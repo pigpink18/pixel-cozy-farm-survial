@@ -73,6 +73,13 @@ export const SFX_DEF = {
   gameover: { n: 1, v: 0.7, jingle: true },
   animal: { n: 1, v: 0.6, r: [0.95, 1.05] },
   search: { n: 1, v: 0.7, r: [0.9, 1.1] },
+  // giao chiến zombie (tools/make_sfx.py)
+  zsnarl: { n: 3, v: 0.8, r: [0.92, 1.08] },
+  zbite: { n: 2, v: 0.9, r: [0.95, 1.05] },
+  zhit: { n: 3, v: 0.8, r: [0.9, 1.12] },
+  zmoan: { n: 4, v: 0.7, r: [0.9, 1.08] },
+  slash: { n: 3, v: 0.7, r: [0.95, 1.1] },
+  impact: { n: 2, v: 0.9, r: [0.9, 1.1] },
 };
 const AMB = ['wind', 'rain', 'river'];
 const OUTDOOR = new Set(['farm', 'village', 'forest', 'town', 'quarry']);
@@ -128,19 +135,19 @@ export default class AudioDirector {
   }
 
   // ---------- Tiếng hiệu ứng ----------
-  sfx(name, volume = 0.5) {
+  sfx(name, volume = 0.5, pitch = 1) {
     const d = SFX_DEF[name];
     if (!d || state.muted) return;
     const now = this.ui.time.now;
     // cùng một tiếng không kêu dồn dập (tiếng giao diện/xu nghỉ lâu hơn)
-    const gap = { click: 90, coin: 140, success: 260, grass: 120, talk: 70, groan: 900, monster: 250, bird: 0 }[name] ?? 80;
+    const gap = { click: 90, coin: 140, success: 260, grass: 120, talk: 70, groan: 900, monster: 250, bird: 0, zmoan: 700, zsnarl: 260, zhit: 70, impact: 50, slash: 50 }[name] ?? 80;
     if (now - (this.lastPlay[name] || 0) < gap) return;
     const busy = this.sound.getAllPlaying().filter((x) => x.key.startsWith('sfx_')).length;
     if (busy >= MAX_SFX && !d.jingle && name !== 'hurt') return; // quá nhiều tiếng cùng lúc → bỏ bớt
     this.lastPlay[name] = now;
     const key = `sfx_${d.file || name}_${Math.floor(Math.random() * d.n)}`;
     if (!this.ui.cache.audio.exists(key)) return;
-    const rate = d.r ? Phaser.Math.FloatBetween(d.r[0], d.r[1]) : 1;
+    const rate = (d.r ? Phaser.Math.FloatBetween(d.r[0], d.r[1]) : 1) * pitch; // pitch: giọng trầm/bổng theo loại zombie
     this.sound.play(key, { volume: Math.min(1, volume * 2 * d.v * SFX_VOL), rate });
     if (d.jingle) this.duck(name === 'gameover' ? 3500 : 2200);
   }

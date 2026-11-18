@@ -1,4 +1,4 @@
-import { prepareRotate, setupRotate } from './rotate.js';
+import { prepareRotate, setupRotate, gameBox } from './rotate.js';
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import WorldScene from './scenes/WorldScene.js';
@@ -26,8 +26,8 @@ Promise.all([document.fonts.load('32px VT323'), document.fonts.load('32px AshenG
 function startGame() {
   prepareRotate();
   // Màn điện thoại dài (19.5:9...) → kéo dài bề ngang game cho phủ kín màn hình, không chừa viền đen
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const aspect = Math.max(vw, vh) / Math.max(1, Math.min(vw, vh));
+  const box = gameBox(); // khung đã trừ vùng Dynamic Island (xem rotate.js)
+  const aspect = box.w / Math.max(1, box.h);
   // ?fixed: giữ khung 960x540 (dùng khi chạy thử tự động)
   const GAME_W = /[?&]fixed/.test(location.search) ? 960 : Math.round(Math.min(1200, Math.max(960, 540 * aspect)));
   const game = new Phaser.Game({

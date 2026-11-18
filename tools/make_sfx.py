@@ -234,6 +234,28 @@ def build():
     S['gameover'] = [room(seq([(chime([76, 72, 69, 67], 0.32, 1.0, 3), 0), (sum(bell(hz(m), 2.2, 1.6) for m in (60, 64, 67)) * 0.3, 1.3)]), 0.8, 0.3)]
     S['animal'] = [groan_voice(150, 0.7, (600, 1200), 3) * np.linspace(1, 0.6, int(0.7 * SR))]
     S['search'] = [seq([(rustle(0.18) * 0.8, 0), (tone(1100, 0.08, 40, (1, 0.5)) * 0.25, 0.2), (rustle(0.2) * 0.7, 0.3), (filt(noise(0.1), lo=300, hi=2000) * env(0.1, 0.002, 30) * 0.5, 0.55)])]
+    # ---- Giao chiến với zombie ----
+    # gầm lên khi phát hiện người chơi: ngắn, gắt, có tiếng khè
+    S['zsnarl'] = [groan_voice(f, d, v, 9) * env(d, 0.01, 3) + filt(noise(d), lo=700, hi=2200) * env(d, 0.004, 9) * 0.35
+                   for f, d, v in ((150, 0.5, (680, 1350)), (128, 0.55, (600, 1250)), (170, 0.45, (720, 1450)))]
+    # cắn / vồ: tiếng đớp + rít trong cổ
+    S['zbite'] = [seq([(thud(130, 0.12, 30) + filt(noise(0.09), lo=400, hi=2400) * env(0.09, 0.001, 40) * 0.8, 0),
+                       (groan_voice(f, 0.32, (560, 1150), 7) * 0.6, 0.06)]) for f in (135, 118)]
+    # trúng đòn: rên đau ùng ục + tiếng thịt
+    S['zhit'] = [groan_voice(f, 0.32, (520, 1050), 6) * np.linspace(1, 0.2, int(0.32 * SR)) + filt(noise(0.12), lo=200, hi=1200) * env(0.12, 0.002, 30) * 0.6
+                 for f in (125, 108, 140)]
+    # rên rỉ lang thang: dài, trầm, rung chậm
+    S['zmoan'] = [groan_voice(f, d, v, vb) * np.sin(np.pi * T(d) / d) ** 0.5
+                  for f, d, v, vb in ((82, 1.6, (380, 760), 2.2), (74, 1.9, (350, 720), 1.8), (90, 1.4, (420, 820), 2.6), (68, 2.1, (330, 700), 1.6))]
+    # vung kiếm xé gió: dải nhiễu quét từ trầm lên bổng + tiếng ngân kim loại rất nhẹ
+    S['slash'] = []
+    for k in range(3):
+        d = 0.17 + 0.02 * k
+        t = T(d)
+        sweep = sum(bandpass(noise(d), fc, 3) * np.exp(-((t - d * i / 5) / (d / 6)) ** 2) for i, fc in enumerate((600, 900, 1300, 1800, 2300)))
+        S['slash'].append(sweep * np.sin(np.pi * t / d) + tone(2600 + 300 * k, 0.12, 30, (1, 0.3)) * 0.08)
+    # chém trúng: phập thịt
+    S['impact'] = [thud(105, 0.2, 22) + filt(noise(0.1), lo=150, hi=900) * env(0.1, 0.001, 35) * 0.9 for _ in range(2)]
     return S
 
 
@@ -246,6 +268,7 @@ VOL = {
     'bird': 0.02, 'fire': 0.015,
     'swing': 0.04, 'hurt': 0.06, 'monster': 0.05, 'groan': 0.04, 'zdie': 0.055,
     'shot': 0.07, 'shotgun': 0.08, 'boom': 0.09,
+    'zsnarl': 0.05, 'zbite': 0.06, 'zhit': 0.05, 'zmoan': 0.035, 'slash': 0.045, 'impact': 0.06,
     'levelup': 0.05, 'fanfare': 0.05, 'secret': 0.045, 'gameover': 0.05,
 }
 

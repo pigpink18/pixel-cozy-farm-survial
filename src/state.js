@@ -243,8 +243,8 @@ export function selected() {
   return { kind, id };
 }
 
-export function sfx(name, volume = 0.5) {
-  bus.emit('sfx', name, volume);
+export function sfx(name, volume = 0.5, pitch = 1) {
+  bus.emit('sfx', name, volume, pitch);
 }
 
 export const toolLv = (id) => state.toolLv[id] || 1;

@@ -82,7 +82,7 @@ export default class UIScene extends Phaser.Scene {
     on('changed', this.refresh);
     on('toast', this.showToast);
     on('hint', (h) => this.hintText.setText(h));
-    on('sfx', (name, volume) => this.audio?.sfx(name, volume));
+    on('sfx', (name, volume, pitch) => this.audio?.sfx(name, volume, pitch));
     on('dialog', this.openDialog);
     on('panel', this.openPanel);
     on('closePanel', () => this.closeModal());
@@ -119,6 +119,25 @@ export default class UIScene extends Phaser.Scene {
     // Đoạn phim mở đầu: khung đen trên/dưới, chữ kể chuyện, nút Bỏ qua
     on('cine', (on) => (on ? this.openCine() : this.closeCine()));
     on('clockNow', () => this.updateClock());
+    // Bị zombie cắn: viền màn hình loé đỏ
+    on('hurtFlash', () => {
+      if (!this.hurtV) {
+        const t = this.textures.exists('ui_hurtv') ? null : this.textures.createCanvas('ui_hurtv', 256, 144);
+        if (t) {
+          const ctx = t.getContext();
+          const g = ctx.createRadialGradient(128, 72, 40, 128, 72, 150);
+          g.addColorStop(0, 'rgba(160,0,0,0)');
+          g.addColorStop(1, 'rgba(170,10,10,0.95)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 256, 144);
+          t.refresh();
+        }
+        this.hurtV = this.add.image(0, 0, 'ui_hurtv').setOrigin(0).setDisplaySize(this.W, this.H).setDepth(140).setAlpha(0);
+      }
+      this.tweens.killTweensOf(this.hurtV);
+      this.hurtV.setAlpha(0.85);
+      this.tweens.add({ targets: this.hurtV, alpha: 0, duration: 520, ease: 'Quad.easeIn' });
+    });
     on('cineText', (t, ms) => this.cineSay(t, ms));
     on('decoHeld', (id) => {
       this.decoHeldId = id;
