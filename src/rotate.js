@@ -120,4 +120,27 @@ export function setupRotate(game) {
   window.addEventListener('orientationchange', () => setTimeout(relayout, 250));
   window.visualViewport?.addEventListener('resize', () => setTimeout(relayout, 60));
   relayout();
+  if (/[?&]debug/.test(location.search)) debugBox(game);
+}
+
+// ?debug: in số đo màn hình thật lên góc màn hình (để dò lỗi hở viền trên iPhone)
+function debugBox(game) {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:4px;top:4px;z-index:99;background:rgba(0,0,0,.75);color:#7f7;font:11px monospace;padding:4px 6px;white-space:pre;pointer-events:none;';
+  document.body.appendChild(d);
+  const r = (e) => { const b = e?.getBoundingClientRect(); return b ? `${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)}` : '-'; };
+  const tick = () => {
+    const m = measure();
+    const vv = window.visualViewport;
+    d.textContent = [
+      `inner ${window.innerWidth}x${window.innerHeight}  screen ${screen.width}x${screen.height}`,
+      `client ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}  vv ${vv ? `${Math.round(vv.width)}x${Math.round(vv.height)} off ${Math.round(vv.offsetTop)}` : '-'}`,
+      `lvh ${probe?.offsetHeight}  safe t${m.top} r${m.right} b${m.bottom} l${m.left}`,
+      `standalone ${standalone()}  rot ${isRotated()}`,
+      `#game ${r(el())}  canvas ${r(document.querySelector('canvas'))}`,
+      `game ${game.scale.gameSize.width}x${game.scale.gameSize.height}`,
+    ].join('\n');
+  };
+  setInterval(tick, 500);
+  tick();
 }
