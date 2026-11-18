@@ -1,0 +1,169 @@
+{
+  "_ghi_chu": "Thiết kế chỉ số sinh tồn của Ashen Acre. Đơn vị thời gian: giờ game (1 giờ game = 36 giây thật, 1 ngày 06:00→02:00 = 12 phút thật). Ngưỡng 'low' = dưới 30% tối đa.",
+  "time": { "realSecondsPerGameHour": 36, "dayStart": "06:00", "dayEnd": "02:00" },
+
+  "stats": {
+    "hp": {
+      "name": "Máu",
+      "max": 100,
+      "maxBonus": { "perCombatLevel": 5, "fenceLevel3": 30 },
+      "decayPerHour": 0,
+      "actionCost": {
+        "zombieHit": { "walker": 8, "runner": 6, "soldier": 13, "brute": 18 },
+        "eatPoison": 15,
+        "starvingPerHour": 6,
+        "dehydratedPerHour": 8
+      },
+      "low": {
+        "threshold": 0.3,
+        "effects": ["viền màn hình đỏ + tiếng tim đập", "đi chậm 15%", "không tự hồi máu"]
+      },
+      "zero": {
+        "name": "Ngất xỉu",
+        "effects": ["tỉnh dậy ở nhà với 50% máu", "mất 10% xu (tối đa 300)", "rơi 30% đồ lục được trong túi tại chỗ ngã (quay lại nhặt trong ngày)", "Tinh thần -20"]
+      },
+      "recover": [
+        { "source": "bandage", "amount": 25 },
+        { "source": "medkit", "amount": 70 },
+        { "source": "sleep", "amount": 40, "note": "Trạm y tế cấp 1: hồi đầy" },
+        { "source": "medicLevel2", "amount": 1, "per": "10 phút game ở nông trại" },
+        { "source": "naturalRegen", "amount": 2, "per": "giờ game", "requires": "Đói ≥ 30% và Khát ≥ 30%" }
+      ]
+    },
+
+    "hunger": {
+      "name": "Đói (No bụng)",
+      "max": 100,
+      "decayPerHour": 5,
+      "actionCost": { "chop": 0.3, "mine": 0.3, "sprintPerMinute": 0.5, "fightSwing": 0.2 },
+      "low": {
+        "threshold": 0.3,
+        "effects": ["bụng réo + biểu tượng nhấp nháy", "Stamina hồi chậm 40%", "máu ngừng tự hồi"]
+      },
+      "zero": {
+        "name": "Đói lả",
+        "effects": ["mất 6 máu mỗi giờ game", "Stamina tối đa còn 50", "Tinh thần -3 mỗi giờ"]
+      },
+      "recover": "Xem bảng foods — mọi món ăn"
+    },
+
+    "thirst": {
+      "name": "Khát",
+      "max": 100,
+      "decayPerHour": 7,
+      "decayMultiplier": { "summer": 1.4, "rain": 0.7, "winter": 0.8, "fighting": 1.5 },
+      "actionCost": { "chop": 0.5, "mine": 0.5, "sprintPerMinute": 1, "fightSwing": 0.3 },
+      "low": {
+        "threshold": 0.3,
+        "effects": ["màn hình hơi nhoè", "Stamina hồi chậm 40%", "máu ngừng tự hồi"]
+      },
+      "zero": {
+        "name": "Mất nước",
+        "effects": ["mất 8 máu mỗi giờ game", "đi chậm 25%", "Tinh thần -4 mỗi giờ"]
+      },
+      "recover": [
+        { "source": "water", "amount": 35, "note": "Chai nước sạch (lục được / Máy lọc nước)" },
+        { "source": "wellWater", "amount": 20, "note": "Uống thẳng ở giếng / ao: 20% đau bụng (-10 máu, Tinh thần -5)" },
+        { "source": "boiledWater", "amount": 35, "note": "Nấu nước giếng ở lửa trại: 1 nước giếng + 1 gỗ" },
+        { "source": "watermelon", "amount": 30 },
+        { "source": "milk", "amount": 20 }
+      ]
+    },
+
+    "stamina": {
+      "name": "Thể lực",
+      "max": 100,
+      "decayPerHour": 0,
+      "actionCost": {
+        "hoe": 2, "water": 1, "chop": 3, "mine": 3, "fish": 2,
+        "meleeSwing": 4, "throw": 5, "sprintPerSecond": 6, "dodge": 15, "search": 1
+      },
+      "regenPerSecond": 10,
+      "regenDelaySeconds": 1.2,
+      "regenMultiplier": { "hungerLow": 0.6, "thirstLow": 0.6, "moraleLow": 0.7, "night": 0.9 },
+      "low": {
+        "threshold": 0.3,
+        "effects": ["thở dốc", "không chạy nhanh được", "đánh cận chiến chậm 30%"]
+      },
+      "zero": {
+        "name": "Kiệt sức",
+        "effects": ["2 giây không đánh / chặt / cuốc được", "đi chậm 40% tới khi hồi lên 30"]
+      },
+      "recover": [
+        { "source": "rest", "amount": "regenPerSecond", "note": "Tự hồi khi ngừng tay 1.2 giây" },
+        { "source": "coffee/tea", "amount": 30, "note": "Trà hoa, trà lá: hồi ngay + hồi nhanh x1.5 trong 1 giờ game" },
+        { "source": "sitOnBench", "amount": "x2 tốc độ hồi" }
+      ]
+    },
+
+    "morale": {
+      "name": "Tinh thần",
+      "max": 100,
+      "decayPerHour": 1,
+      "decayExtra": {
+        "nightOutsidePerHour": 3,
+        "infectedZonePerHour": 2,
+        "rainPerHour": 1,
+        "hungerOrThirstZeroPerHour": 3
+      },
+      "eventCost": {
+        "eatRaw": 2, "eatPoison": 5, "eatCannedStreak3": 4,
+        "gateBroken": 10, "cropsTrampled": 2, "faint": 20, "animalLost": 15
+      },
+      "low": {
+        "threshold": 0.3,
+        "effects": ["màu màn hình nhạt đi", "Stamina hồi chậm 30%", "súng ngắm chậm hơn (rung tay)", "nhân vật thở dài, lẩm bẩm"]
+      },
+      "zero": {
+        "name": "Suy sụp",
+        "effects": ["Stamina tối đa còn 50", "ngủ không hồi máu", "ác mộng: tỉnh dậy sớm 04:00, Tinh thần chỉ hồi lên 20"]
+      },
+      "recover": [
+        { "source": "sleepInBed", "amount": 20 },
+        { "source": "cookedMeal", "amount": 8, "note": "món nấu ở bếp (súp, bánh...)" },
+        { "source": "petAnimal", "amount": 3, "per": "mỗi con / ngày" },
+        { "source": "petCatDog", "amount": 5, "per": "ngày" },
+        { "source": "talkNPC", "amount": 4, "per": "người / ngày" },
+        { "source": "giftLoved", "amount": 6 },
+        { "source": "radioAtHome", "amount": 3, "per": "giờ game" },
+        { "source": "campfireSit", "amount": 4, "per": "giờ game" },
+        { "source": "harvest", "amount": 0.5, "per": "cây" },
+        { "source": "defendNight", "amount": 15, "note": "đẩy lùi đủ 3 đợt" },
+        { "source": "zoneLiberated", "amount": 30 },
+        { "source": "flowersInHouse", "amount": 1, "per": "bình hoa / sáng, tối đa 5" }
+      ]
+    }
+  },
+
+  "foods": {
+    "_cot": "hunger, thirst, hp, stamina, morale — số âm là trừ",
+    "carrot":       { "hunger": 8,  "thirst": 2,  "hp": 0,   "stamina": 0,  "morale": -2, "raw": true },
+    "corn":         { "hunger": 14, "thirst": 0,  "hp": 0,   "stamina": 0,  "morale": -2, "raw": true },
+    "pumpkin":      { "hunger": 25, "thirst": 4,  "hp": 0,   "stamina": 0,  "morale": -2, "raw": true },
+    "watermelon":   { "hunger": 10, "thirst": 30, "hp": 0,   "stamina": 5,  "morale": 2,  "raw": true },
+    "egg":          { "hunger": 10, "thirst": 0,  "hp": 0,   "stamina": 0,  "morale": -2, "raw": true },
+    "milk":         { "hunger": 15, "thirst": 20, "hp": 0,   "stamina": 0,  "morale": 1 },
+    "mush_brown":   { "hunger": 12, "thirst": 0,  "hp": 0,   "stamina": 0,  "morale": -1, "raw": true },
+    "mush_red":     { "hunger": 4,  "thirst": 0,  "hp": -15, "stamina": -20,"morale": -5, "raw": true, "poison": true },
+    "canned":       { "hunger": 40, "thirst": -5, "hp": 5,   "stamina": 0,  "morale": 0 },
+    "water":        { "hunger": 0,  "thirst": 35, "hp": 5,   "stamina": 0,  "morale": 0 },
+    "bread":        { "hunger": 35, "thirst": -5, "hp": 10,  "stamina": 10, "morale": 6 },
+    "dish_soup":    { "hunger": 80, "thirst": 20, "hp": 50,  "stamina": 20, "morale": 10 },
+    "tea_flower":   { "hunger": 0,  "thirst": 25, "hp": 0,   "stamina": 30, "morale": 8 },
+    "herb_tea":     { "hunger": 0,  "thirst": 20, "hp": 10,  "stamina": 15, "morale": 4, "craft": { "herb": 1, "water": 1 } }
+  },
+
+  "interactions": [
+    "Đói hoặc Khát < 30% → Máu ngừng tự hồi, Stamina hồi chậm",
+    "Đói hoặc Khát = 0 → mất Máu theo giờ + Tinh thần tụt",
+    "Tinh thần thấp → Stamina hồi chậm, bắn kém chính xác",
+    "Ăn đồ sống / đồ hộp mãi → no nhưng Tinh thần giảm → khuyến khích nấu ăn từ nông sản (trụ cột Trồng trọt)",
+    "Đánh đêm tốn Stamina + Khát nhanh → phải mang nước & đồ ăn trước khi trời tối"
+  ],
+
+  "hud": {
+    "order": ["hp", "hunger", "thirst", "morale"],
+    "stamina": "vòng tròn nhỏ quanh nút Làm (chỉ hiện khi chưa đầy)",
+    "lowWarning": "biểu tượng nhấp nháy + toast 1 lần khi xuống dưới 30%"
+  }
+}

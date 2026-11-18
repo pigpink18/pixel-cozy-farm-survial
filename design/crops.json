@@ -1,0 +1,175 @@
+{
+  "_ghi_chu": "Thiết kế hệ thống trồng trọt của Ashen Acre. grow = phút game tới khi chín (1 giờ game = 36 giây thật; 1 ngày game = 1200 phút). Cây lớn cả khi người chơi đi chỗ khác hoặc đang ngủ.",
+
+  "process": [
+    { "step": "till",       "name": "Cuốc đất",  "tool": "hoe",  "stamina": 2, "note": "Không cuốc được mùa đông (trừ trong nhà kính)" },
+    { "step": "plant",      "name": "Gieo hạt",  "item": "seed_*", "note": "Chỉ gieo đúng mùa" },
+    { "step": "water",      "name": "Tưới",      "tool": "can",  "stamina": 1, "note": "Ô đã tưới lớn nhanh x1.5 tới sáng hôm sau" },
+    { "step": "fertilize",  "name": "Bón phân",  "item": "fert", "note": "+25 độ màu đất và cây lớn thêm 1/3" },
+    { "step": "harvest",    "name": "Thu hoạch", "note": "Sản lượng = base × hệ số đất × hệ số chăm sóc. Cây tái thu hoạch ra trái lại sau regrow phút" }
+  ],
+
+  "soil": {
+    "name": "Độ màu đất",
+    "start": 50,
+    "max": 100,
+    "change": {
+      "harvestLight": -8,
+      "harvestHeavy": -15,
+      "fertilizer": 25,
+      "compost": 40,
+      "fallowDay": 3,
+      "rotationBonus": 5,
+      "sameCropTwice": -5,
+      "acidRain": -10
+    },
+    "tiers": [
+      { "min": 0,  "max": 29,  "name": "Đất bạc màu", "yield": 0.5, "growSpeed": 0.8, "pestChance": 2.0, "quality": 0 },
+      { "min": 30, "max": 69,  "name": "Đất thường",  "yield": 1.0, "growSpeed": 1.0, "pestChance": 1.0, "quality": 0.1 },
+      { "min": 70, "max": 100, "name": "Đất màu mỡ",  "yield": 1.3, "growSpeed": 1.15, "pestChance": 0.5, "quality": 0.35 }
+    ],
+    "quality": { "name": "Ngon ★", "sellBonus": 0.5, "foodBonus": 0.25 },
+    "care": {
+      "_ghi_chu": "Hệ số chăm sóc theo số ngày được tưới đủ trong lúc lớn",
+      "fullyWatered": 1.2,
+      "missedOneDay": 1.0,
+      "missedTwoDaysOrMore": 0.7
+    }
+  },
+
+  "waterNeed": {
+    "low":  { "name": "Ít",   "dryDaysBeforeWilt": 4, "note": "Không tưới vẫn lớn bình thường" },
+    "mid":  { "name": "Vừa",  "dryDaysBeforeWilt": 3 },
+    "high": { "name": "Nhiều", "dryDaysBeforeWilt": 2, "note": "Không tưới thì lớn chậm x0.6" }
+  },
+
+  "crops": {
+    "carrot": {
+      "name": "Cà rốt", "seasons": ["spring", "autumn"], "grow": 30, "regrow": null,
+      "water": "mid", "soilUse": "harvestLight", "yield": [1, 2], "seedPrice": 10, "sell": 25,
+      "uses": ["ăn"],
+      "food": { "hunger": 8, "thirst": 2 },
+      "note": "Cây khởi đầu: chín rất nhanh, rẻ, giúp người mới quen vòng trồng"
+    },
+    "potato": {
+      "name": "Khoai tây", "seasons": ["spring", "autumn"], "grow": 120, "regrow": null,
+      "water": "low", "soilUse": "harvestLight", "yield": [2, 4], "seedPrice": 25, "sell": 45,
+      "uses": ["ăn", "chế đồ hộp"],
+      "food": { "hunger": 12 },
+      "craft": { "canned": { "potato": 2, "scrap": 1 } },
+      "note": "Chịu hạn, sản lượng cao. Nguồn đồ hộp chính"
+    },
+    "corn": {
+      "name": "Ngô", "seasons": ["summer", "autumn"], "grow": 300, "regrow": 180,
+      "water": "mid", "soilUse": "harvestHeavy", "yield": [1, 2], "seedPrice": 40, "sell": 60,
+      "uses": ["ăn", "cám gia súc", "đuốc"],
+      "food": { "hunger": 14 },
+      "craft": { "torch": { "corn": 2, "cloth": 1, "makes": 3 }, "feed": { "corn": 1 } },
+      "note": "Thân ngô khô làm đuốc giữ trại ban đêm"
+    },
+    "pumpkin": {
+      "name": "Bí ngô", "seasons": ["autumn"], "grow": 480, "regrow": null,
+      "water": "high", "soilUse": "harvestHeavy", "yield": [1, 1], "seedPrice": 80, "sell": 220,
+      "uses": ["ăn", "mồi nhử", "đổi hàng"],
+      "food": { "hunger": 25, "thirst": 4 },
+      "bait": { "hp": 45, "lure": 240 },
+      "craft": { "dish_soup": { "pumpkin": 1, "milk": 1 } },
+      "note": "Mồi nhử bền nhất. Súp bí là món hồi phục tốt nhất game"
+    },
+    "watermelon": {
+      "name": "Dưa hấu", "seasons": ["summer"], "grow": 600, "regrow": null,
+      "water": "high", "soilUse": "harvestHeavy", "yield": [1, 1], "seedPrice": 100, "sell": 260,
+      "uses": ["ăn", "giải khát"],
+      "food": { "hunger": 10, "thirst": 30, "stamina": 5, "morale": 2 },
+      "note": "Nguồn nước quý trong đợt hạn hán"
+    },
+    "mugwort": {
+      "name": "Ngải cứu", "seasons": ["spring", "summer", "autumn"], "grow": 90, "regrow": 90,
+      "water": "low", "soilUse": "harvestLight", "yield": [1, 3], "seedPrice": 20, "sell": 20, "new": true,
+      "uses": ["thuốc"],
+      "gives": "herb",
+      "craft": { "medkit": { "herb": 2, "bandage": 2, "cloth": 2 }, "herb_tea": { "herb": 1, "water": 1 } },
+      "special": "Trồng cạnh cây khác: giảm 50% sâu bệnh trong bán kính 1 ô",
+      "note": "Lá thuốc tự trồng — không phải lùng bụi cây trong rừng nữa"
+    },
+    "chili": {
+      "name": "Ớt hiểm", "seasons": ["summer", "autumn"], "grow": 150, "regrow": 100,
+      "water": "mid", "soilUse": "harvestLight", "yield": [2, 4], "seedPrice": 30, "sell": 30, "new": true,
+      "uses": ["thuốc trừ sâu", "bẫy"],
+      "food": { "hunger": 2, "thirst": -10, "morale": -1 },
+      "craft": {
+        "pesticide": { "chili": 3, "water": 1, "makes": 2, "note": "Xịt chữa sâu bệnh 1 ô + 8 ô xung quanh" },
+        "pepper_bomb": { "chili": 4, "cloth": 1, "gunpowder": 1, "makes": 2, "note": "Ném: zombie trong 30px bị choáng 3 giây, chạy loạn" },
+        "pepper_trap": { "chili": 2, "trap_spike": 1, "note": "Bẫy gai tẩm ớt: đâm 20 + làm chậm 4 giây" }
+      },
+      "note": "Cây phòng thủ: biến ruộng thành kho vũ khí"
+    },
+    "thornvine": {
+      "name": "Mây gai", "seasons": ["spring", "summer"], "grow": 720, "regrow": null,
+      "water": "low", "soilUse": "harvestLight", "yield": [1, 1], "seedPrice": 60, "sell": 15, "new": true,
+      "uses": ["bẫy", "hàng rào sống"],
+      "living": {
+        "_ghi_chu": "Không thu hoạch — để nguyên thành bụi gai",
+        "blocksZombies": true,
+        "damagePerSecond": 3,
+        "hp": 80,
+        "regenPerDay": 20
+      },
+      "craft": { "trap_spike": { "thornvine": 1, "wood": 2, "makes": 2 } },
+      "note": "Trồng thành hàng quanh ruộng / sau cổng: zombie lọt vào bị gai cào, mắc kẹt"
+    }
+  },
+
+  "risks": {
+    "trample": {
+      "name": "Zombie giẫm nát",
+      "when": "Ban đêm, khi cổng bị phá hoặc chưa có rào",
+      "effect": "Mỗi zombie lọt vào: 50% giẫm chết 1 cây (cây đang lớn mất hết, cây chín mất 50% sản lượng)",
+      "counter": ["Rào & sửa cổng", "Mồi nhử kéo zombie khỏi ruộng", "Mây gai quanh ruộng", "Bù nhìn gai"]
+    },
+    "pests": {
+      "name": "Sâu bệnh",
+      "chancePerDay": 0.04,
+      "multiplier": { "soilTier": "pestChance", "sameCropTwice": 2.0, "rain3DaysInRow": 1.5, "mugwortNearby": 0.5, "greenhouse": 0.5 },
+      "spreadToNeighborPerDay": 0.3,
+      "effect": "Lá vàng, có chấm đen. Ngừng lớn. Sau 2 ngày không chữa → chết",
+      "counter": ["Thuốc trừ sâu (ớt)", "Nhổ bỏ cây bệnh trước khi lây", "Luân canh", "Trồng ngải cứu xen kẽ"]
+    },
+    "acidRain": {
+      "name": "Mưa axit",
+      "chancePerDay": { "spring": 0.03, "summer": 0.06, "autumn": 0.08, "winter": 0 },
+      "forecast": "Báo trước 1 ngày trong thư buổi sáng / radio",
+      "effect": "Cây ngoài trời lùi 1 giai đoạn, đất −10 độ màu. Người đứng ngoài: −2 máu/giờ, Tinh thần −2",
+      "counter": ["Nhà kính", "Bạt che ruộng (6 vải + 4 gỗ, che 3×3 ô, dùng 3 lần)", "Thu hoạch sớm cây đã chín"]
+    },
+    "drought": {
+      "name": "Hạn hán",
+      "season": "summer",
+      "chancePerSeason": 0.5,
+      "duration": [2, 4],
+      "effect": "Đất khô gấp đôi: cây cần nước 'Nhiều' héo sau 1 ngày không tưới. Giếng chỉ múc được 10 lần/ngày. Khát giảm x1.4",
+      "counter": ["Tưới tự động", "Máy lọc nước", "Trồng cây chịu hạn (khoai tây, ngải cứu, mây gai)"]
+    }
+  },
+
+  "upgrades": {
+    "irrigation": [
+      { "lv": 1, "name": "Bình phun", "cost": { "scrap": 6, "parts": 1 }, "effect": "Mỗi sáng tưới 8 ô xung quanh", "exists": true },
+      { "lv": 2, "name": "Ống tưới nhỏ giọt", "cost": { "scrap": 20, "parts": 3, "cloth": 4 }, "effect": "Nối từ giếng: tự tưới 1 hàng 12 ô mỗi sáng, cả trong hạn hán" },
+      { "lv": 3, "name": "Máy lọc nước cấp 3", "cost": { "scrap": 40, "parts": 6, "battery": 3 }, "effect": "Tự tưới toàn bộ ruộng mỗi sáng", "exists": true }
+    ],
+    "greenhouse": {
+      "name": "Nhà kính",
+      "size": [6, 4],
+      "cost": { "wood": 60, "scrap": 30, "cloth": 15, "parts": 4 },
+      "builtBy": "Chú Tư (3 giờ game)",
+      "effect": ["Trồng mọi cây quanh năm, cả mùa đông", "Không bị mưa axit, không bị zombie giẫm", "Sâu bệnh x0.5", "Không tốn nước khi trời mưa bên ngoài"],
+      "upgrade": { "name": "Nhà kính sưởi", "cost": { "fuel": 4, "parts": 3 }, "effect": "Cây lớn nhanh x1.2" }
+    },
+    "scarecrow": [
+      { "lv": 1, "name": "Bù nhìn rơm", "cost": { "wood": 5, "hay": 5, "cloth": 2 }, "radius": 4, "effect": "Đuổi quạ: không bị mất hạt vừa gieo" },
+      { "lv": 2, "name": "Bù nhìn gai", "cost": { "wood": 8, "scrap": 6, "thornvine": 1 }, "radius": 4, "effect": "Zombie trong bán kính chỉ còn 25% giẫm nát cây; zombie cào vào bù nhìn bị gai đâm 3/giây" },
+      { "lv": 3, "name": "Bù nhìn còi báo", "cost": { "scrap": 12, "parts": 2, "battery": 1 }, "radius": 6, "effect": "Kêu leng keng thu hút zombie lọt vào → kéo chúng khỏi ruộng (như mồi nhử không bao giờ hết). Báo động khi zombie tới gần" }
+    ]
+  }
+}

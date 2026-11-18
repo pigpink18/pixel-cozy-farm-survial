@@ -117,9 +117,9 @@ export const carpenterPanel = {
       const lack = missing(b.coins, { wood: b.wood, stone: b.stone });
       const price = `${b.coins} xu + ${b.wood} gỗ + ${b.stone} đá · chứa ${b.cap} con`;
       return {
-        icon: { tex: 'nhouse', frame: id },
+        icon: { tex: 'surv', frame: id === 'coop' ? 'pen_coop' : 'pen_barn' },
         name: `${b.name} — ${price}`,
-        desc: st === 'built' ? 'Đã xây xong' : st === 'building' ? `Đang xây — xong sau ${BUILD_MIN} phút` : lock || lack || 'Đủ vật liệu — bấm Xây!',
+        desc: st === 'built' ? 'Đã xây xong — ra nông trại bấm vào chuồng để dời chỗ' : st === 'building' ? `Đang xây — còn ${Math.max(1, (state.buildDone?.[id] ?? absMin()) - absMin())} phút (giờ game)` : lock || lack || 'Đủ vật liệu — bấm Xây!',
         buttons: st
           ? []
           : lock

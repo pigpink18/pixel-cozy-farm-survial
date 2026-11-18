@@ -92,7 +92,7 @@ export const nightFactor = (t = state.time) => Phaser.Math.Clamp((t - 18.5 * 60)
 export default class WorldFX {
   constructor(scene) {
     this.s = scene;
-    this.outdoor = ['farm', 'village', 'forest', 'quarry', 'town'].includes(scene.mapId);
+    this.outdoor = ['farm', 'village', 'forest', 'quarry', 'town', 'cliff', 'beach'].includes(scene.mapId);
     this.follow = []; // bóng đi theo sprite di chuyển
     this.lights = [];
     this.parts = [];
@@ -116,6 +116,7 @@ export default class WorldFX {
   darknessLevel() {
     const s = this.s;
     if (!this.outdoor) return 0;
+    if (s.forceDark != null) return s.forceDark; // đoạn mở đầu: độ tối cố định
     const zone = s.mapId === 'forest' || s.mapId === 'town';
     let d = nightFactor() * (zone ? 0.92 : 0.84);
     // trước bình minh (sau nửa đêm hoặc trước 6h) vẫn tối
@@ -186,11 +187,26 @@ export default class WorldFX {
   // ---------- Đèn cửa sổ (sáng dần khi trời tối) ----------
   light(x, y, size = 40) {
     // Hai lớp: quầng rộng ấm + lõi sáng, để vẫn nổi rõ khi trời tối
+    const gs = [];
     for (const [k, tint] of [[1.6, 0xffb060], [0.7, 0xfff0c0]]) {
       const g = this.s.add.image(x, y, 'fx_glow').setDisplaySize(size * k, size * k).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(9400).setAlpha(0);
       this.lights.push(g);
+      gs.push(g);
     }
-    this.sources.push({ x, y, r: size * 1.25, flicker: size >= 80 });
+    const src = { x, y, r: size * 1.25, flicker: size >= 80 };
+    this.sources.push(src);
+    // Gỡ đèn (vd. nhổ đuốc)
+    return {
+      destroy: () => {
+        for (const g of gs) {
+          g.destroy();
+          const j = this.lights.indexOf(g);
+          if (j >= 0) this.lights.splice(j, 1);
+        }
+        const i = this.sources.indexOf(src);
+        if (i >= 0) this.sources.splice(i, 1);
+      },
+    };
   }
 
   // ---------- Nước lấp lánh ----------
@@ -258,7 +274,7 @@ export default class WorldFX {
     const t = state.time;
     const night = nightFactor(t);
     if (this.cm) {
-      const [r, g, b] = s.mapId === 'mine' ? [0.78, 0.74, 0.86] : ['home', 'shop', 'npchome'].includes(s.mapId) ? [1, 0.97, 0.92] : skyAt(t);
+      const [r, g, b] = s.mapId === 'mine' ? [0.78, 0.74, 0.86] : ['home', 'shop', 'npchome', 'ruin'].includes(s.mapId) ? [1, 0.97, 0.92] : skyAt(t);
       this.cm.reset();
       // Tận thế: ngoài trời bạc màu, ngả vàng xám
       const k = this.outdoor ? [0.97, 0.95, 0.86] : [1, 1, 1];

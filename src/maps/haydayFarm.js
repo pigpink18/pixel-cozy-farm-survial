@@ -65,7 +65,7 @@ export function buildHayday(s) {
   s.addWall(b.x * TILE + 2, b.y * TILE + 4, 28, 12);
   for (const x of [b.x, b.x + 1]) s.statics.set(key(x, b.y), () => ({ label: 'Xem bảng đơn hàng', run: () => bus.emit('panel', ordersPanel) }));
   s.haydayBubbles.push({
-    b: s.add.text(board.x + 16, board.y - 22, '!', { fontFamily: 'VT323', fontSize: '44px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.3).setOrigin(0.5).setDepth(9000).setVisible(false),
+    b: s.add.text(board.x + 16, board.y - 22, '!', { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '44px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.3).setOrigin(0.5).setDepth(9000).setVisible(false),
     check: () => (ordersReady() ? true : null),
     y: board.y - 22,
   });

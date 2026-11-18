@@ -3,6 +3,7 @@
 // ============================================================
 import { ITEMS } from './config.js';
 import { state, toast, changed, sfx, addItem, count, has, waterCap } from './state.js';
+import { have, canAfford, payCost } from './hayday.js';
 
 // ---------- Vũ khí ----------
 // melee: đánh trong tầm range (px) quanh hướng mục tiêu. gun: bắn tự ngắm zombie gần nhất trong tầm.
@@ -14,6 +15,8 @@ export const WEAPONS = {
   w_pistol: { name: 'Súng lục', gun: true, dmg: 14, range: 120, rate: 420, ammo: 'ammo_pistol' },
   w_shotgun: { name: 'Súng săn', gun: true, dmg: 10, range: 80, rate: 850, ammo: 'ammo_shell', pellets: 5, cone: 0.45 },
   w_rifle: { name: 'Súng trường', gun: true, dmg: 26, range: 170, rate: 300, ammo: 'ammo_rifle' },
+  // Ném: nổ lửa trúng mọi zombie trong bán kính, cháy thêm vài giây. Mỗi lần ném tốn 1 chai
+  w_molotov: { name: 'Bom xăng', throw: true, dmg: 28, range: 130, rate: 700, radius: 30 },
 };
 
 // ---------- Zombie ----------
@@ -26,10 +29,10 @@ export const ZOMBIES = {
 };
 // Đồ rơi khi hạ zombie: [id, tỉ lệ, số lượng tối đa]
 export const ZOMBIE_DROPS = {
-  walker: [['cloth', 0.25, 2], ['scrap', 0.2, 2], ['canned', 0.08, 1], ['ammo_pistol', 0.1, 3]],
-  runner: [['cloth', 0.3, 2], ['bandage', 0.1, 1], ['ammo_pistol', 0.12, 3]],
-  brute: [['scrap', 0.8, 5], ['parts', 0.4, 2], ['fuel', 0.3, 1], ['ammo_shell', 0.4, 4]],
-  soldier: [['ammo_rifle', 0.5, 5], ['ammo_pistol', 0.5, 6], ['gunpowder', 0.3, 2], ['milchip', 0.06, 1], ['medkit', 0.15, 1]],
+  walker: [['rotflesh', 0.35, 1], ['cloth', 0.25, 2], ['scrap', 0.2, 2], ['canned', 0.08, 1], ['ammo_pistol', 0.1, 3]],
+  runner: [['rotflesh', 0.3, 1], ['cloth', 0.3, 2], ['bandage', 0.1, 1], ['ammo_pistol', 0.12, 3]],
+  brute: [['rotflesh', 0.9, 3], ['scrap', 0.8, 5], ['parts', 0.4, 2], ['fuel', 0.3, 1], ['ammo_shell', 0.4, 4]],
+  soldier: [['rotflesh', 0.3, 1], ['ammo_rifle', 0.5, 5], ['ammo_pistol', 0.5, 6], ['gunpowder', 0.3, 2], ['milchip', 0.06, 1], ['medkit', 0.15, 1]],
 };
 
 // ---------- Lục đồ ----------
@@ -39,6 +42,19 @@ export const CONTAINERS = {
   car: { name: 'Xe hơi bỏ hoang', time: 1400, respawn: 3, rolls: 3, loot: [['scrap', 6, 2, 4], ['fuel', 3, 1, 1], ['parts', 3, 1, 2], ['battery', 2, 1, 1], ['ammo_pistol', 2, 3, 6], ['water', 2, 1, 2]] },
   cabinet: { name: 'Tủ đồ', frame: 'cabinet', time: 1100, respawn: 3, rolls: 2, loot: [['cloth', 4, 1, 3], ['bandage', 3, 1, 2], ['medkit', 1, 1, 1], ['canned', 3, 1, 2], ['water', 3, 1, 2], ['parts', 1, 1, 1], ['seed_corn', 1, 2, 4], ['seed_cabbage', 1, 2, 4]] },
   barrel: { name: 'Thùng phuy', frame: 'barrel', time: 900, respawn: 3, rolls: 2, loot: [['fuel', 3, 1, 1], ['scrap', 4, 1, 3], ['gunpowder', 2, 1, 2]] },
+  // Ngoài rừng
+  backpack: { name: 'Ba lô bỏ lại', frame: 'backpack', time: 800, respawn: 2, rolls: 2, loot: [['cloth', 4, 1, 2], ['water', 4, 1, 2], ['canned', 3, 1, 1], ['bandage', 2, 1, 1], ['ammo_pistol', 2, 2, 5], ['seed_corn', 1, 2, 3], ['herb', 2, 1, 2]] },
+  tent: { name: 'Lều cắm trại bỏ hoang', frame: 'tent_green', time: 1300, respawn: 3, rolls: 3, loot: [['cloth', 4, 1, 3], ['canned', 3, 1, 2], ['water', 3, 1, 2], ['bandage', 2, 1, 2], ['fuel', 1, 1, 1], ['battery', 1, 1, 1]] },
+  huntbox: { name: 'Hòm đồ thợ săn', frame: 'huntbox', time: 1200, respawn: 3, rolls: 2, loot: [['ammo_shell', 4, 3, 6], ['gunpowder', 3, 1, 2], ['scrap', 2, 1, 3], ['herb', 2, 1, 2], ['w_machete', 0.2, 1, 1]] },
+  // Trong nhà ở thị trấn
+  fridge: { name: 'Tủ lạnh', frame: 'fridge', time: 900, respawn: 3, rolls: 2, loot: [['canned', 5, 1, 2], ['water', 5, 1, 3], ['egg', 1, 1, 2], ['milk', 1, 1, 1]] },
+  wardrobe: { name: 'Tủ quần áo', frame: 'wardrobe', time: 1000, respawn: 3, rolls: 2, loot: [['cloth', 6, 2, 4], ['bandage', 1, 1, 1], ['battery', 1, 1, 1], ['ammo_pistol', 1, 3, 6]] },
+  kitchen: { name: 'Tủ bếp', frame: 'kitchen', time: 1000, respawn: 3, rolls: 2, loot: [['canned', 4, 1, 2], ['water', 2, 1, 2], ['fuel', 1, 1, 1], ['scrap', 2, 1, 2], ['seed_cabbage', 1, 2, 3]] },
+  medcab: { name: 'Tủ thuốc', frame: 'medcab', time: 900, respawn: 4, rolls: 2, loot: [['bandage', 5, 1, 3], ['medkit', 2, 1, 1], ['herb', 2, 1, 2]] },
+  desk: { name: 'Bàn làm việc', frame: 'desk', time: 1000, respawn: 3, rolls: 2, loot: [['battery', 3, 1, 2], ['parts', 3, 1, 2], ['scrap', 2, 1, 3], ['ammo_pistol', 1, 2, 5]] },
+  shelf: { name: 'Kệ hàng', frame: 'shelf', time: 1300, respawn: 3, rolls: 3, loot: [['canned', 6, 1, 3], ['water', 5, 1, 3], ['battery', 2, 1, 1], ['bandage', 2, 1, 2], ['seed_corn', 1, 2, 4], ['seed_eggplant', 1, 2, 4]] },
+  // Hầm quân sự
+  locker: { name: 'Tủ sắt quân đội', frame: 'locker', time: 1300, respawn: 3, rolls: 2, loot: [['ammo_pistol', 4, 4, 8], ['ammo_rifle', 2, 3, 6], ['medkit', 2, 1, 1], ['bandage', 3, 1, 2], ['cloth', 2, 2, 3], ['gunpowder', 2, 1, 2]] },
   milcrate: { name: 'Hòm quân dụng', frame: 'milcrate', time: 1600, respawn: 4, rolls: 3, loot: [['ammo_pistol', 4, 6, 12], ['ammo_shell', 3, 4, 8], ['ammo_rifle', 2, 4, 10], ['gunpowder', 3, 2, 4], ['medkit', 2, 1, 1], ['milchip', 1, 1, 1], ['w_shotgun', 0.3, 1, 1], ['w_rifle', 0.15, 1, 1]] },
 };
 
@@ -89,7 +105,7 @@ export const BASE = {
     cost: [{ wood: 20, scrap: 5 }, { wood: 30, scrap: 20, parts: 3 }, { scrap: 40, parts: 6, milchip: 1 }],
   },
   fence: {
-    name: 'Hàng rào phòng thủ', desc: ['Chắn lối vào: đêm chỉ còn 1 zombie lọt vào nông trại', 'Rào thép gai: đêm không zombie nào vào được', 'Tháp canh + giáp tự chế: +30 máu tối đa'],
+    name: 'Hàng rào phòng thủ', desc: ['Chắn 3 cổng nông trại (120 máu/cổng): zombie phải phá cổng mới vào được', 'Rào thép gai: cổng 240 máu, zombie đập vào bị gai đâm', 'Tháp canh ở mỗi cổng tự bắn zombie + giáp tự chế: +30 máu tối đa'],
     cost: [{ wood: 40, scrap: 10 }, { scrap: 35, cloth: 10, parts: 2 }, { scrap: 60, stone: 80, milchip: 2 }],
   },
   medic: {
@@ -107,20 +123,51 @@ export const BASE = {
 };
 export const baseLv = (id) => state.base?.[id] || 0;
 
+// Đếm cả đồ trong túi lẫn đồ đã cất ở Nhà kho / Kho thóc
 export function costText(cost) {
-  return Object.entries(cost).map(([id, n]) => `${ITEMS[id]?.name || id} ${count(id)}/${n}`).join(' · ');
+  return Object.entries(cost)
+    .map(([id, n]) => {
+      const h = have(id);
+      return `${n} ${ITEMS[id]?.name || id} ${h >= n ? '✓' : `(có ${h})`}`;
+    })
+    .join(' · ');
 }
-export const canPay = (cost) => Object.entries(cost).every(([id, n]) => has(id, n));
+export const canPay = (cost) => canAfford(cost);
 export function pay(cost) {
-  for (const [id, n] of Object.entries(cost)) addItem(id, -n);
+  payCost(cost);
 }
 
 // Công thức ở bàn chế tạo: lv = cấp bàn chế tạo cần
+// Món chế ra dùng để làm gì (hiện trong bảng chế tạo)
+export const CRAFT_INFO = {
+  bandage: 'Băng bó vết thương: +25 máu',
+  ammo_pistol: 'Đạn cho súng lục',
+  w_bat: 'Vũ khí cận chiến: sát thương 9',
+  canned: 'Đồ ăn để lâu: +40 no, +5 máu',
+  w_machete: 'Vũ khí cận chiến: sát thương 16, đánh nhanh',
+  medkit: 'Bộ sơ cứu: +70 máu',
+  w_pistol: 'Súng tự ngắm: sát thương 14, tầm xa',
+  ammo_shell: 'Đạn cho súng săn',
+  w_shotgun: 'Bắn chùm 5 viên, trúng nhiều zombie',
+  ammo_rifle: 'Đạn cho súng trường',
+  w_rifle: 'Súng tầm rất xa: sát thương 26',
+  trap_spike: 'Đặt ở lối zombie đi: đâm 20, dùng 3 lần',
+  torch: 'Cắm quanh trại: soi sáng, zombie lại gần bị chậm. Cháy hết sau 1 đêm',
+  fert: 'Bón vào cây đang lớn: lớn nhanh thêm 1/3',
+  bait_poison: 'Mồi nhử tẩm độc: zombie ăn vào mất máu',
+  w_molotov: 'Ném vào đám zombie: nổ lửa 28 + cháy',
+};
 export const CRAFTS = [
   { id: 'bandage', n: 2, lv: 1, cost: { cloth: 3 } },
   { id: 'ammo_pistol', n: 8, lv: 1, cost: { scrap: 2, gunpowder: 1 } },
   { id: 'w_bat', n: 1, lv: 1, cost: { wood: 5, scrap: 3 } },
   { id: 'canned', n: 2, lv: 1, cost: { scrap: 1, potato: 2 } },
+  { id: 'trap_spike', n: 2, lv: 1, cost: { wood: 4, scrap: 2 } },
+  { id: 'torch', n: 2, lv: 1, cost: { wood: 1, cloth: 1 } },
+  { id: 'torch', n: 3, lv: 1, cost: { corn: 2, cloth: 1 } },
+  { id: 'fert', n: 3, lv: 1, cost: { rotflesh: 2 } },
+  { id: 'bait_poison', n: 2, lv: 1, cost: { rotflesh: 1, mush_red: 1 } },
+  { id: 'w_molotov', n: 2, lv: 2, cost: { fuel: 1, cloth: 1 } },
   { id: 'w_machete', n: 1, lv: 2, cost: { scrap: 12, wood: 3, cloth: 2 } },
   { id: 'medkit', n: 1, lv: 2, cost: { bandage: 2, herb: 2, cloth: 2 } },
   { id: 'w_pistol', n: 1, lv: 2, cost: { scrap: 25, parts: 4, gunpowder: 2 } },
@@ -168,6 +215,10 @@ const TRADES = [
   { give: { fuel: 2 }, get: { ammo_rifle: 6 } },
   { give: { gem_red: 1 }, get: { milchip: 1 } },
   { give: { pumpkin: 2 }, get: { w_machete: 1 } },
+  { give: { mush_brown: 5 }, get: { bandage: 2 } },
+  { give: { mush_red: 3 }, get: { gunpowder: 2 } },
+  { give: { rotflesh: 6 }, get: { ammo_shell: 4 } },
+  { give: { pumpkin: 1 }, get: { fuel: 2 } },
 ];
 export function todayTrades() {
   const seed = dayNum();
@@ -203,7 +254,7 @@ export function ensureSurvival() {
 // ---------- Vùng bị chiếm ----------
 // infection 0–100: hạ zombie / phá ổ để giảm. Về 0 = giải phóng (ban ngày hết zombie, đồ lục nhiều hơn)
 export const ZONES = {
-  forest: { name: 'Rừng hoang', types: ['walker', 'walker', 'runner'], day: 4, night: 9, nests: 1 },
+  forest: { name: 'Rừng hoang', types: ['walker', 'walker', 'runner'], day: 6, night: 13, nests: 2 },
   town: { name: 'Thị trấn bỏ hoang', types: ['walker', 'walker', 'runner', 'runner', 'brute'], day: 9, night: 16, nests: 2 },
 };
 export function zoneState(id) {

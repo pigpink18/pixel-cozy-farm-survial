@@ -1,4 +1,5 @@
-"""Chọn & chuyển nhạc / tiếng từ bộ Ninja Adventure (CC0) vào game.
+"""[CŨ — không dùng nữa: nhạc/tiếng giờ do tools/make_music.py & tools/make_sfx.py tự tạo]
+Chọn & chuyển nhạc / tiếng từ bộ Ninja Adventure (CC0) vào game.
 Chạy: python3 tools/make_audio.py   (cần macOS — dùng afconvert có sẵn)
 
   public/assets/audio/music/<tên>.m4a   nhạc nền (AAC 80kbps, tải dần khi cần)

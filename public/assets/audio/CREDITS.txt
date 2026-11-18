@@ -1,3 +1,4 @@
-Music & sound effects: "Ninja Adventure" asset pack by Pixel-boy & AAA — CC0 1.0 (public domain).
-https://pixel-boy.itch.io/ninja-adventure-asset-pack
-Converted with tools/make_audio.py. animal_0/search_0 are from earlier versions of the game.
+Toàn bộ nhạc nền, tiếng hiệu ứng và tiếng môi trường của Ashen Acre do máy tự tạo bằng code
+(không dùng file âm thanh bên ngoài) — thuộc về dự án, dùng tự do.
+  tools/make_music.py  → music/*.m4a   (nhạc chill kiểu lo-fi)
+  tools/make_sfx.py    → sfx/*.wav, amb/*.wav

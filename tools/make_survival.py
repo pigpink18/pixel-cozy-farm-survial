@@ -210,21 +210,6 @@ def seedbag():
 
 
 # ---------------- Đồ vật lớn ----------------
-def tent(col, col_l, col_d):
-    c = C(48, 36)
-    for y in range(4, 34):
-        half = int((y - 3) * 0.8)
-        for x in range(24 - half, 24 + half + 1):
-            c.set(x, y, col_l if x < 24 else col)
-    for y in range(14, 34):  # cửa lều
-        half = int((y - 13) * 0.35)
-        for x in range(24 - half, 24 + half + 1):
-            c.set(x, y, col_d if abs(x - 24) < half else BLACK)
-    hline(c, 0, 47, 34, col_d)
-    c.rect(23, 1, 24, 4, WD)
-    return outline(c)
-
-
 def campfire(fr):
     c = C(20, 22)
     for i, (x, y) in enumerate(((2, 17), (10, 16), (4, 19), (11, 19))):
@@ -261,62 +246,6 @@ def sandbags():
             x = 1 + i * 8 + row * 4
             c.ellipse(x + 4, y + 3, 4.4, 3.2, SAND, SAND_D)
             hline(c, x + 2, x + 5, y + 1, SAND_L)
-    return outline(c)
-
-
-def car(col, col_l, col_d):
-    c = C(52, 34)
-    c.rect(2, 14, 49, 27, col)
-    hline(c, 2, 49, 14, col_l), hline(c, 2, 49, 27, col_d)
-    c.rect(12, 5, 38, 14, col)
-    hline(c, 12, 38, 5, col_l)
-    c.rect(15, 7, 23, 13, rgb('#3a4a58'))  # kính vỡ
-    c.rect(26, 7, 35, 13, rgb('#3a4a58'))
-    for x, y in ((17, 9), (19, 11), (30, 8), (33, 11)):
-        c.set(x, y, rgb('#9fb8c8'))
-    for x in (11, 40):  # bánh xe
-        c.ellipse(x, 28, 5, 4.4, BLACK, BLACK)
-        c.ellipse(x, 28, 2, 1.8, MET_D, MET_D)
-    for i in range(14):  # gỉ sét
-        c.set(4 + i * 3 % 44, 16 + (i * 7) % 10, RUST)
-    c.rect(3, 18, 6, 20, YELLOW)  # đèn
-    hline(c, 2, 49, 21, col_d)
-    return outline(c)
-
-
-def trashcan():
-    c = C(16, 22)
-    c.rect(2, 6, 13, 20, MET)
-    for x in (4, 7, 10):
-        c.rect(x, 7, x, 19, MET_D)
-    c.rect(1, 3, 14, 6, MET_L)
-    hline(c, 1, 14, 6, MET_D)
-    c.rect(6, 1, 9, 2, MET_D)
-    c.set(3, 12, RUST), c.set(11, 16, RUST)
-    return outline(c)
-
-
-def milcrate():
-    c = C(32, 22)
-    c.rect(1, 4, 30, 20, OLIVE)
-    hline(c, 1, 30, 4, OLIVE_L), hline(c, 1, 30, 20, OLIVE_D)
-    hline(c, 1, 30, 9, OLIVE_D)
-    for x in (4, 27):
-        c.rect(x, 10, x, 19, OLIVE_D)
-    c.rect(12, 12, 19, 16, YELLOW)
-    c.rect(14, 13, 17, 15, BLACK)
-    c.rect(13, 6, 18, 7, MET)
-    return outline(c)
-
-
-def barrel():
-    c = C(16, 22)
-    c.rect(2, 3, 13, 20, RUST)
-    c.rect(2, 3, 4, 20, RUST_L)
-    for y in (6, 13, 19):
-        hline(c, 2, 13, y, rgb('#5a3420'))
-    c.ellipse(8, 3, 6, 2, rgb('#5a3420'))
-    c.rect(6, 9, 9, 11, YELLOW), c.set(7, 10, BLACK)
     return outline(c)
 
 
@@ -690,6 +619,519 @@ def stall():
     return outline(c)
 
 
+# ---------------- Chỗ lục đồ hợp ngữ cảnh (rừng, trong nhà, hầm) ----------------
+def fridge():
+    c = C(18, 30)
+    c.rect(1, 1, 16, 28, rgb('#d8dcd8'))
+    c.rect(1, 1, 3, 28, rgb('#f0f4f0'))
+    c.rect(1, 10, 16, 10, rgb('#8a8e8a'))
+    c.rect(13, 4, 14, 8, MET_D), c.rect(13, 13, 14, 20, MET_D)
+    c.set(6, 22, RUST), c.set(9, 15, RUST), c.rect(4, 24, 9, 25, rgb('#7a1c1c'))
+    return outline(c)
+
+
+def wardrobe():
+    c = C(26, 30)
+    c.rect(1, 1, 24, 28, W)
+    c.rect(1, 1, 24, 2, WL)
+    c.rect(12, 3, 13, 28, WD)
+    c.rect(9, 13, 10, 16, GOLD), c.rect(15, 13, 16, 16, GOLD)
+    c.rect(14, 5, 22, 26, rgb('#2a2018'))  # cửa bị giật mở
+    c.rect(16, 8, 20, 18, rgb('#5a6a8a'))  # áo treo
+    return outline(c)
+
+
+def kitchen():
+    c = C(32, 22)
+    c.rect(1, 3, 30, 20, CREAM_D)
+    c.rect(1, 1, 30, 4, GREY)  # mặt bếp
+    c.rect(1, 1, 30, 1, GREY_L)
+    for x in (10, 20):
+        c.rect(x, 5, x, 20, W)
+    for x in (5, 15, 25):
+        c.rect(x, 9, x + 1, 9, MET_D)
+    c.rect(22, 0, 27, 1, BLACK)  # nồi
+    c.rect(12, 7, 18, 19, rgb('#2a2018'))  # cánh tủ mở
+    return outline(c)
+
+
+def medcab():
+    c = C(18, 20)
+    c.rect(1, 1, 16, 18, WHITE)
+    c.rect(1, 1, 16, 2, GREY_L)
+    c.rect(7, 5, 10, 14, RED), c.rect(4, 8, 13, 11, RED)
+    c.rect(1, 17, 16, 18, GREY)
+    return outline(c)
+
+
+def desk():
+    c = C(32, 22)
+    c.rect(1, 6, 30, 10, W)
+    c.rect(1, 6, 30, 6, WL)
+    c.rect(20, 11, 29, 20, WD)
+    c.rect(22, 13, 27, 13, GOLD), c.rect(22, 17, 27, 17, GOLD)
+    c.rect(2, 11, 3, 20, WDD)
+    c.rect(4, 1, 13, 5, rgb('#2a2e36'))  # máy tính cũ
+    c.rect(5, 2, 12, 4, rgb('#3a5a6a'))
+    for x, y in ((16, 4), (18, 5)):
+        c.rect(x, y, x + 2, y, rgb('#e8e2d0'))  # giấy
+    return outline(c)
+
+
+def shelf():
+    c = C(32, 28)
+    c.rect(1, 1, 30, 26, MET_D)
+    for y in (9, 17, 25):
+        c.rect(1, y, 30, y + 1, MET)
+    rnd = random.Random(5)
+    for y in (4, 12, 20):
+        x = 2
+        while x < 28:
+            if rnd.random() < 0.65:
+                col = rnd.choice([RED, YELLOW, GREEN, BLUE_L, ORANGE])
+                c.rect(x, y, x + 2, y + 4, col)
+                c.set(x + 1, y + 1, WHITE)
+            x += 4
+    return outline(c)
+
+
+def locker():
+    c = C(18, 30)
+    c.rect(1, 1, 16, 28, OLIVE)
+    c.rect(1, 1, 16, 2, OLIVE_L)
+    c.rect(8, 3, 9, 28, OLIVE_D)
+    for y in (6, 8, 10):
+        c.rect(3, y, 6, y, OLIVE_D), c.rect(11, y, 14, y, OLIVE_D)
+    c.rect(6, 15, 7, 17, MET_L), c.rect(10, 15, 11, 17, MET_L)
+    c.rect(4, 22, 13, 24, YELLOW)
+    return outline(c)
+
+
+# ---------------- Chuồng trại trên nông trại ----------------
+BARN_R, BARN_RL, BARN_RD = rgb('#8a3a2e'), rgb('#a8503e'), rgb('#5e2820')
+
+
+def coop_pen():
+    """Chuồng gà: chuồng gỗ trên chân cao, mái tôn, ổ đẻ, cầu thang, lưới thép — 48x40."""
+    c = C(48, 40)
+    # mái tôn dốc
+    for i in range(9):
+        hline(c, 3 - i // 3 + 1, 44 + i // 3 - 1, 4 + i, TIN if i % 3 else TIN_L)
+    for x in range(4, 45, 3):
+        c.rect(x, 5, x, 12, TIN_D)
+    c.rect(30, 6, 36, 8, RUST)
+    # thân chuồng gỗ
+    c.rect(5, 13, 42, 28, PLANK)
+    for x in range(7, 42, 4):
+        c.rect(x, 13, x, 28, PLANK_D)
+    hline(c, 5, 42, 13, PLANK_L)
+    # ổ đẻ (hộp nhô ra bên phải) + rơm
+    c.rect(34, 18, 45, 27, PLANK_D)
+    c.rect(35, 19, 44, 22, PLANK)
+    for x in range(36, 44, 2):
+        c.set(x, 22, SAND_L)
+    # cửa gà + lưới thép
+    c.rect(10, 18, 17, 28, rgb('#2a2018'))
+    c.rect(21, 16, 31, 25, rgb('#3a3028'))
+    for x in range(21, 32, 2):
+        c.rect(x, 16, x, 25, MET)
+    for y in range(16, 26, 2):
+        hline(c, 21, 31, y, MET)
+    # chân cột & cầu thang
+    for x in (6, 40):
+        c.rect(x, 29, x + 1, 38, PLANK_D)
+    for i in range(6):
+        hline(c, 8 + i, 15 + i, 29 + i * 2, PLANK_L if i % 2 else PLANK)
+    hline(c, 2, 46, 39, rgb('#3a3028'))
+    return outline(c)
+
+
+def barn_pen():
+    """Chuồng gia súc: nhà ván đỏ bạc màu, mái tôn vá, cửa đôi chữ X, gác cỏ khô — 64x72."""
+    c = C(64, 72)
+    # mái tôn gãy góc
+    for i in range(22):
+        half = 6 + int(i * 1.2)
+        x0, x1 = 32 - half, 31 + half
+        hline(c, max(1, x0), min(62, x1), 2 + i, TIN if i % 4 else TIN_L)
+    for x in range(4, 62, 3):
+        for y in range(2, 24):
+            if c.px[x, y][3] and c.px[x, y] != TIN_L:
+                c.set(x, y, TIN_D)
+    c.rect(14, 12, 22, 16, RUST)  # miếng vá gỉ
+    c.rect(42, 8, 48, 11, rgb('#5a6a50'))  # tấm tôn vá màu khác
+    # thân ván đỏ
+    c.rect(4, 24, 59, 69, BARN_R)
+    for x in range(6, 59, 4):
+        c.rect(x, 24, x, 69, BARN_RD)
+    hline(c, 4, 59, 24, BARN_RL)
+    # gác cỏ khô
+    c.rect(25, 27, 38, 37, rgb('#2a2018'))
+    c.rect(26, 31, 37, 37, SAND)
+    for x in range(26, 38, 2):
+        c.set(x, 31, SAND_L)
+    c.rect(24, 26, 39, 26, PLANK_L)
+    # cửa đôi chữ X
+    c.rect(18, 44, 45, 69, PLANK_L)
+    c.rect(31, 44, 32, 69, PLANK_D)
+    for side in (0, 1):
+        x0 = 18 + side * 14
+        c.rect(x0, 44, x0 + 13, 45, PLANK_D), c.rect(x0, 68, x0 + 13, 69, PLANK_D)
+        c.rect(x0, 44, x0 + 1, 69, PLANK_D), c.rect(x0 + 12, 44, x0 + 13, 69, PLANK_D)
+        for k in range(24):
+            c.set(x0 + 1 + k * 12 // 24, 45 + k, PLANK_D), c.set(x0 + 12 - k * 12 // 24, 45 + k, PLANK_D)
+    # cửa sổ ván đóng chéo
+    for wx in (8, 50):
+        c.rect(wx, 46, wx + 6, 53, rgb('#2a2018'))
+        for k in range(7):
+            c.set(wx + k, 46 + k, PLANK), c.set(wx + 6 - k, 46 + k, PLANK)
+    # rêu & vết bẩn chân tường
+    rnd = random.Random(9)
+    for _ in range(30):
+        c.set(rnd.randint(5, 58), rnd.randint(62, 69), rgb('#4a5a3a'))
+    hline(c, 2, 61, 70, rgb('#3a3028'))
+    return outline(c)
+
+
+# ---------------- Phòng thủ đêm: bẫy, đuốc, mồi, bom xăng ----------------
+def trap_spike():
+    c = C(16, 14)
+    c.rect(1, 9, 14, 12, WD), hline(c, 1, 14, 9, W), hline(c, 1, 14, 12, WDD)
+    for i, x in enumerate((2, 6, 10, 13)):
+        h = 6 if i % 2 else 7
+        for y in range(9 - h, 9):
+            c.set(x, y, MET_L if y < 9 - h + 2 else MET)
+        c.set(x + 1 if x < 14 else x - 1, 8, MET_D)
+    c.set(6, 3, BLOOD), c.set(10, 4, BLOOD)
+    return outline(c)
+
+
+def trap_broken():
+    c = C(16, 14)
+    c.rect(1, 10, 14, 12, WDD), hline(c, 1, 14, 10, WD)
+    for x, y in ((3, 8), (8, 9), (12, 7)):
+        c.set(x, y, MET_D), c.set(x + 1, y + 1, MET)
+    return outline(c)
+
+
+def torch(fr):
+    c = C(12, 26)
+    c.rect(5, 10, 6, 25, WD), c.set(5, 10, W)
+    c.rect(4, 8, 7, 11, CANVAS_D), hline(c, 4, 7, 9, CANVAS)
+    r = random.Random(fr + 3)
+    for y in range(0, 9):
+        w = max(0, (y + 1) // 3) - (r.randrange(0, 2) if y < 4 else 0)
+        for x in range(6 - w, 6 + w + 1):
+            c.set(x + (fr if y < 3 else 0) - (1 if fr and y < 2 else 0), y, FIRE_L if abs(x - 6) < w and y > 3 else FIRE)
+    return outline(c)
+
+
+def torch_icon():
+    c = icon()
+    for i in range(9):
+        c.rect(4 + i, 13 - i, 5 + i, 14 - i, WD if i < 6 else CANVAS_D)
+    c.rect(11, 2, 13, 5, FIRE), c.set(12, 3, FIRE_L), c.set(13, 1, FIRE)
+    return outline(c)
+
+
+def rotflesh():
+    c = icon()
+    c.ellipse(8, 9, 6, 4.4, rgb('#8a4a52'), rgb('#5a2a32'))
+    c.rect(4, 7, 9, 9, rgb('#b06a70'))
+    for x, y in ((6, 10), (10, 8), (11, 11)):
+        c.set(x, y, rgb('#7a9a4a'))
+    c.rect(11, 5, 13, 6, rgb('#e8d8c0')), c.set(13, 4, rgb('#e8d8c0'))
+    return outline(c)
+
+
+def fert():
+    c = icon()
+    c.rect(3, 5, 12, 14, CANVAS), c.rect(3, 5, 4, 14, CANVAS_L), c.rect(11, 5, 12, 14, CANVAS_D)
+    c.rect(4, 3, 11, 5, CANVAS_D)
+    c.rect(5, 8, 10, 11, rgb('#5a4028'))
+    c.set(7, 9, GREEN_L), c.set(8, 8, GREEN), c.set(8, 10, GREEN)
+    return outline(c)
+
+
+def bait_poison():
+    c = icon()
+    c.ellipse(8, 10, 6, 4, rgb('#8a4a52'), rgb('#5a2a32'))
+    c.rect(4, 8, 9, 9, rgb('#b06a70'))
+    c.ellipse(9, 5, 3.4, 2.4, RED, RED_D)
+    c.set(8, 4, WHITE), c.set(10, 5, WHITE)
+    c.rect(9, 7, 9, 8, CREAM)
+    return outline(c)
+
+
+def molotov():
+    c = icon()
+    c.rect(5, 6, 10, 14, rgb('#5a8a6a')), c.rect(5, 6, 6, 14, rgb('#8ac0a0'))
+    c.rect(6, 3, 9, 6, rgb('#4a7a5a'))
+    c.rect(7, 9, 9, 12, FIRE)
+    c.rect(7, 0, 8, 3, CREAM), c.set(9, 1, FIRE), c.set(8, 0, FIRE_L)
+    return outline(c)
+
+
+def bait_pile(col, col_d):
+    c = C(16, 12)
+    c.ellipse(8, 8, 7, 3.4, col, col_d)
+    c.rect(4, 6, 8, 7, rgb('#d8a0a0') if col != SAND else SAND_L)
+    for x, y in ((5, 9), (11, 7)):
+        c.set(x, y, col_d)
+    return outline(c)
+
+
+
+# ---------------- Đồ để lục (vẽ lại: nhìn chéo 3/4 từ trên xuống, đổ bóng, dấu vết tận thế) ----------------
+GLASS, GLASS_L, GLASS_D = rgb('#2b3a46'), rgb('#7f9db0'), rgb('#1a232b')
+TIRE, HUB = rgb('#262124'), rgb('#6f6a66')
+MUD, MOSS = rgb('#6b5a40'), rgb('#5f7a3a')
+
+
+def mix(a, b, t):
+    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3)) + (255,)
+
+
+def blob(c, r, cx, cy, rx, ry, col, only=None, p=1.0):
+    """Mảng màu loang (gỉ, bùn): chỉ tô lên điểm đã có màu (only=None) và theo xác suất p."""
+    for x in range(int(cx - rx) - 1, int(cx + rx) + 2):
+        for y in range(int(cy - ry) - 1, int(cy + ry) + 2):
+            if not (0 <= x < c.w and 0 <= y < c.h) or c.px[x, y][3] == 0:
+                continue
+            if ((x + .5 - cx) / rx) ** 2 + ((y + .5 - cy) / ry) ** 2 <= 1 and r.random() < p:
+                if only is None or c.px[x, y] in only:
+                    c.px[x, y] = col
+
+
+def wheel(c, cx, cy, flat=False):
+    ry = 3.2 if flat else 4.6
+    c.ellipse(cx, cy + (1 if flat else 0), 5, ry, TIRE, rgb('#151113'))
+    c.ellipse(cx, cy + (1 if flat else 0), 2.2, 1.8 if flat else 2.2, HUB, HUB)
+    c.set(int(cx) - 1, int(cy) - 1, MET_L)
+
+
+def car(col, col_l, col_d, seed=1, kind='sedan'):
+    """Xe bỏ hoang 52x34, nhìn chéo: nóc + kính hông + thân, kính nứt, gỉ loang, bánh xẹp, bùn & rêu chân xe."""
+    r = random.Random(seed)
+    c = C(52, 34)
+    hi = mix(col_l, WHITE, 0.35)
+    # Thân dưới: dải sáng (mặt trên capo/cốp) → thân → tối dần xuống gầm
+    for y in range(13, 28):
+        for x in range(2, 50):
+            if (x in (2, 49)) and y in (13, 27):
+                continue
+            t = (y - 13) / 14
+            c.set(x, y, hi if y == 13 else col_l if y <= 15 else col if t < 0.72 else col_d)
+    # Cabin (xe con) hoặc thùng hàng (bán tải)
+    if kind == 'pickup':
+        for y in range(4, 14):  # cabin ngắn phía trước
+            x0, x1 = int(13 - (y - 4) * 0.4), 27
+            for x in range(x0, x1 + 1):
+                c.set(x, y, hi if y == 4 else col_l if y <= 5 else col)
+        for y in range(7, 13):
+            for x in range(int(15 - (y - 7) * 0.4), 26):
+                c.set(x, y, GLASS)
+        # thùng hàng: thành thùng sáng + lòng thùng tối, chở bao tải & thùng gỗ
+        c.rect(29, 8, 49, 16, col_l)
+        hline(c, 29, 49, 8, hi)
+        c.rect(31, 10, 47, 15, mix(col_d, BLACK, 0.35))
+        c.rect(32, 11, 36, 15, CANVAS), hline(c, 32, 36, 11, CANVAS_L)
+        c.rect(40, 12, 45, 15, W), hline(c, 40, 45, 12, WL), c.rect(42, 13, 42, 15, WD)
+    else:
+        for y in range(3, 14):
+            x0, x1 = int(16 - (y - 3) * 0.5), int(36 + (y - 3) * 0.5)
+            for x in range(x0, x1 + 1):
+                c.set(x, y, hi if y == 3 else col_l if y <= 5 else col)
+        for y in range(6, 13):  # 2 ô kính hông, cột B ở giữa
+            x0, x1 = int(17 - (y - 6) * 0.5), int(35 + (y - 6) * 0.5)
+            for x in range(x0, x1 + 1):
+                if x not in (26, 27):
+                    c.set(x, y, GLASS)
+    # Vệt phản chiếu trên kính + 1 ô kính vỡ thủng
+    for x, y in ((18, 7), (19, 7), (17, 8), (29, 7), (30, 7), (28, 8)):
+        if c.px[x, y] == GLASS:
+            c.set(x, y, GLASS_L)
+    bx = 31 if kind != 'pickup' else 21
+    for x, y in ((bx, 9), (bx + 1, 9), (bx, 10), (bx + 1, 10), (bx + 2, 10), (bx + 1, 11)):
+        if c.px[x, y] == GLASS:
+            c.set(x, y, GLASS_D)
+    for x, y in ((bx - 1, 8), (bx + 3, 9), (bx + 2, 12), (bx - 1, 11)):
+        if c.px[x, y] == GLASS:
+            c.set(x, y, GLASS_L)
+    # Khe cửa, tay nắm, viền hông
+    for x in (16, 27) if kind != 'pickup' else (15, 27):
+        c.rect(x, 16, x, 25, col_d)
+    c.set(21, 18, MET_L), c.set(32 if kind != 'pickup' else 24, 18, MET_L)
+    hline(c, 3, 48, 21, col_d)
+    # Đèn trước (vỡ) + đèn sau + cản
+    c.rect(2, 16, 3, 18, rgb('#e8d07a')), c.set(3, 17, rgb('#8a7a40'))
+    c.rect(48, 16, 49, 18, RED_D), c.set(48, 16, RED_L)
+    c.rect(1, 24, 6, 25, MET_L), c.rect(45, 24, 50, 25, MET), hline(c, 1, 6, 25, MET)
+    # Hốc bánh + bánh (bánh sau xẹp)
+    for wx in (11, 40):
+        c.ellipse(wx, 26, 6, 4, rgb('#1d1719'), rgb('#1d1719'))
+    wheel(c, 11, 28)
+    wheel(c, 40, 28, flat=True)
+    # Gỉ loang, móp, bùn bám chân, rêu
+    body = {col, col_l, col_d}
+    for _ in range(3):
+        cx, cy = r.randrange(6, 46), r.randrange(15, 25)
+        blob(c, r, cx, cy, r.uniform(1.5, 3.2), r.uniform(1.2, 2.2), RUST, body, 0.85)
+        blob(c, r, cx - 0.5, cy - 0.5, 1.1, 0.9, RUST_L, {RUST}, 0.7)
+    for x in range(3, 49):
+        for y in range(24, 28):
+            if c.px[x, y] in body and r.random() < (y - 23) * 0.2:
+                c.set(x, y, MUD)
+    for x in (r.randrange(4, 9), r.randrange(30, 35), r.randrange(44, 48)):
+        c.set(x, 27, MOSS), c.set(x + 1, 27, LEAF)
+    c.set(r.randrange(20, 30), 14, mix(col_l, BLACK, 0.3))  # vết móp
+    return outline(c)
+
+
+def trashcan():
+    """Thùng rác tôn: nắp lệch, túi rác thò ra, móp, rác vương dưới chân."""
+    r = random.Random(3)
+    c = C(18, 22)
+    for y in range(7, 20):
+        for x in range(3, 15):
+            t = (x - 3) / 11
+            c.set(x, y, MET_L if t < 0.2 else MET if t < 0.7 else MET_D)
+    for x in (6, 9, 12):
+        for y in range(8, 19):
+            c.set(x, y, mix(c.px[x, y], BLACK, 0.25))
+    hline(c, 3, 14, 19, GREY_D), hline(c, 3, 14, 8, MET_L)
+    c.ellipse(9, 7, 6, 1.8, rgb('#2f3a2c'), rgb('#232b20'))  # túi rác đen-xanh thò lên
+    c.ellipse(8, 5, 3, 2.2, rgb('#3a4636'), rgb('#232b20'))
+    c.set(7, 4, rgb('#5a6a52'))
+    for i in range(9):  # nắp lệch sang phải, nghiêng
+        y = 4 + i // 3
+        c.rect(9 + i, y - 1, 9 + i, y, MET_L if i < 6 else MET)
+    c.rect(12, 2, 14, 2, MET_D)
+    blob(c, r, 5, 15, 1.6, 1.3, RUST, {MET, MET_L, MET_D}, 0.9)
+    c.set(13, 12, RUST)
+    for x, y, col in ((1, 20, CREAM), (2, 21, CREAM_D), (15, 21, rgb('#c4a46a')), (16, 20, RED)):  # rác vương
+        c.set(x, y, col)
+    return outline(c)
+
+
+def barrel():
+    """Thùng phuy: miệng trên thấy lòng tối, vành nổi, gỉ chảy, nhãn cảnh báo."""
+    r = random.Random(5)
+    c = C(16, 22)
+    BASE_, LIGHT, DARK = rgb('#8a4a2c'), rgb('#b8683c'), rgb('#5a3020')
+    for y in range(4, 21):
+        for x in range(2, 14):
+            t = (x - 2) / 11
+            c.set(x, y, LIGHT if t < 0.25 else BASE_ if t < 0.75 else DARK)
+    for y in (8, 15):
+        hline(c, 2, 13, y, DARK), hline(c, 2, 13, y - 1, mix(LIGHT, WHITE, 0.2))
+    c.ellipse(8, 4, 6, 2.2, mix(LIGHT, WHITE, 0.15), DARK)
+    c.ellipse(8, 4, 4.2, 1.3, rgb('#24161a'), rgb('#24161a'))
+    c.rect(6, 10, 9, 13, YELLOW), c.set(7, 11, BLACK), c.set(8, 11, BLACK), c.set(7, 12, BLACK)
+    for x in (4, 11):  # gỉ chảy dọc
+        for y in range(5, 5 + r.randrange(4, 9)):
+            c.set(x, y, RUST)
+    blob(c, r, 11, 18, 2, 1.5, MUD, None, 0.7)
+    return outline(c)
+
+
+def backpack():
+    """Ba lô rơi lại: nắp mở, quai vắt, đồ lòi ra, vết máu khô."""
+    c = C(18, 16)
+    c.ellipse(9, 10, 6, 5, OLIVE, OLIVE_D)
+    for x in range(4, 15):
+        for y in range(6, 15):
+            if c.px[x, y] == OLIVE and x < 8 and y < 10:
+                c.set(x, y, OLIVE_L)
+    c.ellipse(9, 6, 5, 2.3, OLIVE_L, OLIVE_D)  # nắp lật
+    c.rect(6, 10, 12, 13, OLIVE_D), hline(c, 6, 12, 10, OLIVE)  # túi trước
+    c.set(9, 11, GOLD)
+    c.rect(13, 3, 16, 4, CANVAS)  # tấm vải / bản đồ lòi ra
+    c.set(15, 3, CANVAS_L)
+    for i in range(5):  # quai đeo vắt ra đất
+        c.set(2 + i // 2, 13 + i % 2, OLIVE_D)
+    c.rect(0, 14, 4, 15, BLOOD), c.set(5, 15, BLOOD)
+    return outline(c)
+
+
+def tent(col, col_l, col_d):
+    """Lều chữ A nhìn chéo: mặt trước + mái hông, cửa vén mở, miếng vá, dây néo & cọc."""
+    c = C(48, 36)
+    ax, ay, base = 18, 4, 33
+    # mái hông (phải) — tối
+    for y in range(ay, base + 1):
+        t = (y - ay) / (base - ay)
+        x0 = int(ax + t * 16)
+        x1 = int(ax + 20 + t * 8)
+        for x in range(x0, x1 + 1):
+            c.set(x, y, col_d if (x + y) % 7 else mix(col_d, BLACK, 0.2))
+    hline(c, ax + 1, ax + 20, ay, col)  # sống mái
+    # mặt trước tam giác — sáng bên trái
+    for y in range(ay, base + 1):
+        half = int((y - ay) * 0.56)
+        for x in range(ax - half, ax + half + 1):
+            c.set(x, y, col_l if x < ax - 2 else col)
+    # cửa: khe tối + vạt vén sang trái
+    for y in range(14, base + 1):
+        half = int((y - 14) * 0.42)
+        for x in range(ax - half, ax + half + 1):
+            c.set(x, y, rgb('#1d1719'))
+    for y in range(16, base + 1):
+        x = ax - int((y - 14) * 0.42) - 1
+        c.rect(x - 2, y, x, y, mix(col_l, WHITE, 0.15))
+    c.rect(26, 22, 29, 25, CANVAS), c.set(27, 23, CANVAS_D)  # miếng vá
+    c.rect(ax - 1, ay - 3, ax, ay, WD)  # cột
+    for (x0, y0, x1, y1) in ((ax - 1, ay + 1, 1, base), (ax + 21, ay + 1, 46, base - 2)):  # dây néo
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        for i in range(n + 1):
+            x, y = round(x0 + (x1 - x0) * i / n), round(y0 + (y1 - y0) * i / n)
+            if c.px[x, y][3] == 0:
+                c.set(x, y, mix(CANVAS_D, BLACK, 0.2))
+    c.rect(0, base - 1, 1, base, WD), c.rect(46, base - 3, 47, base - 2, WD)
+    hline(c, 2, 44, base + 1, mix(col_d, BLACK, 0.3))
+    return outline(c)
+
+
+def huntbox():
+    """Hòm gỗ thợ săn: mặt nắp + mặt trước, nẹp sắt góc, khoá, súng săn cũ gác trên."""
+    c = C(22, 18)
+    c.rect(1, 5, 20, 8, WL)  # nắp (mặt trên)
+    for x in (6, 11, 16):
+        c.rect(x, 5, x, 8, W)
+    hline(c, 1, 20, 5, mix(WL, WHITE, 0.3))
+    c.rect(1, 9, 20, 16, W)  # mặt trước
+    for y in (11, 14):
+        hline(c, 1, 20, y, WD)
+    hline(c, 1, 20, 16, WDD)
+    for x in (1, 19):
+        c.rect(x, 9, x + 1, 16, MET_D), c.rect(x, 5, x + 1, 6, MET_D)
+    c.rect(9, 9, 12, 12, MET), c.set(10, 11, BLACK)  # khoá
+    c.rect(2, 2, 18, 3, MET_D), hline(c, 2, 8, 2, WD), c.rect(2, 3, 5, 4, WD)  # súng săn: báng gỗ + nòng
+    c.set(17, 2, MET_L)
+    return outline(c)
+
+
+def milcrate():
+    """Hòm quân dụng: nắp có gân, mặt trước sơn chữ trắng, tay cầm & chốt thép."""
+    c = C(32, 22)
+    c.rect(1, 4, 30, 8, OLIVE_L)
+    for x in range(3, 30, 4):
+        c.rect(x, 5, x, 7, OLIVE)
+    hline(c, 1, 30, 4, mix(OLIVE_L, WHITE, 0.3))
+    c.rect(1, 9, 30, 20, OLIVE)
+    hline(c, 1, 30, 9, OLIVE_D), hline(c, 1, 30, 20, OLIVE_D)
+    for x in (1, 2, 29, 30):
+        c.rect(x, 9, x, 20, OLIVE_D)
+    for x0 in (9, 14, 19):  # chữ sơn trắng (giả)
+        c.rect(x0, 12, x0 + 3, 12, CREAM), c.rect(x0, 13, x0, 15, CREAM), c.rect(x0 + 3, 14, x0 + 3, 15, CREAM)
+    for x in (5, 25):
+        c.rect(x - 1, 10, x + 1, 11, MET), c.set(x, 11, MET_D)  # chốt
+    c.rect(0, 13, 0, 16, MET_D), c.rect(31, 13, 31, 16, MET_D)  # tay cầm
+    r = random.Random(9)
+    blob(c, r, 24, 18, 3, 1.5, MUD, None, 0.6)
+    return outline(c)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     sprites = {
@@ -700,13 +1142,20 @@ def main():
         'tent_green': tent(OLIVE, OLIVE_L, OLIVE_D), 'tent_tan': tent(CANVAS, CANVAS_L, CANVAS_D),
         'campfire0': campfire(0), 'campfire1': campfire(1),
         'barricade': barricade(), 'sandbags': sandbags(),
-        'car_red': car(rgb('#9a3a32'), rgb('#c45a4a'), rgb('#6a2420')), 'car_blue': car(rgb('#3a5a8a'), rgb('#5a7ab0'), rgb('#24385a')),
-        'car_white': car(rgb('#c8c4bc'), rgb('#e8e4dc'), rgb('#8a8680')),
+        'car_red': car(rgb('#9a3a32'), rgb('#c45a4a'), rgb('#6a2420'), 1), 'car_blue': car(rgb('#3a5a8a'), rgb('#5a7ab0'), rgb('#24385a'), 2),
+        'car_white': car(rgb('#c8c4bc'), rgb('#e8e4dc'), rgb('#8a8680'), 3),
+        'truck_green': car(rgb('#5a6a42'), rgb('#7d8f5c'), rgb('#3a452a'), 4, 'pickup'), 'truck_tan': car(rgb('#a08458'), rgb('#c4a874'), rgb('#6e5a3a'), 5, 'pickup'),
         'trashcan': trashcan(), 'milcrate': milcrate(), 'barrel': barrel(), 'cabinet': cabinet(), 'ruinwall': ruinwall(),
         'tires': tires(), 'workbench': workbench(), 'watchtower': watchtower(), 'cone': cone(),
         'blood0': blood(1), 'blood1': blood(2), 'bones': bones(), 'nest0': nest(0), 'nest1': nest(1),
         'container': container(), 'grainbin': grainbin(),
         'f_mill': mill(), 'f_mill_fan': mill_fan(), 'f_bakery': bakery(), 'f_dairy': dairy(), 'f_juicer': juicer(), 'f_stand': stall(),
+        'backpack': backpack(), 'huntbox': huntbox(), 'fridge': fridge(), 'wardrobe': wardrobe(), 'kitchen': kitchen(),
+        'medcab': medcab(), 'desk': desk(), 'shelf': shelf(), 'locker': locker(),
+        'pen_coop': coop_pen(), 'pen_barn': barn_pen(),
+        'trap_spike': trap_spike(), 'trap_broken': trap_broken(), 'torch0': torch(0), 'torch1': torch(1), 'torch_i': torch_icon(),
+        'rotflesh': rotflesh(), 'fert': fert(), 'bait_poison': bait_poison(), 'molotov': molotov(),
+        'bait_meat': bait_pile(rgb('#8a4a52'), rgb('#5a2a32')),
     }
     W_MAX = 256
     x = y = row_h = 0

@@ -7,7 +7,10 @@ import Phaser from 'phaser';
 import { TILE } from '../config.js';
 import { state, toast, changed, sfx, addItem, roomFor, bus } from '../state.js';
 import { basePanel } from '../survivalPanels.js';
-import { ITEMS, FORAGE } from '../config.js';
+import { dayNum } from '../survival.js';
+import { ITEMS, FORAGE, SEASONS } from '../config.js';
+import { bonusChance } from '../skills.js';
+import { xp } from '../state.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -35,10 +38,12 @@ export function prop(s, name, tx, ty, o = {}) {
   img.setDepth(o.depth ?? (ty + 1) * TILE - 1);
   for (const [x, y] of tiles) s.removeDecor(key(x, y));
   if (solid) {
-    s.fx.shadow(img.x, (ty + 1) * TILE - 1, Math.min(img.width + 2, w * TILE + 6));
-    s.addWall(tx * TILE + 2, (ty - rows + 1) * TILE + 4, w * TILE - 4, rows * TILE - 6);
+    img.shadowObj = s.fx.shadow(img.x, (ty + 1) * TILE - 1, Math.min(img.width + 2, w * TILE + 6));
+    img.wallObj = s.addWall(tx * TILE + 2, (ty - rows + 1) * TILE + 4, w * TILE - 4, rows * TILE - 6);
+    img.tiles = tiles;
   }
   if (o.label || o.action) for (const [x, y] of tiles) s.statics.set(key(x, y), o.action || (() => ({ act: false, label: o.label })));
+  if (o.action) s.interactables?.push({ img, r: img.getBounds(), tx, ty });
   return img;
 }
 
@@ -60,12 +65,174 @@ export function fireBarrel(s, tx, ty) {
 }
 
 // Đồ nhỏ không chặn đường (đặt vào decor để cuốc đất / đặt đồ tự dọn)
+// Hoa dại / nấm mọc trên cỏ: chỉ là đồ trang trí hái được — cầm cuốc thì cuốc đè lên luôn
+// (WorldScene.actionAt bỏ qua, removeDecor xoá kèm)
+function decorStatic(fn) {
+  fn.decor = true;
+  return fn;
+}
+
 function small(s, name, x, y, flip) {
   const k = key(x, y);
   if (s.decor.has(k)) return;
-  const img = s.add.image(x * TILE + 8, (y + 1) * TILE, 'props', name).setOrigin(0.5, 1).setDepth((y + 1) * TILE - 4).setFlipX(!!flip);
+  const tex = s.textures.get('props').has(name) ? 'props' : 'icons'; // nấm mới vẽ trong atlas icons
+  const img = s.add.image(x * TILE + 8, (y + 1) * TILE, tex, name).setOrigin(0.5, 1).setDepth((y + 1) * TILE - 4).setFlipX(!!flip);
+  if (tex === 'icons') img.setScale(0.8);
+  if (name === 'mush_glow') {
+    // nấm phát quang: nhấp nháy xanh + có ánh sáng ban đêm
+    s.tweens.add({ targets: img, alpha: { from: 1, to: 0.65 }, yoyo: true, repeat: -1, duration: 900 + (x * 37 % 400) });
+    s.fx?.light?.(img.x, img.y - 6, 22);
+  }
   s.decor.set(k, img);
   return img;
+}
+
+// Nấm hái được: hái xong mọc lại vào ngày hôm sau (cùng chỗ)
+function mushroom(s, kind, x, y, flip) {
+  const k = key(x, y);
+  const pk = `${s.mapId}:${k}`;
+  if (s.decor.has(k) || s.statics.has(k) || state.mushPicked?.[pk] === dayNum()) return;
+  const img = small(s, kind, x, y, flip);
+  if (!img) return;
+  const name = ITEMS[kind].name;
+  s.statics.set(k, decorStatic(() => ({
+    label: `Hái ${name}`,
+    run: () => {
+      if (!roomFor(kind)) return;
+      addItem(kind, 1);
+      sfx('grass', 0.5);
+      s.floatIcon(x * TILE + 8, y * TILE, ITEMS[kind].tex, ITEMS[kind].frame);
+      state.mushPicked = { ...(state.mushPicked || {}), [pk]: dayNum() };
+      img.destroy();
+      s.decor.delete(k);
+      s.statics.delete(k);
+      changed();
+    },
+  })));
+}
+
+// Hái lượm theo ngày: bụi cây thuốc & khóm hoa dại — hái xong héo đi, mai mọc lại
+const pickedToday = (pk) => state.pickDay?.[pk] === dayNum();
+function markPicked(pk) {
+  state.pickDay = state.pickDay || {};
+  // dọn dấu cũ cho save gọn
+  for (const [k, d] of Object.entries(state.pickDay)) if (d !== dayNum()) delete state.pickDay[k];
+  state.pickDay[pk] = dayNum();
+}
+function give(s, x, y, id, n) {
+  if (!n || !roomFor(id)) return null;
+  addItem(id, n);
+  s.floatIcon(x * TILE + 8, y * TILE - 4, ITEMS[id].tex, ITEMS[id].frame);
+  return `${n} ${ITEMS[id].name}`;
+}
+
+// Khúc gỗ mục trong rừng: cầm rìu chặt lấy gỗ (2–4), hôm sau có khúc khác lăn về chỗ cũ
+function rottenLog(s, x, y) {
+  const pk = `${s.mapId}:log:${key(x, y)}`;
+  if (pickedToday(pk)) return true; // đã chặt hôm nay: chỗ trống, vẫn tính là có
+  let img = null;
+  img = prop(s, 'log', x, y, {
+    w: 2,
+    action: (sel) => {
+      if (sel?.kind !== 'tool' || sel.id !== 'axe') return { act: false, label: 'Khúc gỗ mục — cầm Rìu để chặt lấy gỗ' };
+      return {
+        label: 'Chặt khúc gỗ mục lấy gỗ',
+        run: () => {
+          if (!roomFor('wood')) return;
+          s.playAction?.('axe');
+          sfx('chop', 0.5);
+          const got = give(s, x, y, 'wood', 2 + Math.floor(Math.random() * 2) + (bonusChance('foraging') ? 1 : 0));
+          if (!got) return;
+          xp('foraging', 1);
+          markPicked(pk);
+          s.puff?.(x, y, 0x8a5a34);
+          s.puff?.(x + 1, y, 0x8a5a34);
+          for (const [tx, ty] of img.tiles || []) {
+            s.statics.delete(key(tx, ty));
+            s.blocked.delete(key(tx, ty));
+          }
+          s.interactables = (s.interactables || []).filter((o) => o.img !== img);
+          img.wallObj?.destroy();
+          img.shadowObj?.destroy();
+          img.destroy();
+          toast(`+${got}`);
+          changed();
+        },
+      };
+    },
+  });
+  return img;
+}
+
+// Bụi rậm hái lượm (tools/make_bushes_pc.py → 'pc_bushes2', mỗi loại 2 khung: đầy / đã hái).
+// Hái xong bụi xỉn đi, hôm sau ra lại; trái mùa thì bụi trơ.
+export const BUSHES = {
+  mulberry: { frame: 0, name: 'Bụi dâu tằm', verb: 'Hái dâu tằm', seasons: ['spring', 'summer'], give: ['mulberry', 2, 4], fx: 0x6a2458 },
+  blueberry: { frame: 2, name: 'Bụi việt quất', verb: 'Hái việt quất', seasons: ['summer', 'autumn'], give: ['blueberry', 2, 4], fx: 0x3a54a8 },
+  herb: { frame: 4, name: 'Bụi lá thuốc', verb: 'Hái lá thuốc', seasons: ['spring', 'summer', 'autumn'], give: ['herb', 1, 2], fx: 0x8ac050 },
+  tea: { frame: 6, name: 'Bụi trà', verb: 'Hái lá trà', seasons: ['spring', 'summer', 'autumn'], give: ['tealeaf', 1, 3], fx: 0xa8d860 },
+  rose: { frame: 8, name: 'Bụi hoa hồng', verb: 'Hái hoa hồng', seasons: ['spring', 'summer'], give: ['rose', 1, 2], fx: 0xd83a4a },
+  daisy: { frame: 10, name: 'Bụi hoa cúc', verb: 'Hái hoa cúc', seasons: ['spring', 'autumn'], give: ['daisy', 1, 3], fx: 0xffffff },
+  lavender: { frame: 12, name: 'Bụi oải hương', verb: 'Hái oải hương', seasons: ['summer'], give: ['lavender', 1, 3], fx: 0xa070e0 },
+};
+const SEASON_VN = { spring: 'xuân', summer: 'hạ', autumn: 'thu', winter: 'đông' };
+
+function forageBush(s, kind, x, y) {
+  const B = BUSHES[kind];
+  const pk = `${s.mapId}:bush:${key(x, y)}`;
+  const sid = SEASONS[state.season].id;
+  const inSeason = B.seasons.includes(sid);
+  let img = null;
+  img = prop(s, B.frame + (inSeason && !pickedToday(pk) ? 0 : 1), x, y, {
+    tex: 'pc_bushes2',
+    w: 2,
+    action: () => {
+      if (!inSeason) return { act: false, label: `${B.name} — mùa này chưa có, ra vào mùa ${B.seasons.map((x) => SEASON_VN[x]).join(', ')}` };
+      if (pickedToday(pk)) return { act: false, label: `${B.name} — đã hái hôm nay, mai lại có` };
+      return {
+        label: B.verb,
+        run: () => {
+          const [id, lo, hi] = B.give;
+          const n = lo + Math.floor(Math.random() * (hi - lo + 1)) + (bonusChance('foraging') ? 1 : 0);
+          const got = give(s, x, y, id, n);
+          if (!got) return;
+          markPicked(pk);
+          sfx('grass', 0.5);
+          xp('foraging', 1);
+          // bụi rung + quả/cánh hoa văng ra rồi chuyển sang hình đã hái
+          s.tweens.add({ targets: img, scaleX: { from: 1.12, to: 1 }, scaleY: { from: 0.9, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+          s.burst?.(img.x, img.y - 12, 'fx_dust', 8, B.fx, 14, 10, 520);
+          s.time.delayedCall(120, () => img.active && img.setFrame(B.frame + 1));
+          toast(`Hái được ${got}`);
+          changed();
+        },
+      };
+    },
+  });
+  return img;
+}
+
+// Khóm hoa dại: hái 1 hoa, khóm héo tới hôm sau
+function wildFlower(s, kind, x, y, flip) {
+  const k = key(x, y);
+  const pk = `${s.mapId}:fl:${k}`;
+  if (s.decor.has(k) || s.statics.has(k) || pickedToday(pk)) return;
+  const img = small(s, kind, x, y, flip);
+  if (!img) return;
+  s.statics.set(k, decorStatic(() => ({
+    label: 'Hái hoa dại',
+    run: () => {
+      if (!give(s, x, y, 'flower', 1)) return;
+      if (Math.random() < 0.15) give(s, x, y - 1, 'herb', 1);
+      sfx('grass', 0.45);
+      xp('foraging', 1);
+      markPicked(pk);
+      img.destroy();
+      s.decor.delete(k);
+      s.statics.delete(k);
+      changed();
+    },
+  })));
 }
 
 // Cụm hoa dại / cỏ cao / nấm... rải theo cụm (không rải đều) cho tự nhiên
@@ -80,7 +247,9 @@ export function patches(s, isFree, n, seed, kinds) {
     for (let j = 0; j < size; j++) {
       const x = cx + Math.round((r() - 0.5) * 4), y = cy + Math.round((r() - 0.5) * 3);
       if (!s.inMap(x, y) || !isFree(x, y)) continue;
-      small(s, kind, x, y, r() < 0.5);
+      if (kind.startsWith('mush')) mushroom(s, kind, x, y, r() < 0.5);
+      else if (kind.startsWith('wild_')) wildFlower(s, kind, x, y, r() < 0.5);
+      else small(s, kind, x, y, r() < 0.5);
     }
   }
 }
@@ -160,13 +329,11 @@ export function decorateVillage(s) {
 // ---------------- Nông trại ----------------
 export function decorateFarm(s, isFree) {
   prop(s, 'mailbox', 12, 8, { label: 'Hộp thư — chưa có thư mới' });
-  prop(s, 'workbench', 12, 6, { tex: 'surv', w: 2, action: () => ({ label: 'Bàn chế tạo — nâng cấp căn cứ', run: () => bus.emit('panel', basePanel) }) });
+  // Bàn chế tạo: chỗ mặc định bị vướng (đất cuốc, đồ đặt) thì thử chỗ khác gần nhà — không bao giờ mất bàn
+  const bench = { tex: 'pc_workbench', w: 2, action: () => ({ label: 'Bàn chế tạo — chế đồ & nâng cấp căn cứ', run: () => bus.emit('panel', basePanel) }) };
+  [[12, 6], [9, 7], [15, 7], [6, 9], [16, 9], [3, 11], [22, 9]].some(([x, y]) => prop(s, null, x, y, bench));
   prop(s, 'woodpile', 1, 9, { w: 2, label: 'Đống củi' });
-  // Phòng thủ theo cấp hàng rào
-  const fence = state.base?.fence || 0;
-  if (fence >= 1) for (const [x, y, k] of [[61, 10, 'sandbags'], [61, 13, 'sandbags'], [14, 1, 'sandbags'], [18, 1, 'sandbags'], [17, 41, 'sandbags'], [21, 41, 'sandbags']]) prop(s, k, x, y, { tex: 'surv', w: 2, label: 'Bao cát chắn lối' });
-  if (fence >= 2) for (const [x, y] of [[59, 9], [59, 14], [21, 39], [16, 39]]) prop(s, 'barricade', x, y, { tex: 'surv', w: 2, label: 'Rào thép gai' });
-  if (fence >= 3) prop(s, 'watchtower', 55, 9, { tex: 'surv', w: 2, label: 'Tháp canh' });
+  // Cổng chắn & tháp canh: vẽ ở src/raid.js theo cấp hàng rào
   // Máy phát điện: đèn pha ban đêm
   if ((state.base?.generator || 0) >= 1) for (const [x, y] of [[8, 9], [10, 18], [20, 12], [30, 12], [45, 12], [24, 8], [34, 8]]) s.fx.light(x * TILE + 8, y * TILE, 70);
   prop(s, 'well', 10, 5, { w: 2, action: (sel) => (sel.id === 'can' ? { label: 'Múc nước giếng vào bình', run: () => s.refill() } : { act: false, label: 'Giếng nước — chọn bình tưới để múc nước' }) });
@@ -180,20 +347,26 @@ export function decorateFarm(s, isFree) {
 }
 
 // ---------------- Rừng ----------------
+// tỉ lệ các loại bụi trong rừng: quả dại 35%, lá 30%, hoa 35%
+const BUSH_MIX = ['mulberry', 'blueberry', 'mulberry', 'blueberry', 'herb', 'tea', 'herb', 'rose', 'daisy', 'lavender', 'rose', 'daisy'];
+
 export function decorateForest(s) {
   const free = (x, y) => s.forestFree(x, y) && !s.statics.has(key(x, y));
   const nearPath = (x, y) => [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([dx, dy]) => s.isDirt(x + dx, y + dy));
   const r = rng(909);
   let logs = 0, bushes = 0;
-  for (let i = 0; i < 400 && (logs < 7 || bushes < 12); i++) {
+  for (let i = 0; i < 1400 && (logs < 11 || bushes < 34); i++) {
     const x = 2 + Math.floor(r() * (s.mapW - 4)), y = 3 + Math.floor(r() * (s.mapH - 5));
     if (!free(x, y) || nearPath(x, y)) continue;
-    if (logs < 7 && r() < 0.4) { if (free(x + 1, y) && !nearPath(x + 1, y) && prop(s, 'log', x, y, { w: 2, label: 'Khúc gỗ mục' })) logs++; }
-    else if (bushes < 12 && prop(s, r() < 0.5 ? 'berry_red' : 'berry_blue', x, y, { label: 'Bụi quả dại (chưa chín)' })) bushes++;
+    if (logs < 11 && r() < 0.4) { if (free(x + 1, y) && !nearPath(x + 1, y) && rottenLog(s, x, y)) logs++; }
+    else if (bushes < 34 && free(x + 1, y) && forageBush(s, BUSH_MIX[Math.floor(r() * BUSH_MIX.length)], x, y)) bushes++;
   }
   prop(s, 'signpost', 21, 8, { label: '→ Hầm quân sự   ← Hồ cá' });
   waterside(s, 41);
-  patches(s, free, 46, 123, ['mush_red', 'mush_brown', 'grass0', 'grass1', 'wild_purple', 'wild_yellow', 'stones']);
+  // rừng nhiều nấm: ăn được khi nấu (mối, sò), nấm rừng, nấm độc; còn nhiễm bệnh thì mọc nấm phát quang
+  const infected = (state.zones?.forest?.infection ?? 100) > 0;
+  const mush = ['mush_red', 'mush_brown', 'mush_termite', 'mush_oyster', 'mush_termite', 'mush_deathcap', ...(infected ? ['mush_glow', 'mush_glow'] : [])];
+  patches(s, free, 90, 123, [...mush, 'grass0', 'grass1', 'wild_purple', 'wild_yellow', 'stones']);
 }
 
 // ---------------- Chó mèo trong làng / nông trại ----------------
@@ -213,7 +386,7 @@ export function spawnCritter(s, kind, hx, hy, r = 4, opts = {}) {
   let petDay = null;
   let name = null;
   if (opts.name) {
-    name = s.add.text(0, 0, opts.name, { fontFamily: 'VT323', fontSize: '30px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 6 }).setScale(0.25).setOrigin(0.5, 1).setDepth(8900);
+    name = s.add.text(0, 0, opts.name, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '30px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 6 }).setScale(0.25).setOrigin(0.5, 1).setDepth(8900);
     const follow = () => name.active && sprite.active && name.setPosition(sprite.x, sprite.y - 15);
     s.events.on('update', follow);
     s.events.once('shutdown', () => s.events.off('update', follow));

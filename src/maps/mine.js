@@ -5,6 +5,7 @@ import { TILE, MINE_W, MINE_H, MONSTERS, ITEMS, TOOLS } from '../config.js';
 import { state, changed, toast, sfx, addItem, selected, useEnergy, toolLv, xp, bagHasRoom } from '../state.js';
 import { energyCost, bonusChance } from '../skills.js';
 import Combat from '../combat.js';
+import { container } from './zones.js';
 
 const key = (x, y) => `${x},${y}`;
 export const MINE_SPAWN = { x: 3, y: 4 };
@@ -285,6 +286,28 @@ export function buildMine(s) {
   }
   s.ladderRock = rocks.length ? key(...rocks[Math.floor(Math.random() * rocks.length)]) : null;
 
+  // Tủ sắt & hòm quân dụng sát tường (mỗi tầng có chỗ lục riêng, có đồ lại sau vài ngày)
+  let boxes = 0;
+  const nBox = 2 + (floor % 3 === 0 ? 1 : 0);
+  for (const [x, y] of rest) {
+    if (boxes >= nBox) break;
+    if (!isWall(x, y - 1) || nearSpawn(x, y, 3) || used.has(key(x, y)) || s.blocked.has(key(x, y)) || !safe(x, y)) continue;
+    const type = boxes % 2 ? 'milcrate' : 'locker';
+    const w = type === 'milcrate' ? 2 : 1;
+    if (w === 2 && (isWall(x + 1, y) || used.has(key(x + 1, y)) || s.blocked.has(key(x + 1, y)) || !isWall(x + 1, y - 1))) continue;
+    for (let dx = 0; dx < w; dx++) used.add(key(x + dx, y));
+    container(s, type, x, y, { w, key: `mine:${zone}${floor}:${boxes}` });
+    // Dọn đống đổ nát chắn ngay trước hòm
+    for (let dx = 0; dx < w; dx++) {
+      const fk = key(x + dx, y + 1);
+      if (s.mineObjs.has(fk)) {
+        s.mineObjs.delete(fk);
+        renderRock(s, x + dx, y + 1);
+      }
+    }
+    boxes++;
+  }
+
   // Zombie (ở chỗ trống, xa lối vào): càng sâu càng nhiều lính & con to khoẻ
   s.combat = new Combat(s, null);
   const eff = s.mineEff;
@@ -296,7 +319,7 @@ export function buildMine(s) {
   let placed = 0;
   for (const [x, y] of rest) {
     if (placed >= n) break;
-    if (Math.abs(x - MINE_SPAWN.x) + Math.abs(y - MINE_SPAWN.y) < 8) continue;
+    if (Math.abs(x - MINE_SPAWN.x) + Math.abs(y - MINE_SPAWN.y) < 8 || used.has(key(x, y))) continue;
     s.combat.spawnZombie(pool[Math.floor(Math.random() * pool.length)], x, y);
     placed++;
   }

@@ -54,7 +54,7 @@ export function buildShop(s, id) {
   // Cửa sổ + biển tên tiệm trên tường
   for (const x of [3, 10]) s.add.image(x * TILE, 2, 'shop_window').setOrigin(0).setDepth(-920);
   s.add
-    .text(7 * TILE, 9, S.title, { fontFamily: 'VT323', fontSize: '44px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 })
+    .text(7 * TILE, 9, S.title, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '44px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 })
     .setScale(0.25)
     .setOrigin(0.5)
     .setDepth(-910);

@@ -2,6 +2,7 @@
 import { TILE } from '../config.js';
 import { state, bus, changed, toast, sfx, save, ui } from '../state.js';
 import { kitchenPanel } from '../shops.js';
+import { have, take } from '../hayday.js';
 import { FURN, ensureHome, homeSize, footprint, canPlace, placeFurn, removePlaced, canStore, addOwned, ownedCount, bedSpawn } from '../furniture.js';
 
 const key = (x, y) => `${x},${y}`;
@@ -39,6 +40,7 @@ export function buildHome(s) {
   s.furnObjs = [];
   s.furnKeys = [];
   renderFurniture(s);
+  if (!state.roofFixed) roofLeak(s);
 
   // Chế độ trang trí
   const on = (ev, fn) => {
@@ -325,4 +327,49 @@ function storeHeld(s) {
   sfx('click', 0.4);
   toast(`Đã cất ${FURN[h.id].name} vào kho`);
   changed();
+}
+
+// Mái dột (ván mới): vệt nắng lọt qua lỗ thủng, nước nhỏ giọt xuống vũng trên sàn. Có 10 gỗ thì vá được.
+function roofLeak(s) {
+  const { w } = homeSize();
+  const tx = Math.floor(w / 2) + 2, ty = 4;
+  const cx = tx * TILE + 8, cy = ty * TILE + 10;
+  const objs = [];
+  objs.push(s.add.rectangle(cx, cy - 26, 10, 52, 0xfff3c0, 0.07).setDepth(-890)); // vệt sáng
+  objs.push(s.add.rectangle(cx, 2 * TILE - 3, 8, 3, 0x0d0a0b).setDepth(-940)); // lỗ thủng trên tường/mái
+  const puddle = s.add.ellipse(cx, cy, 16, 6, 0x6a9ac8, 0.55).setDepth(-920);
+  objs.push(puddle);
+  s.tweens.add({ targets: puddle, scaleX: 1.08, yoyo: true, repeat: -1, duration: 1300 });
+  const drip = () => {
+    if (!puddle.active) return;
+    const d = s.add.rectangle(cx, 2 * TILE, 1, 3, 0x9ac8f0).setDepth(9000);
+    s.tweens.add({
+      targets: d, y: cy - 2, duration: 520, ease: 'Quad.easeIn',
+      onComplete: () => {
+        d.destroy();
+        const ring = s.add.ellipse(cx, cy, 4, 2).setStrokeStyle(1, 0xcfe8ff, 0.9).setDepth(-915);
+        s.tweens.add({ targets: ring, scaleX: 3, scaleY: 2.5, alpha: 0, duration: 500, onComplete: () => ring.destroy() });
+      },
+    });
+  };
+  const ev = s.time.addEvent({ delay: 1100, loop: true, callback: drip });
+  const k = `${tx},${ty}`;
+  s.statics.set(k, () => {
+    const n = have('wood');
+    if (n < 10) return { act: false, label: `Mái nhà dột — cần 10 gỗ để vá (đang có ${n}). Chặt cây bằng Rìu.` };
+    return {
+      label: 'Vá mái dột (10 gỗ)',
+      run: () => {
+        take('wood', 10);
+        state.roofFixed = true;
+        ev.remove();
+        for (const o of objs) s.tweens.add({ targets: o, alpha: 0, duration: 500, onComplete: () => o.destroy() });
+        s.statics.delete(k);
+        s.cameras.main.shake(120, 0.003);
+        sfx('hoe', 0.6);
+        toast('Đã vá xong mái nhà — hết dột rồi!');
+        changed();
+      },
+    };
+  });
 }

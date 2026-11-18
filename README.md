@@ -1,4 +1,4 @@
-# Nông Trại Nhỏ
+# Ashen Acre — Vườn Tàn Tro
 
 Game mô phỏng nông trại pixel art chạy trên trình duyệt (máy tính và điện thoại màn hình ngang). Làm bằng Phaser 3 + Vite.
 
@@ -122,7 +122,9 @@ src/lofi.js              bộ tạo nhạc lofi
 | `public/assets/ninja/`, `public/assets/audio/sfx/` | Ninja Adventure | **CC0** (tự do) |
 | `public/assets/tiny-wonder/` | Tiny Wonder Farm (bản free) — nhà, rương, đá, khoai tây/bí ngô/đậu, nội thất | Bản free **chỉ phi thương mại** — cần mua bản trả phí hoặc thay thế trước khi bán/quảng cáo thương mại |
 | `public/assets/interior/` | "interior free" | Kiểm tra giấy phép gốc trước khi dùng thương mại |
-| `public/fonts/VT323-Regular.ttf` | VT323 (Google Fonts) | SIL Open Font License — dùng thương mại được |
+| `public/assets/hero/`, `public/assets/pc/`, `public/assets/crops/`, sàn & tường trong `public/assets/furn/` | **Pixel Crawler — Free Pack** (Anokolisa): nhân vật chính + động tác, cỏ/đất/đá lát/nước, cây theo mùa, cỏ dại, đá, cành, bàn chế tạo, sàn & tường trong nhà, cà rốt/bắp cải | Dùng **thương mại** được, không cần ghi công; không bán lại asset. Tạo bằng `tools/make_hero.py`, `make_terrain_pc.py`, `make_nature_pc.py`, `make_buildings_pc.py`, `patch_furn_pc.py`, `make_crops_pack.py` (cần thư mục gốc `Pixel Crawler - Free Pack/` ở gốc dự án) |
+| `public/assets/crops/`, `public/assets/pc/house.png`, `chest.png` | **Farm RPG FREE 16x16 — Tiny Asset Pack**: dâu tây, khoai tây (+ gói hạt), nhà nông trại, rương | Bản free — kiểm tra điều khoản trang tải trước khi bán thương mại. Tool tự giải nén file `.rar` ở gốc dự án |
+| `public/fonts/VT323-Regular.ttf` | VT323 (Google Fonts), đã vá móc chữ Ơ/Ư cho rõ (`tools/patch_font_horn.py`, bản gốc ở `tools/fonts/`) | SIL Open Font License — dùng thương mại được, được sửa (không có tên bảo lưu) |
 
 Mọi asset (trừ Farmer Pack) đã được **chuyển sang bảng màu của Farmer Pack** để đồng bộ phong cách:
 

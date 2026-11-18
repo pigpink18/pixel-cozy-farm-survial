@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import {
-  HOME_CHEST, TILE, ZOOM, PLAYER_SPEED, COLORS, CROPS, ITEMS, TOOLS, ANIMALS, BUILDINGS, NPCS, RIPE_STAGE, REGROW_STAGE, MAX_HP, MAX_ENERGY, AREA_BY_LEVEL, MINE_W, MINE_H,
+  HOME_CHEST, TILE, ZOOM, PLAYER_SPEED, COLORS, CROPS, ITEMS, TOOLS, ANIMALS, BUILDINGS, NPCS, RIPE_STAGE, REGROW_STAGE, MAX_HP, MAX_ENERGY, AREA_BY_LEVEL, MINE_W, MINE_H, DAY_START,
 } from '../config.js';
 import { state, ui, bus, changed, save, toast, sfx, season, selected, addItem, count, useEnergy, hearts, toolLv, waterCap, xp, roomFor, isTouchDevice } from '../state.js';
-import { FARM, FARM_W, FARM_H, isReserved, generateObjects, migrateFarmLayout, migrateHaydayLayout, addWildResources } from '../farmLayout.js';
+import { FARM, FARM_W, FARM_H, isReserved, penCfg, penRect, penOffset, PEN_IDS, generateObjects, migrateFarmLayout, migrateHaydayLayout, addWildResources, expandFarmEast } from '../farmLayout.js';
+import { container } from '../maps/zones.js';
 import { buildHayday, updateHayday } from '../maps/haydayFarm.js';
 import { farmXp, have, take, earnCoins, absMin, unlocked, needLevel } from '../hayday.js';
 import { newDay } from '../day.js';
 import { growCrops, newCrop, regrowCrop, minutesLeft, timeText } from '../crops.js';
-import { talk, boardPanel, shopOpen } from '../shops.js';
+import { talk, boardPanel, shopOpen, BUILD_MIN } from '../shops.js';
 import { buildForest, FOREST } from '../maps/forest.js';
 import { buildMine, mineAction, MINE_SPAWN } from '../maps/mine.js';
 import { buildHome, homeAction, HOME, decoPointer, decoMove } from '../maps/home.js';
@@ -16,9 +17,12 @@ import { buildShop, SHOPS, SHOP_IN } from '../maps/shop.js';
 import { buildQuarry, QUARRY } from '../maps/quarry.js';
 import { buildTown, TOWN } from '../maps/town.js';
 import { buildNpcHome } from '../maps/npchome.js';
+import { buildRuin } from '../maps/ruin.js';
+import { buildPenInside, PEN_IN, animalsIndoors } from '../maps/penin.js';
+import { INTRO_MAPS, buildCliff, buildBeach, playCliff, playBeach } from '../maps/introMaps.js';
 import { heldWeapon } from '../combat.js';
-import { raidFarm } from '../maps/zones.js';
-import { FOOD_MAX } from '../survival.js';
+import Raid, { defensePlaceLabel, makeDefenseObject, fertilize } from '../raid.js';
+import { FOOD_MAX, dayNum } from '../survival.js';
 import { decorateVillage, decorateFarm, spawnPet } from '../maps/decor.js';
 import { SCHEDULE, HOUSES, NPC_HOUSE_IN, HOUSE_OPEN, slotNow } from '../npcs.js';
 import { energyCost, bonusChance, maxHp } from '../skills.js';
@@ -28,6 +32,9 @@ import WorldFX from '../fx.js';
 const key = (x, y) => `${x},${y}`;
 const PREFIX = { key: 'Space: ', mouse: 'Click: ', touch: 'Chạm: ' };
 const SOLID = ['tree', 'stump', 'rock', 'fence', 'sprinkler'];
+// Dời chuồng: vật tự nhiên trong khu mới được dọn giúp (và cho vật liệu)
+const PEN_CLEARABLE = { tree: { wood: 3 }, stump: { wood: 2 }, branch: { wood: 1 }, rock: { stone: 1 }, weed: {} };
+const DEFENSE = ['trap_spike', 'torch', 'bait']; // đồ phòng thủ đêm: đi xuyên qua được
 const DIRS = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
 
 function seededRandom(seed) {
@@ -89,13 +96,18 @@ export default class WorldScene extends Phaser.Scene {
     this.mineZone = data.zone || 'forest';
     this.houseId = data.house || 'lan';
     this.houseBack = data.back || null;
+    this.ruinIdx = data.ruin ?? 0;
+    this.ruinKind = data.kind || 'home';
     this.mineEff = null;
     this.shopId = data.shop || 'store';
+    this.penId = data.pen || 'coop';
+    this.movePenId = data.movePen || null;
+    this.tour = !!data.tour;
   }
 
   create() {
     this.sea = season();
-    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], town: [TOWN.w, TOWN.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h] };
+    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], town: [TOWN.w, TOWN.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], ruin: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], pen: [PEN_IN.w, PEN_IN.h], cliff: [INTRO_MAPS.cliff.w, INTRO_MAPS.cliff.h], beach: [INTRO_MAPS.beach.w, INTRO_MAPS.beach.h] };
     [this.mapW, this.mapH] = SIZES[this.mapId];
     this.worldW = this.mapW * TILE;
     this.worldH = this.mapH * TILE;
@@ -105,22 +117,31 @@ export default class WorldScene extends Phaser.Scene {
     this.objShadows = new Map();
     this.lakeTiles = new Set();
     this.fx = new WorldFX(this);
-    if (['farm', 'village', 'forest', 'town'].includes(this.mapId)) this.grassGround();
+    if (['farm', 'village', 'forest', 'town', 'cliff', 'beach'].includes(this.mapId)) this.grassGround();
     else this.add.rectangle(0, 0, this.worldW, this.worldH, this.sea.ground).setOrigin(0).setDepth(-1000);
 
+    // Ván mới đi vào làng trước (đoạn mở đầu): tạo sẵn cây/đá nông trại để mọi chỗ dùng state.objects không lỗi
+    if (!state.objects) {
+      generateObjects();
+      addWildResources();
+      state.farmSize = 6;
+      save();
+    }
     this.blocked = new Set();
     this.noTill = new Set();
     this.statics = new Map(); // ô → (sel) => action
     this.redirects = new Map(); // ô bấm vào → ô tương tác thật (vd. mặt quầy → trước quầy)
     this.exits = new Map();
+    this.interactables = []; // { r: khung hình, tx, ty }: đứng sát hình ở phía nào cũng tương tác được
     this.walls = this.physics.add.staticGroup();
     this.objWalls = new Map();
     this.soilSprites = new Map();
     this.cropSprites = new Map();
     this.objSprites = new Map();
+    this.objHives = new Map();
     this.decor = new Map();
     this.waterTiles = new Set(); // ô nước câu được (tầm quăng xa hơn)
-    this.terrain = { path: new Set(), plaza: new Set(), water: new Set(), road: new Set() }; // vẽ bằng ô tự nối (tools/make_terrain.py)
+    this.terrain = { path: new Set(), plaza: new Set(), water: new Set(), road: new Set(), sand: new Set() }; // vẽ bằng ô tự nối (tools/make_terrain.py)
     this.movers = []; // NPC + vật nuôi + quái
     this.path = null;
     this.combat = null;
@@ -138,13 +159,17 @@ export default class WorldScene extends Phaser.Scene {
     else if (this.mapId === 'quarry') buildQuarry(this);
     else if (this.mapId === 'npchome') buildNpcHome(this, this.houseId);
     else if (this.mapId === 'town') buildTown(this);
+    else if (this.mapId === 'ruin') buildRuin(this, this.ruinIdx, this.ruinKind);
+    else if (this.mapId === 'pen') buildPenInside(this, this.penId);
+    else if (this.mapId === 'cliff') buildCliff(this);
+    else if (this.mapId === 'beach') buildBeach(this);
     this.paintTerrain();
     // NPC theo lịch sinh hoạt (chủ tiệm do buildShop tự đặt sau quầy)
     this.place = this.mapId === 'shop' ? `shop:${this.shopId}` : this.mapId === 'npchome' ? `house:${this.houseId}` : this.mapId;
     ui.place = this.place;
     if (this.mapId !== 'shop') this.spawnScheduled();
 
-    const DEFAULT_SPAWN = { farm: FARM.bedSpawn, village: VILLAGE.fromFarm, forest: FOREST.fromFarm, mine: MINE_SPAWN, home: HOME.bedSpawn, shop: SHOP_IN.enter, quarry: QUARRY.fromVillage, town: TOWN.fromVillage, npchome: NPC_HOUSE_IN.enter };
+    const DEFAULT_SPAWN = { farm: FARM.bedSpawn, village: VILLAGE.fromFarm, forest: FOREST.fromFarm, mine: MINE_SPAWN, home: HOME.bedSpawn, shop: SHOP_IN.enter, quarry: QUARRY.fromVillage, town: TOWN.fromVillage, npchome: NPC_HOUSE_IN.enter, ruin: NPC_HOUSE_IN.enter, pen: PEN_IN.enter, cliff: INTRO_MAPS.cliff.spawn, beach: INTRO_MAPS.beach.spawn };
     const sp = this.spawnAt || DEFAULT_SPAWN[this.mapId];
     this.createPlayer(sp.x, sp.y);
 
@@ -153,7 +178,7 @@ export default class WorldScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setZoom(ZOOM);
-    if (['home', 'shop', 'npchome'].includes(this.mapId)) {
+    if (['home', 'shop', 'npchome', 'ruin', 'pen'].includes(this.mapId)) {
       // Phòng nhỏ: giữ giữa theo chiều ngang, cuộn dọc theo nhân vật để không bị thanh thông tin (trên) và thanh công cụ (dưới) che
       const vw = this.scale.width / ZOOM;
       cam.setBounds(this.worldW / 2 - vw / 2, -46, vw, this.worldH + 46 + 30).startFollow(this.player, true, 0.15, 0.15);
@@ -186,7 +211,7 @@ export default class WorldScene extends Phaser.Scene {
     bus.on('buildingDone', onBuilt);
     // Nút "Ra ngoài" (trong nhà / cửa hàng): đi thẳng ra cửa
     const onLeave = () => {
-      if (ui.transition || ui.modal || !['home', 'shop', 'npchome'].includes(this.mapId)) return;
+      if (ui.transition || ui.modal || !['home', 'shop', 'npchome', 'ruin', 'pen'].includes(this.mapId)) return;
       const exit = [...this.exits.values()][0];
       if (exit) this.changeMap(exit.map, exit.spawn);
     };
@@ -201,6 +226,20 @@ export default class WorldScene extends Phaser.Scene {
     if (this.scene.isActive('UI')) this.scene.bringToTop('UI');
     else this.scene.launch('UI');
     ui.transition = false;
+    // từ biển "Dời chuồng" trong chuồng ra → vào luôn chế độ dời
+    if (this.movePenId && this.mapId === 'farm') this.time.delayedCall(450, () => this.startPenMove(this.movePenId));
+    // Đoạn mở đầu (ván mới): tham quan làng / sáng hôm sau nhận đồ nghề
+    if (this.mapId === 'village' && state.intro === 'tour') this.time.delayedCall(700, () => this.villageTour());
+    if (this.mapId === 'cliff') {
+      this.player.body.enable = false; // đang diễn: không va chạm, kịch bản tự điều khiển
+      this.time.delayedCall(400, () => playCliff(this));
+    }
+    if (this.mapId === 'beach' && state.intro === 'beach') {
+      this.player.body.enable = false;
+      this.time.delayedCall(200, () => playBeach(this));
+    }
+    if (this.mapId === 'farm' && state.intro === 'night' && state.day > 1) this.time.delayedCall(600, () => this.toolsGift());
+    if (this.mapId === 'home' && state.intro === 'night' && state.day > 1) this.time.delayedCall(800, () => toast('Có tiếng gõ cửa… Ông Năm đang đợi ngoài sân.'));
     this.lastHint = null;
     bus.emit('mapChanged', this.mapId);
   }
@@ -230,14 +269,14 @@ export default class WorldScene extends Phaser.Scene {
   // Mặt cỏ Farmer Pack (tilemap) — các biến thể cỏ có hoa, lật ngẫu nhiên cho tự nhiên
   grassGround() {
     const map = this.make.tilemap({ tileWidth: TILE, tileHeight: TILE, width: this.mapW, height: this.mapH });
-    const ts = map.addTilesetImage('fp_tiles');
+    const ts = map.addTilesetImage('pc_grass'); // cỏ Pixel Crawler
     const layer = (this.groundLayer = map.createBlankLayer('ground', ts, 0, 0).setDepth(-1000));
     const rnd = seededRandom(this.mapW * 31 + this.mapH);
     for (let x = 0; x < this.mapW; x++)
       for (let y = 0; y < this.mapH; y++) {
         const r = rnd();
-        const t = layer.putTileAt(r < 0.72 ? 27 + Math.floor(rnd() * 4) : Math.floor(rnd() * 4), x, y); // phần lớn cỏ trơn, điểm vài khóm hoa
-        t.flipX = rnd() < 0.5;
+        // ô cỏ Pixel Crawler nối liền theo thứ tự 1-2-3 → xếp theo cột, không lật; điểm vài bông hoa
+        const t = layer.putTileAt((x % 3) + (r < 0.93 ? 0 : 4), x, y);
         t.tint = this.sea.grassTint;
       }
     if (this.sea.snow) this.add.rectangle(0, 0, this.worldW, this.worldH, 0xffffff, 0.5).setOrigin(0).setDepth(-990);
@@ -263,7 +302,7 @@ export default class WorldScene extends Phaser.Scene {
     const T = this.terrain;
     const pathish = new Set([...T.path, ...T.plaza, ...T.road]); // đường đi lót dưới sân đá → không hở mép cỏ giữa đường & sân
     const paved = new Set([...T.plaza, ...T.road]); // vỉa hè lót dưới đường nhựa
-    const layers = [['path', pathish, -995], ['plaza', paved, -994], ['road', T.road, -993], ['water', T.water, -850]];
+    const layers = [['sand', T.sand, -996], ['path', pathish, -995], ['plaza', paved, -994], ['road', T.road, -993], ['water', T.water, -850]];
     const N8 = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
     for (const [kind, set, depth] of layers) {
       if (!set.size) continue;
@@ -301,10 +340,10 @@ export default class WorldScene extends Phaser.Scene {
       const h = (Math.floor(px) * 7 + Math.floor(py) * 13) % 10;
       kind = h < 6 ? 0 : h < 9 ? 1 : 2;
     }
-    const img = this.add.image(px, py + 2, 'fp_trees', this.treeFrame(kind)).setOrigin(0.5, 1).setDepth(py);
+    const img = this.add.image(px, py + 2, 'pc_trees', this.treeFrame(kind)).setOrigin(0.5, 1).setDepth(py);
     this.fx.shadow(px, py, 24);
     this.fx.sway(img);
-    this.addWall(px - 5, py - 6, 10, 5);
+    img.wallObj = this.addWall(px - 5, py - 6, 10, 5);
     return img;
   }
 
@@ -339,7 +378,11 @@ export default class WorldScene extends Phaser.Scene {
     }
     if (winter) return;
     for (const [x, y] of inner)
-      if ((x * 7 + y * 3) % 3 === 0) this.add.sprite(x * TILE, y * TILE, 'fp_tiles', 26).setOrigin(0).setDepth(-849).play({ key: 'fp_water_anim', startFrame: (x + y) % 4 });
+      if ((x * 7 + y * 3) % 5 === 0) {
+        // gợn sóng nhẹ (thay ô nước hoạt hình cũ của Farmer Pack — không hợp nước Pixel Crawler)
+        const r = this.add.ellipse(x * TILE + 8, y * TILE + 8, 6, 2).setStrokeStyle(1, 0xdff0ff, 0.5).setDepth(-849);
+        this.tweens.add({ targets: r, scaleX: 2.2, scaleY: 1.6, alpha: 0, duration: 1800, repeat: -1, delay: ((x * 13 + y * 7) % 9) * 220 });
+      }
     this.fx.sparkleTiles(inner.length ? inner : tiles);
   }
 
@@ -378,7 +421,7 @@ export default class WorldScene extends Phaser.Scene {
       if (winter && r > 0.4) continue;
       if (r < 0.8) continue; // mặt cỏ đã có hoa văn, chỉ rải thêm ít bụi & hoa
       const img = r < 0.9
-        ? this.add.image(tx * TILE, ty * TILE, 'fp_bushes', state.season + (pick < 0.3 ? 4 : 0)).setScale(0.75).setOrigin(-0.15, -0.3)
+        ? this.add.image(tx * TILE, ty * TILE, 'pc_bushes', state.season + (pick < 0.3 ? 4 : 0)).setOrigin(0)
         : this.add.image(tx * TILE, ty * TILE, 'objects', ['flowerWhite', 'flowerRed', 'clover'][Math.floor(pick * 3)]).setOrigin(0);
       img.setDepth(-900);
       this.decor.set(k, img);
@@ -388,6 +431,7 @@ export default class WorldScene extends Phaser.Scene {
   removeDecor(k) {
     this.decor.get(k)?.destroy();
     this.decor.delete(k);
+    if (this.statics.get(k)?.decor) this.statics.delete(k); // hoa dại / nấm đi kèm
   }
 
   // =========================================================
@@ -397,7 +441,7 @@ export default class WorldScene extends Phaser.Scene {
     if (!state.objects) {
       generateObjects();
       addWildResources();
-      state.farmSize = 5;
+      state.farmSize = 6;
       save();
     } else if ((state.farmSize || 1) < 5) {
       // Save cũ → bố cục thiết kế tay mới + chỗ cho công trình Hay Day + lối tắt + thêm tài nguyên
@@ -407,40 +451,47 @@ export default class WorldScene extends Phaser.Scene {
       state.farmSize = 5;
       save();
     }
+    if (state.farmSize < 6) {
+      expandFarmEast();
+      state.farmSize = 6;
+      save();
+    }
     const winter = this.sea.id === 'winter';
 
     // Nhà
     const hx = 3 * TILE, hy = 8 * TILE;
-    this.add.image(hx, hy, 'objects', 'house').setOrigin(0, 1).setDepth(hy);
-    this.fx.shadow(hx + 48, hy - 2, 92);
-    for (const [lx, ly, sz] of [[25, 27, 34], [71, 27, 34], [48, 62, 26]]) this.fx.light(hx + lx, hy - ly, sz);
-    this.add.image(hx + 48, hy - 3, 'objects', 'door').setOrigin(0.5, 1).setDepth(hy + 0.5);
-    this.addWall(hx + 10, hy - 56, 76, 54);
-    this.statics.set(key(FARM.door.x, FARM.door.y), () => ({ label: 'Vào nhà', run: () => this.changeMap('home', HOME.enter) }));
+    // Nhà Farm RPG (72x95, cửa có sẵn ở x≈47 → trùng chỗ cửa cũ hx+48)
+    this.add.image(hx, hy, 'pc_house').setOrigin(0, 1).setDepth(hy);
+    this.fx.shadow(hx + 36, hy - 2, 70);
+    for (const [lx, ly, sz] of [[23, 25, 30], [36, 50, 24]]) this.fx.light(hx + lx, hy - ly, sz);
+    this.addWall(hx + 5, hy - 56, 62, 54);
+    // Cả mặt trước nhà đều là cửa; đi thẳng vào là tự vào (xem doorAssist)
+    const enterHome = () => ({ label: 'Vào nhà', door: true, run: () => this.changeMap('home', HOME.enter) });
+    for (let x = FARM.door.x - 1; x <= FARM.door.x + 1; x++) this.statics.set(key(x, FARM.door.y), enterHome);
 
     // Rương bán hàng
     const c = FARM.chest;
     // Thùng bán hàng (màu gỗ) — khác với rương chứa đồ (màu đỏ)
-    this.add.image(c.x * TILE + 8, (c.y + 1) * TILE, 'objects', 'chest').setOrigin(0.5, 1).setDepth((c.y + 1) * TILE).setTint(0xe0b070);
+    this.add.image(c.x * TILE + 8, (c.y + 1) * TILE, 'pc_chest').setOrigin(0.5, 1).setDepth((c.y + 1) * TILE).setTint(0xe8c890);
     this.fx.shadow(c.x * TILE + 8, (c.y + 1) * TILE - 1, 16);
     this.addWall(c.x * TILE + 1, c.y * TILE + 4, 14, 12);
     this.statics.set(key(c.x, c.y), () => ({ label: 'Thùng bán hàng — bán nông sản', run: () => this.sellAll() }));
     // Rương chứa đồ có sẵn cạnh nhà
     const [sx, sy] = HOME_CHEST.split(':')[1].split(',').map(Number);
-    this.add.image(sx * TILE + 8, (sy + 1) * TILE, 'objects', 'chestStore').setOrigin(0.5, 1).setDepth((sy + 1) * TILE);
+    this.add.image(sx * TILE + 8, (sy + 1) * TILE, 'pc_chest').setOrigin(0.5, 1).setDepth((sy + 1) * TILE);
     this.fx.shadow(sx * TILE + 8, (sy + 1) * TILE - 1, 16);
     this.addWall(sx * TILE + 1, sy * TILE + 4, 14, 12);
     this.statics.set(key(sx, sy), () => ({ label: 'Mở rương chứa đồ', run: () => bus.emit('openStorage', HOME_CHEST) }));
 
     // Ao nước
-    for (const p of [FARM.pond, FARM.pond2]) this.addWater(this.pondShape(p, p.lobes));
+    for (const p of [FARM.pond, FARM.pond2, FARM.pond3]) this.addWater(this.pondShape(p, p.lobes));
 
     // Đường đất nối nhà – ruộng – chuồng – làng – rừng
     for (const [x0, y0, x1, y1] of FARM.paths) this.dirtArea(x0, y0, x1, y1);
     for (const e of [...FARM.exit, ...FARM.northExit]) this.exits.set(key(e.x, e.y), { map: 'village', spawn: VILLAGE.fromFarm });
     const ns = FARM.northSign;
     this.add.image(ns.x * TILE + 8, (ns.y + 1) * TILE, 'nature', 'sign').setOrigin(0.5, 1).setDepth((ns.y + 1) * TILE);
-    this.add.text(ns.x * TILE + 8, ns.y * TILE - 4, '↑ Thị trấn', { fontFamily: 'VT323', fontSize: '40px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5, 1).setDepth(9000);
+    this.add.text(ns.x * TILE + 8, ns.y * TILE - 4, '↑ Thị trấn', { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '40px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5, 1).setDepth(9000);
     for (const e of FARM.southExit) this.exits.set(key(e.x, e.y), { map: 'forest', spawn: FOREST.fromFarm });
 
     // Ruộng có rào, cổng bên phải
@@ -457,12 +508,16 @@ export default class WorldScene extends Phaser.Scene {
     buildHayday(this);
 
     // Chuồng trại (có rào bao quanh bãi thả)
-    this.buildPen('coop', 'coop', FARM.coop.x, FARM.coop.y + 1, 2);
-    this.buildPen('barn', 'barn', FARM.barn.x, FARM.barn.y + 4, 3);
-    for (const id of ['coop', 'barn']) {
-      const [x0, y0, x1, y1] = FARM[id].fence;
-      const [g0, g1] = FARM[id].gate;
-      this.fenceRect([x0, y0, x1, y1], [{ x: g0, y: y1 }, { x: g1, y: y1 }], true);
+    // trong bãi rào chuồng không để cây/đá/cỏ (save cũ, hoặc rào vừa được nới rộng)
+    for (const id of PEN_IDS) {
+      const [x0, y0, x1, y1] = penRect(id);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (PEN_CLEARABLE[state.objects[key(x, y)]?.type]) delete state.objects[key(x, y)];
+    }
+    for (const id of PEN_IDS) this.buildPen(id);
+    for (const id of PEN_IDS) {
+      const [x0, y0, x1, y1] = penCfg(id).fence;
+      const [g0, g1] = penCfg(id).gate;
+      this.fenceRect([x0, y0, x1, y1], [{ x: g0, y: y1 }, { x: g1, y: y1 }]); // rào kín 4 phía, chuồng nằm trong
     }
 
     // Vật cản, đất, cây trồng
@@ -476,8 +531,12 @@ export default class WorldScene extends Phaser.Scene {
     const farmFree = (x, y) => !isReserved(x, y) && !state.tiles[key(x, y)] && !state.objects[key(x, y)] && !this.blocked.has(key(x, y));
     decorateFarm(this, (x, y) => farmFree(x, y) && !this.isDirt(x, y));
     spawnPet(this);
-    raidFarm(this, [[62, 11], [17, 1], [20, 42]]);
-    this.scatterDecor(farmFree, 700, 42);
+    // Khu đất hoang phía đông: xe & thùng bỏ lại
+    container(this, 'car', 70, 7, { frame: 'car_red', w: 3 });
+    container(this, 'barrel', 63, 7);
+    container(this, 'trashcan', 65, 7);
+    new Raid(this); // 3 cổng + đợt zombie ban đêm (src/raid.js)
+    this.scatterDecor(farmFree, 1000, 42);
   }
 
   // ---------- Đồ trang trí thiết kế tay ----------
@@ -487,7 +546,7 @@ export default class WorldScene extends Phaser.Scene {
     const put = (x, y, frame) => {
       const k = key(x, y);
       if (isGap(x, y) || state.tiles[k] || this.blocked.has(k)) return;
-      delete state.objects[k];
+      if (state.objects) delete state.objects[k]; // ván mới vào làng trước khi nông trại được tạo
       this.add.image(x * TILE + 8, (y + 1) * TILE, 'fp_fence', frame).setOrigin(0.5, 1).setDepth((y + 1) * TILE - 2);
       this.fx.shadow(x * TILE + 8, (y + 1) * TILE - 1, frame === 1 ? 8 : 16);
       this.addWall(x * TILE + 3, y * TILE + 4, 10, 10);
@@ -531,8 +590,8 @@ export default class WorldScene extends Phaser.Scene {
       }
   }
 
-  buildPen(id, frame, tx, tyBottom, wallRows) {
-    const cfg = FARM[id];
+  buildPen(id) {
+    const cfg = penCfg(id);
     const st = state.buildings[id];
     if (!st) {
       const s = cfg.sign;
@@ -544,52 +603,294 @@ export default class WorldScene extends Phaser.Scene {
       }));
       return;
     }
-    const img = this.building('nhouse', frame, tx, tyBottom, wallRows);
+    // Nhà chuồng (tools/make_pens_pc.py) đứng giữa bãi rào, chừa lối 2 bên + sân 2 hàng phía trước
+    const [fx0, , fx1, fy1] = cfg.fence;
+    const tex = st === 'building' ? `pc_${id}_site` : `pc_${id}`;
+    const wTiles = Math.round(this.textures.get(tex).getSourceImage().width / TILE);
+    const tx = Math.round((fx0 + fx1 + 1) / 2 - wTiles / 2), tyB = fy1 - 3;
+    const img = this.building(tex, undefined, tx, tyB, 2);
+    this.penImgs = { ...(this.penImgs || {}), [id]: img };
+    const front = [];
+    for (let x = tx; x < tx + wTiles; x++) front.push(key(x, tyB));
     if (st === 'building') {
-      // Đang xây: biển báo công trường thay vì ảnh mờ
-      const s = cfg.sign;
-      this.add.image(s.x * TILE + 8, (s.y + 1) * TILE, 'nature', 'sign').setOrigin(0.5, 1).setDepth((s.y + 1) * TILE + 1);
-      const left = () => Math.max(1, (state.buildDone?.[id] ?? absMin()) - absMin());
-      for (let x = tx; x < tx + Math.ceil(img.width / TILE); x++)
-        this.statics.set(key(x, tyBottom), () => ({ act: false, label: `${BUILDINGS[id].name} đang xây — xong sau ${left()} phút` }));
+      // Công trường: thanh tiến độ + số phút còn lại nổi trên đầu
+      const total = BUILD_MIN;
+      const left = () => Math.max(0, (state.buildDone?.[id] ?? absMin()) - absMin());
+      const cx = img.x + img.width / 2, cy = img.y - img.height / 2 + 6; // giữa công trường (mép trên bản đồ hay bị HUD che)
+      const bw = 56;
+      const bg = this.add.rectangle(cx, cy, bw + 4, 9, 0x0d0a0b, 0.7).setDepth(8990).setStrokeStyle(1, 0xffffff, 0.3);
+      const bar = this.add.rectangle(cx - bw / 2, cy, 0, 5, 0xf2bd3c).setOrigin(0, 0.5).setDepth(8991);
+      const label = this.add.text(cx, cy - 7, '', { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '40px', color: '#fff3d6', stroke: '#0d0a0b', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5, 1).setDepth(8992);
+      const upd = () => {
+        const l = left();
+        bar.width = bw * Phaser.Math.Clamp(1 - l / total, 0, 1);
+        label.setText(`Đang xây · còn ${l} phút`);
+      };
+      upd();
+      const ev = this.time.addEvent({ delay: 500, loop: true, callback: upd });
+      this.events.once('shutdown', () => ev.remove());
+      // búa gõ lách cách cho sinh động
+      this.tweens.add({ targets: label, y: label.y - 1, yoyo: true, repeat: -1, duration: 600 });
+      for (const k of front) this.statics.set(k, () => ({ act: false, label: `${BUILDINGS[id].name} đang xây — xong sau ${left()} phút (giờ game)` }));
       return;
     }
-    // Máng cỏ
-    const t = cfg.trough;
+    // Bấm vào chuồng = đi vào trong (muốn dời chuồng: biển "Dời chuồng" ở trong)
+    const back = { x: tx + Math.floor(wTiles / 2), y: tyB + 1 };
+    const enter = () => ({ label: `Vào ${BUILDINGS[id].name}`, door: true, run: () => this.changeMap('pen', PEN_IN.enter, { pen: id, back }) });
+    for (const k of front) this.statics.set(k, enter);
+    this.interactables.push({ img, r: img.getBounds(), tx: back.x, ty: tyB });
+    // Máng cỏ: góc trước-phải trong sân
+    const t = { x: cfg.fence[2] - 1, y: cfg.fence[3] - 1 };
     const trough = this.add.image(t.x * TILE + 8, (t.y + 1) * TILE, 'objects', 'hay').setOrigin(0.5, 1).setScale(0.6).setDepth((t.y + 1) * TILE);
     this.addWall(t.x * TILE + 2, t.y * TILE + 6, 12, 10);
     const hungry = () => state.animals.filter((a) => ANIMALS[a.type].house === id && !a.fed);
     const refresh = () => trough.setAlpha(hungry().length ? 0.45 : 1);
     refresh();
-    this.statics.set(key(t.x, t.y), () => {
-      const n = hungry().length;
-      if (!state.animals.some((a) => ANIMALS[a.type].house === id)) return { act: false, label: 'Máng cỏ — chưa có vật nuôi (mua ở trại Cô Mai)' };
-      if (!n) return { act: false, label: 'Vật nuôi đã được cho ăn hôm nay' };
-      return {
-        label: `Cho ăn (${n} phần — có ${have('hay')} cỏ khô, ${have('feed')} thức ăn)`,
-        run: () => {
-          const list = hungry();
-          const food = have('hay') + have('feed');
-          if (!food) return toast('Cần cỏ khô (trại Cô Mai, nhổ cỏ dại) hoặc thức ăn gia súc (Cối xay)');
-          const k = Math.min(list.length, food);
-          list.slice(0, k).forEach((a) => (a.fed = true));
-          const fromHay = Math.min(k, have('hay'));
-          take('hay', fromHay);
-          take('feed', k - fromHay);
-          sfx('grass');
-          toast(`Đã cho ${k} con ăn` + (k < list.length ? ` — còn ${list.length - k} con đói` : ''));
-          refresh();
-          changed();
-        },
-      };
+    this.statics.set(key(t.x, t.y), () => this.penFeedAction(id, refresh));
+    // vật nuôi không đi vào chỗ nhà chuồng & máng
+    const hTiles = Math.ceil(img.height / TILE);
+    const avoid = (x, y) => (x >= tx && x < tx + wTiles && y > tyB - hTiles && y <= tyB) || (x === t.x && y === t.y);
+    if (!animalsIndoors()) for (const a of state.animals) if (ANIMALS[a.type].house === id) this.spawnAnimal(a, cfg.pen, avoid);
+  }
+
+  // Máng ăn (ngoài sân hoặc trong chuồng): cho cả đàn ăn bằng cỏ khô / thức ăn gia súc
+  penFeedAction(id, refresh = () => {}) {
+    const hungry = () => state.animals.filter((a) => ANIMALS[a.type].house === id && !a.fed);
+    const n = hungry().length;
+    if (!state.animals.some((a) => ANIMALS[a.type].house === id)) return { act: false, label: 'Máng cỏ — chưa có vật nuôi (mua ở trại Cô Mai)' };
+    if (!n) return { act: false, label: 'Vật nuôi đã được cho ăn hôm nay' };
+    return {
+      label: `Cho ăn (${n} phần — có ${have('hay')} cỏ khô, ${have('feed')} thức ăn)`,
+      run: () => {
+        const list = hungry();
+        const food = have('hay') + have('feed');
+        if (!food) return toast('Cần cỏ khô (trại Cô Mai, nhổ cỏ dại) hoặc thức ăn gia súc (Cối xay)');
+        const k = Math.min(list.length, food);
+        list.slice(0, k).forEach((a) => (a.fed = true));
+        const fromHay = Math.min(k, have('hay'));
+        take('hay', fromHay);
+        take('feed', k - fromHay);
+        sfx('grass');
+        toast(`Đã cho ${k} con ăn` + (k < list.length ? ` — còn ${list.length - k} con đói` : ''));
+        refresh();
+        changed();
+      },
+    };
+  }
+
+  // ---------- Đoạn mở đầu: tham quan làng ----------
+  villageTour() {
+    const STOPS = [
+      ['nam', 'Đây là trại của bọn ta — dân còn ít nhưng ai cũng tốt bụng. Đi, ta giới thiệu từng người.'],
+      ['lan', 'Chào cháu! Bà bán hạt giống với đồ dùng ở tiệm tạp hoá. Cần gì cứ ghé bà nhé.'],
+      ['tu', 'Chú là thợ mộc. Muốn dựng chuồng, nâng cấp đồ nghề hay dựng nhà máy thì cứ tìm chú.'],
+      ['mai', 'Cô nuôi gà, nuôi bò ở trại. Khi nào cháu có chuồng thì qua cô mua vật nuôi.'],
+      ['ba', 'Anh gác cổng trại. Zombie quanh đây không ít đâu — có đồ dư thì mang qua anh đổi lấy đạn.'],
+      ['hoa', 'Chị lo bếp núc cho cả trại. Hái được rau củ, nấm ngon thì qua chị chỉ cách nấu.'],
+      ['sau', 'Bác từng làm thợ mỏ. Dưới rừng có hầm quân sự cũ, nhiều sắt vụn lắm — mà nguy hiểm.'],
+      ['ti', 'Anh mới tới hả? Mai chơi với em nha!'],
+      ['bin', 'Em là Bin! Em biết chỗ có hoa đẹp lắm, mai em chỉ cho.'],
+      ['nam', 'Ở rìa phía tây trại có căn nhà cũ bỏ trống. Mái hơi dột nhưng che mưa được, mảnh đất quanh nhà cũng là của cháu. Nghỉ ngơi đi — sáng mai ta qua.'],
+    ];
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    let i = 0;
+    const step = () => {
+      if (i >= STOPS.length) return this.endTour();
+      const [id, text] = STOPS[i++];
+      const m = this.movers.find((x) => x.kind === 'npc' && x.id === id && x.sprite?.visible !== false);
+      if (m) {
+        m.hold = this.time.now + 6000; // đứng yên cho khách chào
+        cam.pan(m.sprite.x, m.sprite.y - 10, 700, 'Sine.easeInOut');
+      }
+      this.time.delayedCall(m ? 750 : 100, () =>
+        bus.emit('dialog', {
+          face: `face_${id}`,
+          name: NPCS[id].name,
+          text,
+          choices: [{ label: i >= STOPS.length ? 'Cảm ơn ông!' : 'Tiếp ▶', onClick: step }],
+        })
+      );
+    };
+    step();
+  }
+
+  endTour() {
+    state.intro = 'night';
+    save();
+    toast('Về căn nhà ở nông trại phía tây để nghỉ ngơi');
+    this.changeMap('farm', { x: FARM.door.x, y: FARM.door.y + 2 });
+  }
+
+  // Sáng ngày thứ 2: Ông Năm ghé nông trại trao cuốc, bình tưới, rìu, cuốc chim
+  toolsGift() {
+    if (state.intro !== 'night') return;
+    const p = this.player;
+    const nam = this.add.sprite(p.x - 70, p.y + 12, 'npc_nam', 16).setOrigin(0.5, 1).play('npc_nam_right').setDepth(p.y + 12);
+    this.fx.followShadow?.(nam, 13, -1);
+    this.tweens.add({
+      targets: nam, x: p.x - 22, duration: 1400,
+      onComplete: () => {
+        nam.play('npc_nam_idle_right');
+        const lines = [
+          'Chào buổi sáng! Ngủ được chứ? Đồ nghề của cháu đây — cuốc, bình tưới, rìu và cuốc chim.',
+          'Cuốc để xới đất, gieo hạt rồi tưới nước mỗi ngày. Rìu chặt cây lấy gỗ, cuốc chim đập đá.',
+          'Việc đầu tiên: lấy gỗ vá cái mái dột đã. Rồi bắt tay trồng trọt — có rau ăn là sống được!',
+        ];
+        let i = 0;
+        const next = () => {
+          if (i === 1) this.giveTools(nam);
+          if (i >= lines.length) {
+            nam.play('npc_nam_left');
+            this.tweens.add({ targets: nam, x: nam.x - 120, alpha: 0, duration: 1800, onComplete: () => nam.destroy() });
+            return;
+          }
+          bus.emit('dialog', { face: 'face_nam', name: 'Ông Năm', text: lines[i++], choices: [{ label: i >= lines.length ? 'Cảm ơn ông!' : 'Tiếp ▶', onClick: next }] });
+        };
+        next();
+      },
     });
-    // Vật nuôi
-    for (const a of state.animals) if (ANIMALS[a.type].house === id) this.spawnAnimal(a, cfg.pen);
+  }
+
+  giveTools(from) {
+    state.gotTools = true;
+    state.intro = 'done';
+    state.sel = 'tool:hoe';
+    sfx('fanfare', 0.5);
+    const cam = this.cameras.main;
+    ['tool_hoe', 'tool_can', 'tool_axe', 'tool_pickaxe'].forEach((tex, i) =>
+      this.time.delayedCall(i * 160, () => {
+        const icon = this.add.image(from.x, from.y - 24, tex).setDepth(9500);
+        this.tweens.add({
+          targets: icon, y: icon.y - 14, duration: 260, ease: 'Back.easeOut',
+          onComplete: () => {
+            bus.emit('flyToBag', { x: (icon.x - cam.worldView.x) * cam.zoom, y: (icon.y - cam.worldView.y) * cam.zoom, tex, scale: cam.zoom });
+            icon.destroy();
+          },
+        });
+      })
+    );
+    changed();
+  }
+
+  // ---------- Dời chuồng ----------
+  // Chạm/kéo để chọn chỗ mới (khung xanh = đặt được, đỏ = vướng), bấm "Đặt ở đây" để chuyển
+  startPenMove(id) {
+    if (this.mapId !== 'farm' || state.buildings[id] !== 'built') return;
+    this.cancelPath?.();
+    this.player.setVelocity(0, 0);
+    const off = { ...penOffset(id) };
+    const g = this.add.graphics().setDepth(9500);
+    const img = this.penImgs?.[id];
+    const ghost = this.add.image(0, 0, `pc_${id}`).setOrigin(0, 1).setAlpha(0.6).setDepth(9501);
+    img?.setAlpha(0.25);
+    this.penMove = { id, off, g, ghost, ok: false };
+    this.penMoveDraw();
+    bus.emit('penMove', true);
+    const onOk = () => this.penMoveConfirm();
+    const onCancel = () => this.penMoveEnd();
+    bus.on('penMoveOk', onOk);
+    bus.on('penMoveCancel', onCancel);
+    this.penMove.off_ = () => (bus.off('penMoveOk', onOk), bus.off('penMoveCancel', onCancel));
+    this.events.once('shutdown', () => this.penMove?.off_?.());
+  }
+
+  penMoveAt(wx, wy) {
+    const m = this.penMove;
+    if (!m) return;
+    // tâm khu chuồng theo điểm chạm
+    const base = penRect(m.id, { dx: 0, dy: 0 });
+    const cx = (base[0] + base[2] + 1) / 2, cy = (base[1] + base[3] + 1) / 2;
+    m.off = { dx: Math.round(wx / TILE - cx), dy: Math.round(wy / TILE - cy) };
+    this.penMoveDraw();
+  }
+
+  penPlaceProblem(id, off) {
+    const [x0, y0, x1, y1] = penRect(id, off);
+    if (x0 < 1 || y0 < 0 || x1 > FARM_W - 2 || y1 > FARM_H - 2) return 'Ra ngoài nông trại rồi';
+    const old = penRect(id);
+    const mine = (x, y) => x >= old[0] && x <= old[2] && y >= old[1] && y <= old[3];
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const k = key(x, y);
+        if (this.terrain.water.has(k)) return 'Không đặt lên ao được';
+        if (this.isDirt(x, y)) return 'Không đặt đè lên đường đi';
+        if (isReserved(x, y, id)) return 'Vướng nhà, kho hoặc công trình khác';
+        if (state.tiles[k]) return 'Có luống đất đã cuốc — lấp đất trước';
+        const o = state.objects[k];
+        if (o && !PEN_CLEARABLE[o.type]) return 'Có đồ bạn đã đặt ở đây (rào, rương, bẫy...) — cất đi trước';
+        if (this.blocked.has(k) && !mine(x, y) && !o) return 'Vướng vật cản';
+      }
+    return null;
+  }
+
+  penMoveDraw() {
+    const m = this.penMove;
+    const [x0, y0, x1, y1] = penRect(m.id, m.off);
+    const why = this.penPlaceProblem(m.id, m.off);
+    m.ok = !why;
+    const col = m.ok ? 0x6fd48a : 0xe0604a;
+    m.g.clear().fillStyle(col, 0.25).fillRect(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE);
+    m.g.lineStyle(1, col, 0.9).strokeRect(x0 * TILE + 0.5, y0 * TILE + 0.5, (x1 - x0 + 1) * TILE - 1, (y1 - y0 + 1) * TILE - 1);
+    // khung rào
+    const f = penCfg(m.id, m.off).fence;
+    m.g.lineStyle(1, 0xffffff, 0.7).strokeRect(f[0] * TILE + 8, f[1] * TILE + 8, (f[2] - f[0]) * TILE, (f[3] - f[1]) * TILE);
+    const wTiles = Math.round(m.ghost.width / TILE);
+    m.ghost.setPosition(Math.round((f[0] + f[2] + 1) / 2 - wTiles / 2) * TILE, f[1] * TILE).setTint(m.ok ? 0xffffff : 0xff9a8a);
+    bus.emit('penMoveState', m.ok ? 'Đặt được ở đây — bấm "Đặt ở đây"' : why);
+  }
+
+  penMoveConfirm() {
+    const m = this.penMove;
+    if (!m) return;
+    if (!m.ok) return toast(this.penPlaceProblem(m.id, m.off) || 'Không đặt được ở đây');
+    state.penPos = { ...(state.penPos || {}), [m.id]: m.off };
+    // Chú Tư dọn giúp cây, đá, cỏ trong khu mới → gỗ/đá vào túi
+    const [ax0, ay0, ax1, ay1] = penRect(m.id, m.off);
+    const got = {};
+    for (let y = ay0; y <= ay1; y++)
+      for (let x = ax0; x <= ax1; x++) {
+        const k = key(x, y), o = state.objects[k];
+        if (!o || !PEN_CLEARABLE[o.type]) continue;
+        for (const [id, n] of Object.entries(PEN_CLEARABLE[o.type])) got[id] = (got[id] || 0) + n;
+        delete state.objects[k];
+      }
+    for (const [id, n] of Object.entries(got)) if (n) addItem(id, n, true);
+    const gotTxt = Object.entries(got).filter(([, n]) => n).map(([id, n]) => `${n} ${ITEMS[id].name}`).join(', ');
+    if (gotTxt) this.time.delayedCall(1800, () => toast(`Chú Tư dọn đất giúp, bạn nhận ${gotTxt}`));
+    save();
+    sfx('success', 0.5);
+    toast(`Đã dời ${BUILDINGS[m.id].name}! Vật nuôi theo về chỗ mới.`);
+    this.penMoveEnd(true);
+    let { tx, ty } = this.playerTile();
+    // đang đứng trong chỗ mới → ra đứng trước cổng rào
+    const [x0, y0, x1, y1] = penRect(m.id, m.off);
+    if (tx >= x0 && tx <= x1 && ty >= y0 && ty <= y1) ({ x: tx, y: ty } = { x: penCfg(m.id, m.off).gate[0], y: y1 });
+    this.changeMap('farm', { x: tx, y: ty });
+  }
+
+  penMoveEnd(moved = false) {
+    const m = this.penMove;
+    if (!m) return;
+    m.off_?.();
+    m.g.destroy();
+    m.ghost.destroy();
+    if (!moved) this.penImgs?.[m.id]?.setAlpha(1);
+    this.penMove = null;
+    bus.emit('penMove', false);
   }
 
   // ---------- Vật nuôi ----------
-  spawnAnimal(a, pen) {
-    const tx = Phaser.Math.Between(pen.x0, pen.x1), ty = Phaser.Math.Between(pen.y0, pen.y1);
+  spawnAnimal(a, pen, avoid = () => false) {
+    // chọn ô ngẫu nhiên trong bãi, tránh nhà chuồng
+    const pick = () => {
+      for (let i = 0; i < 30; i++) {
+        const x = Phaser.Math.Between(pen.x0, pen.x1), y = Phaser.Math.Between(pen.y0, pen.y1);
+        if (!avoid(x, y)) return [x, y];
+      }
+      return [pen.x0, pen.y1];
+    };
+    const [tx, ty] = pick();
     const acfg = ANIMALS[a.type];
     const sprite = this.add.sprite(tx * TILE + 8, (ty + 1) * TILE, acfg.tex, acfg.frame).setOrigin(0.5, 1);
     sprite.play(`animal_${a.type}_walk`);
@@ -603,7 +904,8 @@ export default class WorldScene extends Phaser.Scene {
       bubble,
       next: this.time.now + Phaser.Math.Between(500, 3000),
       wander: () => {
-        const nx = Phaser.Math.Between(pen.x0, pen.x1) * TILE + 8, ny = (Phaser.Math.Between(pen.y0, pen.y1) + 1) * TILE;
+        const [px, py] = pick();
+        const nx = px * TILE + 8, ny = (py + 1) * TILE;
         const d = Phaser.Math.Distance.Between(sprite.x, sprite.y, nx, ny);
         sprite.setFlipX(acfg.facesRight ? nx < sprite.x : nx > sprite.x);
         sprite.anims.resume();
@@ -666,11 +968,11 @@ export default class WorldScene extends Phaser.Scene {
     }
     this.add.image(49 * TILE + 8, 13 * TILE, 'nature', 'sign').setOrigin(0.5, 1).setDepth(13 * TILE);
     this.add
-      .text(49 * TILE + 8, 12 * TILE - 4, qOpen ? 'Bãi phế liệu →' : `Bãi phế liệu (uy tín ${needLevel('quarry')})`, { fontFamily: 'VT323', fontSize: '36px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
+      .text(49 * TILE + 8, 12 * TILE - 4, qOpen ? 'Bãi phế liệu →' : `Bãi phế liệu (uy tín ${needLevel('quarry')})`, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '36px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
       .setScale(0.25)
       .setOrigin(0.5, 1)
       .setDepth(9000);
-    if (!qOpen) for (const y of [13, 14]) this.add.image(51 * TILE + 8, (y + 1) * TILE, 'objects', 'rock').setOrigin(0.5, 1).setDepth((y + 1) * TILE).setTint(0xd6c2a8);
+    if (!qOpen) for (const y of [13, 14]) this.add.image(51 * TILE + 8, (y + 1) * TILE, 'pc_nature', 0).setOrigin(0.5, 1).setDepth((y + 1) * TILE).setTint(0xd6c2a8);
 
     this.borderTrees({ left: [9, 14], right: [12, 15] });
 
@@ -683,7 +985,7 @@ export default class WorldScene extends Phaser.Scene {
       const enter = () => {
         if (festToday) return { act: false, label: `${S.title} — hôm nay nghỉ, cả làng đi lễ hội` };
         if (!shopOpen()) return { act: false, label: `${S.title} — mở cửa 8:00–18:00` };
-        return { label: `Vào ${S.title}`, run: () => this.changeMap('shop', SHOP_IN.enter, { shop: id }) };
+        return { label: `Vào ${S.title}`, door: true, run: () => this.changeMap('shop', SHOP_IN.enter, { shop: id }) };
       };
       for (let x = S.x; x < S.x + w; x++) for (let y = S.yB - 1; y <= S.yB; y++) this.statics.set(key(x, y), enter);
       this.statics.set(key(S.door.x, S.door.y - 1), enter);
@@ -742,7 +1044,7 @@ export default class WorldScene extends Phaser.Scene {
         const Hs = HOUSES[hid];
         const h = state.time / 60;
         if (h < HOUSE_OPEN[0] || h >= HOUSE_OPEN[1]) return { act: false, label: `${Hs.title} — mọi người đã ngủ (mở ${HOUSE_OPEN[0]}:00–${HOUSE_OPEN[1]}:00)` };
-        return { label: `Vào ${Hs.title}`, run: () => this.changeMap('npchome', NPC_HOUSE_IN.enter, { house: hid, back }) };
+        return { label: `Vào ${Hs.title}`, door: true, run: () => this.changeMap('npchome', NPC_HOUSE_IN.enter, { house: hid, back }) };
       };
       for (let tx = x; tx < x + w; tx++) for (let ty = yB - 1; ty <= yB; ty++) if (!this.statics.has(key(tx, ty))) this.statics.set(key(tx, ty), enter);
     });
@@ -770,7 +1072,7 @@ export default class WorldScene extends Phaser.Scene {
       img.setOrigin(0.5, 1).setDepth((y + 1) * TILE);
     });
     this.add
-      .text(((pl.x0 + pl.x1) / 2) * TILE + 8, pl.y0 * TILE + 4, f.name, { fontFamily: 'VT323', fontSize: '56px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 10 })
+      .text(((pl.x0 + pl.x1) / 2) * TILE + 8, pl.y0 * TILE + 4, f.name, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '56px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 10 })
       .setScale(0.25)
       .setOrigin(0.5, 0)
       .setDepth(-800);
@@ -800,7 +1102,7 @@ export default class WorldScene extends Phaser.Scene {
     while (headTop < 31 && ![...Array(32).keys()].some((x) => this.textures.getPixelAlpha(x, headTop, `npc_${id}`, 16))) headTop++;
     this.fx.followShadow(sprite, 13, -1);
     const name = this.add
-      .text(0, 0, NPCS[id].name, { fontFamily: 'VT323', fontSize: '34px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
+      .text(0, 0, NPCS[id].name, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '34px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 })
       .setScale(0.25)
       .setOrigin(0.5, 1)
       .setDepth(8900);
@@ -887,8 +1189,10 @@ export default class WorldScene extends Phaser.Scene {
   //  Người chơi & điều khiển
   // =========================================================
   createPlayer(tx, ty) {
-    this.player = this.physics.add.sprite(tx * TILE + 8, ty * TILE - 5, 'fp_farmer', 16);
-    this.player.body.setSize(8, 5).setOffset(12, 27); // chân nông dân (khung 32x32 Farmer Pack)
+    this.player = this.physics.add.sprite(tx * TILE + 8, ty * TILE - 5, 'hero', 3 * 8);
+    // khung 64x64 (Pixel Crawler): chân ở hàng 47 → đặt gốc để chân nằm như nông dân cũ
+    this.player.setOrigin(0.5, 35 / 64);
+    this.player.body.setSize(8, 5).setOffset(28, 46);
     this.player.setCollideWorldBounds(true);
     this.physics.add.collider(this.player, this.walls);
     this.facing = { x: 0, y: 1 };
@@ -906,19 +1210,22 @@ export default class WorldScene extends Phaser.Scene {
     const dir = this.facingName();
     const p = this.player;
     if (this.time.now < this.actionUntil) return; // đang làm động tác
-    p.setFlipX(false);
-    p.anims.play(`hero_${moving ? 'walk' : 'idle'}_${dir}`, true);
+    const view = dir === 'down' ? 'front' : dir === 'up' ? 'back' : 'side';
+    p.setFlipX(dir === 'left'); // khung ngang nhìn sang phải
+    p.anims.play(`hero2_${moving ? 'walk' : 'idle'}_${view}`, true);
   }
 
-  // Động tác theo hướng nhìn: hoe | can | plant | harvest (rìu/cuốc chim dùng động tác cuốc)
+  // Động tác theo hướng nhìn: hoe | can | plant | harvest | axe | pickaxe | attack | fish | hit
   playAction(kind) {
-    const k = { axe: 'hoe', pickaxe: 'hoe' }[kind] || kind;
+    const k = { hoe: 'crush', pickaxe: 'crush', axe: 'slice', can: 'water', plant: 'collect', harvest: 'collect', attack: 'pierce' }[kind] || kind;
     const dir = this.facingName();
     const view = dir === 'down' ? 'front' : dir === 'up' ? 'back' : 'side';
-    this.actionUntil = this.time.now + 360;
+    const anim = this.anims.get(`hero2_${k}_${view}`);
+    if (!anim) return;
+    this.actionUntil = this.time.now + Math.min(420, (anim.frames.length / anim.frameRate) * 1000);
     this.player.setVelocity(0, 0);
-    this.player.setFlipX(dir === 'right'); // tư thế ngang trong Farmer Pack nhìn sang trái
-    this.player.anims.play(`hero_${k}_${view}`, true);
+    this.player.setFlipX(dir === 'left');
+    this.player.anims.play(`hero2_${k}_${view}`, true);
   }
 
   setupInput() {
@@ -932,6 +1239,7 @@ export default class WorldScene extends Phaser.Scene {
       const a = this.actionAt(this.target);
       if (a?.act !== false && a?.run) a.run();
       else if (a?.label) toast(a.label);
+      else if (!a) this.whyNoAction(this.target);
     };
     this.input.keyboard.on('keydown-SPACE', act);
     this.input.keyboard.on('keydown-E', act);
@@ -949,6 +1257,7 @@ export default class WorldScene extends Phaser.Scene {
     this.input.on('pointerup', () => (this.swipe = null));
     this.input.on('pointermove', (p) => {
       if (ui.deco) return decoMove(this, p.worldX, p.worldY);
+      if (this.penMove) return p.isDown && !ui.hitTest(p.x, p.y) && this.penMoveAt(p.worldX, p.worldY);
       if (this.swipe && p.isDown) return this.onSwipe(p);
       if (p.wasTouch) return;
       this.inputMode = 'mouse';
@@ -960,7 +1269,12 @@ export default class WorldScene extends Phaser.Scene {
     this.fx.update(time, delta);
     const k = this.keys;
     const p = this.player;
-    const frozen = ui.modal || ui.transition || ui.deco;
+    if (ui.cine) {
+      // đoạn phim: kịch bản tự điều khiển nhân vật
+      p.setDepth(p.y);
+      return;
+    }
+    const frozen = ui.modal || ui.transition || ui.deco || !!this.penMove;
     let vx = 0, vy = 0;
     if (!frozen) {
       if (k.A.isDown || k.LEFT.isDown) vx -= 1;
@@ -992,6 +1306,7 @@ export default class WorldScene extends Phaser.Scene {
 
     this.updateMovers(time);
     if (this.mapId === 'farm') updateHayday(this, time);
+    this.raid?.update(time);
     this.combat?.update(time);
     this.caveLight?.update(time);
 
@@ -1003,6 +1318,12 @@ export default class WorldScene extends Phaser.Scene {
 
     // Ô mục tiêu (trước mặt hoặc dưới chuột)
     this.target = this.moverAt(tx + this.facing.x, ty + this.facing.y) || { tx: tx + this.facing.x, ty: ty + this.facing.y };
+    // Ô trước mặt trống → vật đang đứng sát (thùng, xe, tủ...) ở bất kỳ phía nào
+    if (!this.target.mover && !this.statics.has(key(this.target.tx, this.target.ty)) && !(this.mapId === 'farm' && state.objects[key(this.target.tx, this.target.ty)])) {
+      const near = this.nearInteractable();
+      if (near) this.target = near;
+    }
+    if (!frozen && (vx || vy) && this.doorAssist(tx, ty, vx, vy, time)) return;
     const shown = this.inputMode === 'mouse' && this.hover ? this.hover : this.target;
     const st = shown.mover ? this.moverTile(shown.mover) : { x: shown.tx, y: shown.ty };
     this.cursor.setVisible(false); // không hiện ô trắng chọn ô
@@ -1013,6 +1334,42 @@ export default class WorldScene extends Phaser.Scene {
       this.lastHint = hint;
       bus.emit('hint', hint);
     }
+  }
+
+  // Vật tương tác gần nhất mà người chơi đang đứng sát (≤ 8px quanh hình)
+  nearInteractable() {
+    const b = this.player.body;
+    const px = b.center.x, py = b.center.y;
+    let best = null, bd = 9;
+    for (const it of this.interactables) {
+      if (!it.img?.active) continue;
+      const r = it.r;
+      const dx = Math.max(r.x - px, 0, px - (r.x + r.width)), dy = Math.max(r.y - py, 0, py - (r.y + r.height));
+      const d = Math.hypot(dx, dy) - b.halfWidth;
+      if (d < bd) (bd = d), (best = it);
+    }
+    return best ? { tx: best.tx, ty: best.ty } : null;
+  }
+
+  // Đi thẳng vào cửa → tự vào (đẩy ~0.2s); trong nhà đi xuống sát khe cửa → tự ra
+  doorAssist(tx, ty, vx, vy, time) {
+    if (ui.transition || ui.modal) return false;
+    if (['home', 'shop', 'npchome', 'ruin', 'pen'].includes(this.mapId) && vy > 0 && Math.abs(vy) >= Math.abs(vx)) {
+      for (const dx of [0, -1, 1]) {
+        const e = this.exits.get(key(tx + dx, ty + 1));
+        if (e) return this.changeMap(e.map, e.spawn), true;
+      }
+    }
+    const f = this.facing, k = key(tx + f.x, ty + f.y);
+    const a = this.statics.get(k)?.(selected());
+    if (!a?.door || a.act === false) return (this.doorPush = null), false;
+    if (this.doorPush?.k !== k) this.doorPush = { k, t0: time };
+    else if (time - this.doorPush.t0 > 220) {
+      this.doorPush = null;
+      a.run();
+      return true;
+    }
+    return false;
   }
 
   playerTile() {
@@ -1045,6 +1402,11 @@ export default class WorldScene extends Phaser.Scene {
     const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
     const redir = this.redirects.get(key(tx, ty));
     if (redir) return { ...redir };
+    // Bấm vào bất kỳ chỗ nào trên hình thùng / xe / tủ → nhắm vào vật đó
+    if (!this.statics.has(key(tx, ty))) {
+      const it = this.interactables.find((i) => i.img?.active && i.r.contains(wx, wy));
+      if (it) return { tx: it.tx, ty: it.ty };
+    }
     if (this.mapId === 'farm' && !this.statics.has(key(tx, ty)) && !state.objects[key(tx, ty)] && !state.tiles[key(tx, ty)]) {
       // Bấm vào tán cây → nhắm vào gốc
       for (let dx = -1; dx <= 1; dx++)
@@ -1058,6 +1420,14 @@ export default class WorldScene extends Phaser.Scene {
 
   actionAt(target) {
     if (!target) return null;
+    // Chiều tối cầm bí ngô / thịt thối: chạm xuống đất = đặt làm mồi nhử (chứ không ăn)
+    if (this.mapId === 'farm' && !target.mover && target.tx != null && (state.time >= 16 * 60 || state.time < 5 * 60)) {
+      const sel = selected();
+      if (sel.kind === 'item' && ITEMS[sel.id]?.bait && !this.statics.has(key(target.tx, target.ty))) {
+        const a = this.defenseAction(target.tx, target.ty, sel);
+        if (a) return a;
+      }
+    }
     const food = this.foodAction();
     if (food) return food;
     if (target.mover) return target.mover.action();
@@ -1065,11 +1435,23 @@ export default class WorldScene extends Phaser.Scene {
     if (!this.inMap(tx, ty)) return null;
     const sel = selected();
     const st = this.statics.get(key(tx, ty));
-    if (st) return st(sel);
+    // hoa dại / nấm trên nông trại: cầm cuốc thì cuốc luôn (không bắt hái trước)
+    const hoeOver = st?.decor && this.mapId === 'farm' && sel.kind === 'tool' && sel.id === 'hoe';
+    if (st && !hoeOver) return st(sel);
     if (this.mapId === 'farm') return this.farmAction(tx, ty, sel);
     if (this.mapId === 'mine') return mineAction(this, tx, ty, sel);
     if (this.mapId === 'home') return homeAction(this, tx, ty, sel);
     return null;
+  }
+
+  // Bấm Làm mà không có việc gì: giải thích lý do (chỉ khi bấm, không hiện thường trực)
+  whyNoAction(t) {
+    if (this.mapId !== 'farm' || t?.tx == null) return;
+    const sel = selected();
+    if (sel.kind !== 'tool' || sel.id !== 'hoe') return;
+    const k = key(t.tx, t.ty);
+    if (state.tiles[k] || state.objects[k] || this.blocked.has(k) || this.isDirt(t.tx, t.ty)) return;
+    if (isReserved(t.tx, t.ty) || this.noTill.has(k)) toast('Chỗ này chừa cho lối đi / công trình — không cuốc được');
   }
 
   // Đang cầm món ăn → ăn luôn (không cần đi đâu)
@@ -1095,16 +1477,21 @@ export default class WorldScene extends Phaser.Scene {
     if (food >= FOOD_MAX - 2 && state.hp >= maxHp()) return toast('Bạn đang no rồi!');
     addItem(id, -1);
     state.food = Math.min(FOOD_MAX, food + it.eat.e);
-    state.hp = Math.min(maxHp(), state.hp + (it.eat.h || 0));
-    sfx('eat', 0.5);
+    state.hp = Math.max(1, Math.min(maxHp(), state.hp + (it.eat.h || 0)));
+    sfx(it.eat.h < 0 ? 'hurt' : 'eat', 0.5);
     this.floatText(this.player.x, this.player.y - 20, `+${it.eat.e} no`, '#ffd08a');
-    toast(`Ngon quá! ${it.name}`);
+    if (it.eat.h < 0) {
+      this.floatText(this.player.x, this.player.y - 30, `${it.eat.h} máu`, '#ff6a5a');
+      this.cameras.main.shake(150, 0.004);
+      toast(it.cook ? `Đau bụng! ${it.name} phải nấu chín mới ăn được (bếp trong nhà)` : `Ngộ độc! ${it.name} không nên ăn — đem bán hoặc đổi thì hơn.`);
+    } else toast(`Ngon quá! ${it.name}`);
     changed();
   }
 
   onPointerDown(pointer) {
     if (ui.modal || ui.transition || ui.hitTest(pointer.x, pointer.y)) return;
     if (ui.deco) return decoPointer(this, pointer.worldX, pointer.worldY);
+    if (this.penMove) return this.penMoveAt(pointer.worldX, pointer.worldY);
     this.inputMode = pointer.wasTouch ? 'touch' : 'mouse';
     const w = this.combat && heldWeapon();
     if (w) {
@@ -1307,6 +1694,7 @@ export default class WorldScene extends Phaser.Scene {
       const name = c && ITEMS[c.type].name;
       if (c?.dead) return { label: `Dọn ${name} héo`, run: () => this.clearCrop(tx, ty) };
       if (c && c.stage >= RIPE_STAGE) return { label: `Thu hoạch ${name}`, run: () => this.harvest(tx, ty) };
+      if (c && sel.kind === 'item' && sel.id === 'fert') return { label: `Bón phân cho ${name}`, run: () => this.fertilize(tx, ty) };
       if (tool === 'can') {
         if (t.watered) return { act: false, label: 'Ô đất này đã được tưới' };
         if (state.water <= 0) return { act: false, label: 'Bình hết nước — ra ao để lấy nước' };
@@ -1324,6 +1712,8 @@ export default class WorldScene extends Phaser.Scene {
       return { act: false, label: 'Đất đã cuốc — chọn hạt giống để gieo' };
     }
 
+    const def = this.defenseAction(tx, ty, sel);
+    if (def) return def;
     if (this.blocked.has(k) || isReserved(tx, ty) || this.noTill.has(k)) return null;
     if (tool === 'hoe') {
       if (this.sea.id === 'winter') return { act: false, label: 'Mùa đông đất đóng băng, không cuốc được' };
@@ -1333,12 +1723,50 @@ export default class WorldScene extends Phaser.Scene {
     return null;
   }
 
+  // Đặt bẫy gai / đuốc / mồi nhử (được đặt cả trên đường đi — lối zombie vào)
+  defenseAction(tx, ty, sel) {
+    const k = key(tx, ty);
+    const label = sel.kind === 'item' && defensePlaceLabel(sel.id);
+    if (!label || state.objects[k] || state.tiles[k] || this.blocked.has(k) || this.statics.has(k) || this.lakeTiles?.has(k)) return null;
+    const { tx: px, ty: py } = this.playerTile();
+    if (px === tx && py === ty) return null;
+    return {
+      label,
+      run: () => {
+        addItem(sel.id, -1);
+        state.objects[k] = makeDefenseObject(sel.id);
+        this.removeDecor(k);
+        this.renderObject(k);
+        sfx('plant', 0.5);
+        changed();
+      },
+    };
+  }
+
+  fertilize(tx, ty) {
+    const t = state.tiles[key(tx, ty)];
+    addItem('fert', -1);
+    fertilize(t);
+    growCrops();
+    this.renderCrop(tx, ty);
+    this.cropGrowFx?.(tx, ty);
+    sfx('plant', 0.5);
+    this.puff(tx, ty, 0x8a6a3a);
+    changed();
+  }
+
   objectAction(o, k, tx, ty, sel) {
     const tool = sel.kind === 'tool' ? sel.id : null;
     const need = (t, label, run) => (tool === t ? { label, run } : { act: false, label: `${label.split(' (')[0]} — cần ${TOOLS[t].name}` });
     switch (o.type) {
       case 'tree':
-        return need('axe', 'Chặt cây', () => this.hit(o, k, tx, ty, 'axe', 'chop', () => this.setObject(k, { type: 'stump', hp: 3, v: 0 }, 'wood', 4)));
+        return need('axe', this.objHives?.get(k) ? 'Chặt cây (có tổ ong)' : 'Chặt cây', () =>
+          this.hit(o, k, tx, ty, 'axe', 'chop', () => {
+            const h = this.objHives?.get(k);
+            this.objHives?.delete(k); // giữ tổ ong lại để diễn cảnh rơi
+            this.setObject(k, { type: 'stump', hp: 3, v: 0 }, 'wood', 4);
+            if (h) this.dropHive(h, (ty + 1) * TILE);
+          }));
       case 'stump':
         return need('axe', 'Chặt gốc cây', () => this.hit(o, k, tx, ty, 'axe', 'chop', () => this.setObject(k, null, 'wood', 2)));
       case 'branch':
@@ -1358,6 +1786,16 @@ export default class WorldScene extends Phaser.Scene {
         return need('axe', 'Gỡ hàng rào', () => this.setObject(k, null, 'fence', 1));
       case 'sprinkler':
         return need('pickaxe', 'Gỡ bình phun', () => this.setObject(k, null, 'sprinkler', 1));
+      case 'trap_spike':
+        if ((o.hp || 0) <= 0) return { label: 'Dọn bẫy gai đã gãy', run: () => this.setObject(k, null, 'scrap', 1) };
+        return { label: `Nhặt lại bẫy gai (còn ${o.hp} lần đâm)`, run: () => this.setObject(k, null, o.hp >= 3 ? 'trap_spike' : 'scrap', 1) };
+      case 'torch':
+        return { label: 'Nhổ đuốc lên', run: () => this.setObject(k, null, 'torch', 1) };
+      case 'bait': {
+        const it = ITEMS[o.item];
+        const full = o.hp >= (it?.bait?.hp || 0);
+        return { label: full ? `Nhặt lại ${it?.name || 'mồi'}` : `Dọn ${it?.name || 'mồi'} bị gặm dở`, run: () => this.setObject(k, null, full ? o.item : null, 1) };
+      }
       case 'storage_chest': {
         const sk = `farm:${k}`;
         const empty = !Object.keys(state.storage[sk] || {}).length;
@@ -1584,10 +2022,17 @@ export default class WorldScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.fadeOut(passedOut ? 1200 : 700, 0, 0, 0);
     cam.once('camerafadeoutcomplete', () => {
-      const notes = newDay(passedOut);
-      save();
-      bus.emit('changed');
-      bus.emit('newDay', notes);
+      // Dù sang ngày mới có lỗi gì cũng phải tỉnh dậy được — không bao giờ kẹt màn hình đen
+      let notes = [];
+      try {
+        notes = newDay(passedOut);
+        save();
+        bus.emit('changed');
+        bus.emit('newDay', notes);
+      } catch (e) {
+        console.error('newDay lỗi:', e);
+        state.time = DAY_START;
+      }
       this.scene.restart({ map: 'home', spawn: HOME.bedSpawn });
     });
   }
@@ -1770,6 +2215,8 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   renderObject(k) {
+    this.removeHive(this.objHives?.get(k));
+    this.objHives?.delete(k);
     this.objSprites.get(k)?.destroy();
     this.objSprites.delete(k);
     this.objShadows?.get(k)?.destroy();
@@ -1784,23 +2231,39 @@ export default class WorldScene extends Phaser.Scene {
     let img;
     switch (o.type) {
       case 'tree':
-        img = this.add.image(bx, by + 2, 'fp_trees', this.treeFrame(o.v ? 2 : 0));
+        img = this.add.image(bx, by + 2, 'pc_trees', this.treeFrame(o.v ? 2 : 0));
         break;
       case 'stump':
-        img = this.add.image(bx, by, 'fp_bushes', 8);
+        img = this.add.image(bx, by, 'pc_bushes', 8);
         break;
       case 'rock':
-        img = this.add.image(bx, by, 'objects', 'rock').setFlipX(!!o.v);
+        img = this.add.image(bx, by, 'pc_nature', o.v ? 1 : 0).setFlipX(!!o.v);
         break;
       case 'branch':
-        img = this.add.image(bx, by, 'nature', o.v ? 'branch2' : 'branch');
+        img = this.add.image(bx, by, 'pc_nature', o.v ? 3 : 2);
         break;
       case 'weed':
-        img = this.add.image(bx, by, 'fp_bushes', state.season).setScale(o.v ? 0.7 : 0.85);
+        img = this.add.image(bx, by, 'pc_bushes', state.season + (o.v ? 4 : 0));
         break;
       case 'storage_chest':
-        img = this.add.image(bx, by, 'objects', 'chestStore');
+        img = this.add.image(bx, by, 'pc_chest');
         break;
+      case 'trap_spike':
+        img = this.add.image(bx, by, 'surv', (o.hp || 0) > 0 ? 'trap_spike' : 'trap_broken');
+        break;
+      case 'torch': {
+        img = this.add.sprite(bx, by, 'surv', 'torch0');
+        let fr = 0;
+        const ev = this.time.addEvent({ delay: 180 + Math.random() * 60, loop: true, callback: () => (img.active ? img.setFrame(`torch${(fr = 1 - fr)}`) : ev.remove()) });
+        const lt = this.fx.light(bx, by - 22, 46);
+        img.once('destroy', () => lt?.destroy());
+        break;
+      }
+      case 'bait': {
+        const it = ITEMS[o.item] || ITEMS.rotflesh;
+        img = o.item === 'pumpkin' ? this.add.image(bx, by, it.tex, it.frame) : this.add.image(bx, by, 'surv', o.item === 'bait_poison' ? 'bait_poison' : 'bait_meat');
+        break;
+      }
       case 'fence': {
         const f = (x2, y2) => state.objects[key(x2, y2)]?.type === 'fence';
         const l = f(x - 1, y), r = f(x + 1, y), u = f(x, y - 1), d = f(x, y + 1);
@@ -1818,10 +2281,138 @@ export default class WorldScene extends Phaser.Scene {
       this.objShadows = this.objShadows || new Map();
       this.objShadows.set(k, this.fx.shadow(bx, by - 1, shw));
     }
-    if (o.type === 'tree') this.fx.sway(img);
+    if (o.type === 'tree') {
+      this.fx.sway(img);
+      // thỉnh thoảng có tổ ong rừng trên cây (không có vào mùa đông)
+      if (this.hasHive(k)) (this.objHives ||= new Map()).set(k, this.addHive(img, x + y));
+    }
+    if (DEFENSE.includes(o.type)) return; // không chặn đường đi
     this.blocked.add(k);
     this.removeDecor(k);
     if (SOLID.includes(o.type)) this.objWalls.set(k, this.addWall(x * TILE + 3, y * TILE + 5, 10, 10, false));
+  }
+
+  // ---------- Tổ ong rừng ----------
+  hasHive(k) {
+    if (this.sea.id === 'winter') return false;
+    let h = 0;
+    for (const c of k) h = (h * 31 + c.charCodeAt(0)) % 1000003;
+    return h % 7 === 0;
+  }
+
+  // Tổ ong treo dưới tán cây, đung đưa; vài con ong bay vòng quanh
+  addHive(tree, seed = 0) {
+    const side = seed % 2 ? 1 : -1;
+    const hx = tree.x + side * 7, hy = tree.y - tree.displayHeight * 0.5;
+    const hive = this.add.image(hx, hy, 'icons', 'hive').setOrigin(0.5, 0.05).setDepth(tree.depth + 0.5);
+    const sway = this.tweens.add({ targets: hive, angle: { from: -5, to: 5 }, duration: 1500 + (seed % 5) * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const bees = [];
+    for (let i = 0; i < 3; i++) {
+      const b = this.add.image(hx, hy + 8, 'icons', 'bee').setScale(0.55).setDepth(tree.depth + 0.6);
+      const o = { a: i * 2.1 };
+      b.orbit = this.tweens.add({
+        targets: o, a: o.a + Math.PI * 2, duration: 1300 + i * 380, repeat: -1,
+        onUpdate: () => b.active && b.setPosition(hx + Math.cos(o.a) * (8 + i * 2), hy + 9 + Math.sin(o.a * 2) * 3 + Math.sin(o.a) * 2).setFlipX(Math.sin(o.a) > 0),
+      });
+      bees.push(b);
+    }
+    return { hive, bees, sway, tree };
+  }
+
+  removeHive(h) {
+    if (!h) return;
+    h.sway?.remove();
+    for (const b of h.bees) (b.orbit?.remove(), b.destroy());
+    h.hive.destroy();
+  }
+
+  // Chặt cây: tổ rơi xoay vòng → nảy bẹp trên đất → ong bay tán loạn → mật ong bật lên rồi bay vào túi
+  dropHive(h, groundY, n = 1 + (Math.random() < 0.5 ? 1 : 0) + (bonusChance('foraging') ? 1 : 0)) {
+    h.sway?.remove();
+    const hive = h.hive;
+    for (const b of h.bees) {
+      b.orbit?.remove();
+      const a = Math.random() * Math.PI * 2;
+      this.tweens.add({ targets: b, x: b.x + Math.cos(a) * 40, y: b.y - 20 - Math.random() * 30, alpha: 0, duration: 900 + Math.random() * 400, ease: 'Sine.easeOut', onComplete: () => b.destroy() });
+    }
+    sfx('grass', 0.4);
+    hive.setDepth(groundY + 2);
+    const gy = groundY - 2;
+    this.tweens.add({
+      targets: hive, y: gy - 12, angle: hive.angle + 220 * (Math.random() < 0.5 ? 1 : -1), duration: 480, ease: 'Quad.easeIn',
+      onComplete: () => {
+        hive.setAngle(0).setOrigin(0.5, 1).setY(gy);
+        sfx('plant', 0.5);
+        this.burst(hive.x, gy, 'fx_dust', 7, 0xd9a441, 12, 6, 460);
+        // nảy lên 1 nhịp + bẹp xuống
+        this.tweens.add({ targets: hive, scaleX: { from: 1.3, to: 1 }, scaleY: { from: 0.7, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+        this.tweens.add({
+          targets: hive, y: gy - 6, duration: 160, yoyo: true, ease: 'Quad.easeOut', delay: 60,
+          onComplete: () => {
+            // mật ong bật lên
+            const it = ITEMS.honey;
+            const ok = roomFor('honey');
+            if (ok) addItem('honey', n);
+            for (let i = 0; i < n; i++) {
+              const icon = this.add.image(hive.x, gy - 6, it.tex, it.frame).setDepth(9000).setScale(0.6);
+              this.tweens.add({
+                targets: icon, x: icon.x + (i - (n - 1) / 2) * 10, y: gy - 26 - i * 3, scale: 1, duration: 300, ease: 'Back.easeOut', delay: i * 90,
+                onComplete: () => {
+                  const cam = this.cameras.main;
+                  if (ok) bus.emit('flyToBag', { x: (icon.x - cam.worldView.x) * cam.zoom, y: (icon.y - cam.worldView.y) * cam.zoom, tex: it.tex, frame: it.frame, scale: icon.scale * cam.zoom });
+                  icon.destroy();
+                },
+              });
+            }
+            sfx('harvest', 0.5);
+            toast(ok ? `+${n} ${it.name} từ tổ ong!` : 'Túi đầy — mật ong rơi mất');
+            changed();
+            this.tweens.add({ targets: hive, alpha: 0, delay: 900, duration: 500, onComplete: () => hive.destroy() });
+          },
+        });
+      },
+    });
+  }
+
+  // Cây rừng có tổ ong (cây trang trí): cầm Rìu chặt → cây đổ, tổ rơi. Hôm sau cây & tổ mọc lại.
+  hiveTree(tree, tx, ty) {
+    const pk = `${this.mapId}:hive:${tx},${ty}`;
+    if (this.sea.id === 'winter' || state.pickDay?.[pk] === dayNum()) return;
+    const h = this.addHive(tree, tx + ty);
+    const k = key(tx, ty);
+    const act = (sel) => {
+      if (sel?.kind !== 'tool' || sel.id !== 'axe') return { act: false, label: 'Tổ ong rừng — cầm Rìu chặt cây để lấy mật' };
+      return {
+        label: 'Chặt cây lấy tổ ong',
+        run: () => {
+          if (!useEnergy(energyCost('axe'))) return;
+          this.statics.delete(k);
+          this.playAction('axe');
+          sfx('chop');
+          this.puff(tx, ty, 0xb07040);
+          xp('foraging', 2);
+          state.pickDay = { ...(state.pickDay || {}), [pk]: dayNum() };
+          // cây rung 3 nhịp rồi đổ nghiêng, mờ dần → để lại gốc
+          this.tweens.killTweensOf(tree);
+          this.tweens.add({
+            targets: tree, x: tree.x + 2, duration: 60, yoyo: true, repeat: 2,
+            onComplete: () => {
+              this.dropHive(h, (ty + 1) * TILE);
+              const dir = Math.random() < 0.5 ? -1 : 1;
+              this.tweens.add({ targets: tree, angle: 80 * dir, alpha: 0, duration: 700, ease: 'Quad.easeIn', onComplete: () => tree.destroy() });
+              this.add.image(tree.x, (ty + 1) * TILE, 'pc_bushes', 8).setOrigin(0.5, 1).setDepth((ty + 1) * TILE - 1);
+              tree.wallObj?.destroy();
+              this.blocked.delete(k);
+              const wood = 2 + (bonusChance('foraging') ? 1 : 0);
+              if (roomFor('wood')) addItem('wood', wood);
+            },
+          });
+          changed();
+        },
+      };
+    };
+    this.statics.set(k, act);
+    this.interactables.push({ img: h.hive, r: new Phaser.Geom.Rectangle(tree.x - 10, tree.y - 30, 20, 30), tx, ty });
   }
 
   // ---------- Hiệu ứng ----------

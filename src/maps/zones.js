@@ -29,7 +29,7 @@ export function populateZone(s, zoneId, isFree, nests = []) {
   }
   nests.forEach(([x, y], i) => {
     const k = `n${i}`;
-    if (!z.nests[k]) s.combat.spawnNest(x, y, k);
+    if (!z.nests[k] && z.infection > 0) s.combat.spawnNest(x, y, k);
   });
   if (!state.zoneSeen?.[zoneId]) {
     state.zoneSeen = { ...(state.zoneSeen || {}), [zoneId]: true };
@@ -42,12 +42,13 @@ export function populateZone(s, zoneId, isFree, nests = []) {
 export function container(s, type, tx, ty, o = {}) {
   const C = CONTAINERS[type];
   const frame = o.frame || C.frame;
-  const img = s.add.image((tx + (o.w || 1) / 2) * TILE, (ty + 1) * TILE, 'surv', frame).setOrigin(0.5, 1).setDepth((ty + 1) * TILE - 1);
+  const img = s.add.image((tx + (o.w || 1) / 2) * TILE, (ty + 1) * TILE, 'surv', frame).setOrigin(0.5, 1).setDepth(o.depth ?? (ty + 1) * TILE - 1);
   if (o.flip) img.setFlipX(true);
   const w = o.w || 1, rows = o.rows || 1;
   s.fx.shadow(img.x, (ty + 1) * TILE - 1, Math.min(img.width + 2, w * TILE + 6));
   s.addWall(tx * TILE + 2, (ty - rows + 1) * TILE + 4, w * TILE - 4, rows * TILE - 6);
-  const k = lootKey(s.mapId, tx, ty);
+  for (let dx = 0; dx < w; dx++) for (let dy = 0; dy < rows; dy++) s.blocked.add(key(tx + dx, ty - dy));
+  const k = o.key || lootKey(s.mapId, tx, ty);
   const mark = s.add.image(img.x, img.y - img.height - 3, 'fx_spark').setDepth(9000).setTint(0xffe08a);
   s.tweens.add({ targets: mark, y: mark.y - 2, alpha: 0.4, yoyo: true, repeat: -1, duration: 600 });
   const refresh = () => mark.setVisible(lootReady(k, type));
@@ -60,6 +61,7 @@ export function container(s, type, tx, ty, o = {}) {
     return { label: `Lục ${C.name}`, run: () => search(s, type, k, img, refresh) };
   };
   for (let dx = 0; dx < w; dx++) for (let dy = 0; dy < rows; dy++) s.statics.set(key(tx + dx, ty - dy), action);
+  s.interactables?.push({ img, r: img.getBounds(), tx, ty });
   return img;
 }
 
@@ -110,22 +112,4 @@ function search(s, type, k, img, refresh) {
     refresh();
     changed();
   };
-}
-
-// Đêm xuống, zombie mò vào nông trại qua các lối vào (hàng rào phòng thủ chặn bớt)
-export function raidFarm(s, entries) {
-  const h = state.time / 60;
-  if (h >= 5 && h < 20) return;
-  const fence = state.base?.fence || 0;
-  const night = `${dayNum()}`;
-  if (state.raidNight === night) return; // mỗi đêm 1 đợt
-  const n = fence >= 2 ? 0 : fence === 1 ? 1 : 3;
-  if (!n) return;
-  state.raidNight = night;
-  s.combat = new Combat(s, null);
-  for (let i = 0; i < n; i++) {
-    const [x, y] = entries[i % entries.length];
-    s.combat.spawnZombie(Math.random() < 0.7 ? 'walker' : 'runner', x, y).aggro = s.time.now + 60000;
-  }
-  s.time.delayedCall(600, () => toast(`Zombie đột nhập nông trại! (${n} con) — xây hàng rào phòng thủ để chặn`));
 }

@@ -1,33 +1,35 @@
 // ============================================================
 //  Đạo diễn âm thanh: nhạc nền theo nơi / giờ / thời tiết / lúc đánh nhau,
 //  tiếng môi trường (gió, mưa, suối, chim, lửa trại) và tiếng hiệu ứng có biến thể.
-//  Nhạc & tiếng lấy từ bộ Ninja Adventure (CC0) — xem tools/make_audio.py
+//  Nhạc & tiếng do máy tự tạo bằng code (chill, không u ám) — xem tools/make_music.py, tools/make_sfx.py
 // ============================================================
 import Phaser from 'phaser';
 import { state, season } from './state.js';
 import { festivalActive } from './festivals.js';
 
 const BASE = 'assets/audio/';
-const MUSIC_VOL = 0.42;
+const MUSIC_VOL = 0.3;
+const SFX_VOL = 0.75; // tiếng hiệu ứng chung (file đã cân độ to theo loại trong make_sfx.py)
+const MAX_SFX = 5; // tối đa số tiếng hiệu ứng kêu cùng lúc
 
 // Danh sách nhạc cho từng bối cảnh (phát lần lượt, nối tiếp nhau)
 const PLAYLISTS = {
-  farm: ['peaceful', 'chill', 'calm_village'],
-  night: ['dream', 'melancholia', 'lament'],
-  camp: ['lost_village', 'village'],
-  forest: ['dark_forest'],
-  forest_free: ['clearing'],
-  town: ['ruins', 'tension'],
-  town_free: ['road'],
-  cave: ['cave', 'dungeon'],
-  fight: ['fight'],
-  fest: ['good_time'],
+  farm: ['porch_morning', 'dusty_garden', 'slow_harvest'],
+  night: ['ember_night', 'starlit_rows'],
+  camp: ['campfire_talk', 'old_village'],
+  forest: ['wild_path'],
+  forest_free: ['sunny_clearing'],
+  town: ['empty_streets'],
+  town_free: ['open_road'],
+  cave: ['deep_hum'],
+  fight: ['scrap_fight'],
+  fest: ['festival_lights'],
 };
 export const RADIO = [
-  ['sunny', 'Ngày nắng'],
-  ['good_time', 'Vui vẻ'],
-  ['adventure', 'Phiêu lưu'],
-  ['boat', 'Thuyền trôi'],
+  ['radio_sunday', 'Chủ nhật nắng'],
+  ['radio_rainy', 'Ngày mưa'],
+  ['festival_lights', 'Vui vẻ'],
+  ['open_road', 'Đường xa'],
 ];
 
 // Tiếng hiệu ứng: số biến thể, âm lượng, khoảng cao độ ngẫu nhiên
@@ -50,16 +52,16 @@ export const SFX_DEF = {
   hurt: { n: 2, v: 0.9 },
   swing: { n: 3, v: 0.6, r: [0.9, 1.15] },
   monster: { n: 3, v: 0.7, r: [0.9, 1.1] },
-  zdie: { n: 2, v: 0.8, r: [0.6, 0.75] },
+  zdie: { n: 2, v: 0.8, r: [0.92, 1.05] },
   boom: { n: 1, v: 0.9, r: [0.85, 0.95] },
-  shot: { n: 1, v: 0.75, r: [1.35, 1.5] },
+  shot: { n: 1, v: 0.75, r: [0.95, 1.08] },
   shotgun: { n: 1, v: 0.9, r: [0.9, 1.0] },
-  rifle: { n: 1, v: 0.85, r: [1.1, 1.2], file: 'shot' },
-  empty: { n: 1, v: 0.7, r: [0.6, 0.65] },
-  groan: { n: 4, v: 0.7, r: [0.36, 0.48] }, // giọng người nói chậm lại → tiếng gầm gừ
+  rifle: { n: 1, v: 0.85, r: [0.8, 0.88], file: 'shot' },
+  empty: { n: 1, v: 0.7, r: [0.95, 1.05] },
+  groan: { n: 4, v: 0.7, r: [0.9, 1.1] },
   alert: { n: 1, v: 0.6 },
   ladder: { n: 1, v: 0.6 },
-  door: { n: 1, v: 0.5, r: [0.8, 0.9] },
+  door: { n: 1, v: 0.5, r: [0.95, 1.05] },
   heal: { n: 1, v: 0.7 },
   eat: { n: 1, v: 0.7, r: [0.9, 1.1] },
   bird: { n: 1, v: 0.18, r: [0.85, 1.3] },
@@ -74,7 +76,7 @@ export const SFX_DEF = {
 };
 const AMB = ['wind', 'rain', 'river'];
 const OUTDOOR = new Set(['farm', 'village', 'forest', 'town', 'quarry']);
-const INDOOR = new Set(['home', 'shop', 'npchome']);
+const INDOOR = new Set(['home', 'shop', 'npchome', 'ruin', 'pen']);
 
 export function loadSfx(load) {
   for (const [k, d] of Object.entries(SFX_DEF)) {
@@ -130,12 +132,16 @@ export default class AudioDirector {
     const d = SFX_DEF[name];
     if (!d || state.muted) return;
     const now = this.ui.time.now;
-    if (now - (this.lastPlay[name] || 0) < 45) return; // tránh chồng cùng một tiếng
+    // cùng một tiếng không kêu dồn dập (tiếng giao diện/xu nghỉ lâu hơn)
+    const gap = { click: 90, coin: 140, success: 260, grass: 120, talk: 70, groan: 900, monster: 250, bird: 0 }[name] ?? 80;
+    if (now - (this.lastPlay[name] || 0) < gap) return;
+    const busy = this.sound.getAllPlaying().filter((x) => x.key.startsWith('sfx_')).length;
+    if (busy >= MAX_SFX && !d.jingle && name !== 'hurt') return; // quá nhiều tiếng cùng lúc → bỏ bớt
     this.lastPlay[name] = now;
     const key = `sfx_${d.file || name}_${Math.floor(Math.random() * d.n)}`;
     if (!this.ui.cache.audio.exists(key)) return;
     const rate = d.r ? Phaser.Math.FloatBetween(d.r[0], d.r[1]) : 1;
-    this.sound.play(key, { volume: Math.min(1, volume * 2 * d.v), rate });
+    this.sound.play(key, { volume: Math.min(1, volume * 2 * d.v * SFX_VOL), rate });
     if (d.jingle) this.duck(name === 'gameover' ? 3500 : 2200);
   }
 
@@ -163,6 +169,7 @@ export default class AudioDirector {
     const h = (state.time || 0) / 60;
     const night = h >= 19.5 || h < 5;
     if (map === 'mine' || map === 'quarry') return 'cave';
+    if (map === 'ruin') return (state.zones?.town?.infection ?? 100) <= 0 ? 'town_free' : 'town';
     if (map === 'forest' || map === 'town') return (state.zones?.[map]?.infection ?? 100) <= 0 ? `${map}_free` : map;
     if (map === 'village' || map === 'shop' || map === 'npchome') {
       if (festivalActive()) return 'fest';
@@ -225,7 +232,10 @@ export default class AudioDirector {
         snd.destroy();
         this.cur = null;
         // nghỉ một chút rồi sang bài kế
-        this.ui.time.delayedCall(listId === 'fight' ? 0 : 2500, () => this.listId === listId && !this.cur && this.playTrack(listId, idx + 1, 1500));
+        // hết bài thì nghỉ 20–45 giây (chỉ còn tiếng môi trường) rồi mới sang bài kế — đỡ mệt tai
+        const rest = listId === 'fight' ? 0 : Phaser.Math.Between(20000, 45000);
+        this.restUntil = this.ui.time.now + rest;
+        this.ui.time.delayedCall(rest, () => this.listId === listId && !this.cur && this.playTrack(listId, idx + 1, 2500));
       });
       snd.play();
       this.cur = { listId, idx, key, snd };
@@ -243,8 +253,8 @@ export default class AudioDirector {
     const rain = state.weather === 'rain' && map !== 'mine' && map !== 'quarry';
     const zone = map === 'forest' || map === 'town';
     const t = { wind: 0, rain: 0, river: 0 };
-    if (out) t.wind = zone ? 0.32 : night ? 0.2 : state.weather === 'snow' ? 0.25 : 0.08;
-    if (rain) t.rain = out ? 0.45 : INDOOR.has(map) ? 0.15 : 0;
+    if (out) t.wind = zone ? 0.1 : night ? 0.07 : state.weather === 'snow' ? 0.09 : 0.03;
+    if (rain) t.rain = out ? 0.2 : INDOOR.has(map) ? 0.07 : 0;
     if (out && w?.waterTiles?.size && w.player) {
       const px = w.player.x / 16, py = w.player.y / 16;
       let best = 99;
@@ -253,7 +263,7 @@ export default class AudioDirector {
         const d = Math.hypot(+k.slice(0, i) - px, +k.slice(i + 1) - py);
         if (d < best) best = d;
       }
-      t.river = 0.35 * Phaser.Math.Clamp(1 - (best - 1) / 7, 0, 1);
+      t.river = 0.14 * Phaser.Math.Clamp(1 - (best - 1) / 6, 0, 1);
     }
     return t;
   }
@@ -280,9 +290,9 @@ export default class AudioDirector {
     const h = (state.time || 0) / 60;
     const calm = map === 'farm' || map === 'village' || (map === 'forest' && (state.zones?.forest?.infection ?? 100) <= 0);
     if (calm && h >= 5.5 && h < 18 && state.weather === 'sun' && now > this.nextBird && season().id !== 'winter') {
-      this.nextBird = now + Phaser.Math.Between(3500, 9000);
-      const n = Phaser.Math.Between(1, 3);
-      for (let i = 0; i < n; i++) this.ui.time.delayedCall(i * Phaser.Math.Between(110, 170), () => this.sfx('bird', 0.5));
+      this.nextBird = now + Phaser.Math.Between(14000, 32000); // chim hót thưa, nhỏ
+      const n = Phaser.Math.Between(1, 2);
+      for (let i = 0; i < n; i++) this.ui.time.delayedCall(i * Phaser.Math.Between(260, 420), () => this.sfx('bird', 0.35));
     }
     if (map === 'village' && w?.player && now > this.nextFire) {
       this.nextFire = now + Phaser.Math.Between(500, 1300);
@@ -300,7 +310,7 @@ export default class AudioDirector {
     if (force || id !== this.listId) {
       if (musicOn()) this.switchTo(id);
       else this.listId = null;
-    } else if (!this.cur && musicOn() && this.listId) this.playTrack(this.listId, 0, 1500);
+    } else if (!this.cur && musicOn() && this.listId && this.ui.time.now >= (this.restUntil || 0)) this.playTrack(this.listId, 0, 1500);
     if (!musicOn() && this.cur) {
       const old = this.cur.snd;
       this.cur = null;

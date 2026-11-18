@@ -11,6 +11,9 @@ export const bus = new Phaser.Events.EventEmitter();
 // Trạng thái giao diện (không lưu)
 export const ui = { modal: null, transition: false, joy: { x: 0, y: 0 }, hitTest: () => false };
 
+// ?nointro trên địa chỉ trang: bỏ qua đoạn mở đầu (dùng khi thử nghiệm)
+const SKIP_INTRO = typeof location !== 'undefined' && /[?&]nointro/.test(location.search);
+
 function newState() {
   const tiles = {};
   for (let x = 6; x <= 11; x++) for (let y = 16; y <= 18; y++) tiles[`${x},${y}`] = { watered: false, crop: null }; // luống trong ruộng
@@ -43,6 +46,12 @@ function newState() {
     forageDay: null,
     mineDeepest: 0,
     sel: 'tool:hoe',
+    // Ván mới: đoạn mở đầu → tham quan làng → đêm đầu ở nhà dột → sáng hôm sau Ông Năm trao đồ nghề
+    intro: SKIP_INTRO ? 'done' : 'start', // start | tour | night | done
+    gotTools: SKIP_INTRO,
+    roofFixed: SKIP_INTRO,
+    questV: 2, // v2: thêm 3 nhiệm vụ mở đầu ở đầu chuỗi
+    mainQuest: SKIP_INTRO ? 3 : 0,
     inv: { seed_carrot: 6, seed_strawberry: 2, seed_potato: 2 },
     tiles,
     objects: null, // tạo lần đầu bởi farmLayout
@@ -74,6 +83,16 @@ function load() {
     if (raw) {
       const s = JSON.parse(raw);
       const base = newState();
+      // Save cũ (trước khi có đoạn mở đầu): coi như đã xong, đủ đồ nghề, nhiệm vụ chính dời lên 3 bước
+      if (s.questV === undefined) {
+        s.questV = 2;
+        const q = typeof s.mainQuest === 'number' ? s.mainQuest : typeof s.quest === 'number' ? s.quest : 0;
+        s.mainQuest = q + 3;
+        if (typeof s.quest === 'number') s.quest = null;
+        s.intro = 'done';
+        s.gotTools = true;
+        s.roofFixed = true;
+      }
       return {
         ...base,
         ...s,
@@ -202,7 +221,7 @@ export function hotbarItems() {
     lv: state.toolLv[id] || 1,
   }));
   for (const [id, it] of Object.entries(ITEMS)) {
-    if ((it.seed || it.place || it.home || (it.eat && !it.eat.raw) || it.weapon || it.heal) && count(id) > 0) list.push({ key: `item:${id}`, tex: it.tex, frame: it.frame, name: it.name, item: id, n: count(id) });
+    if ((it.seed || it.place || it.home || (it.eat && !it.eat.raw) || it.weapon || it.heal || it.defense || it.bait || id === 'fert') && count(id) > 0) list.push({ key: `item:${id}`, tex: it.tex, frame: it.frame, name: it.name, item: id, n: count(id) });
   }
   // Tối đa 12 ô; món đang chọn luôn có mặt
   const out = list.slice(0, 12);
@@ -213,9 +232,13 @@ export function hotbarItems() {
 
 export function selected() {
   const [kind, id] = state.sel.split(':');
-  if ((kind === 'item' && !has(id)) || (kind === 'tool' && TOOLS[id]?.unlock && !state[TOOLS[id].unlock])) {
-    state.sel = 'tool:hoe';
-    return { kind: 'tool', id: 'hoe' };
+  if ((kind === 'item' && !has(id)) || (kind === 'tool' && TOOLS[id]?.unlock && !state[TOOLS[id].unlock]) || kind === 'none') {
+    // chọn món đầu tiên trên thanh công cụ (ván mới chưa có đồ nghề thì có thể chưa có gì)
+    const first = hotbarItems()[0];
+    state.sel = first?.key || 'none';
+    if (!first) return { kind: 'none', id: null };
+    const [k2, id2] = state.sel.split(':');
+    return { kind: k2, id: id2 };
   }
   return { kind, id };
 }

@@ -94,7 +94,7 @@ export default class Combat {
     const name = m.cfg.name;
     if (!w) return { act: false, label: `${name} — chọn vũ khí (gậy, dao, súng) để đánh` };
     if (w.gun && count(w.ammo) <= 0) return { act: false, label: `${w.name} hết đạn! Lục thùng đồ hoặc đổi ở trại` };
-    return { label: `${w.gun ? 'Bắn' : 'Đánh'} ${name}`, run: () => this.attack(m), self: true };
+    return { label: `${w.gun ? 'Bắn' : w.throw ? `Ném ${w.name} vào` : 'Đánh'} ${name}`, run: () => this.attack(m), self: true };
   }
 
   hpBar(m) {
@@ -137,16 +137,33 @@ export default class Combat {
         continue;
       }
       if (time < m.knockUntil) continue;
-      const dx = pc.x - sp.x, dy = pc.y - (m.zombie ? sp.y - 4 : sp.y);
-      const d = Math.hypot(dx, dy);
+      const dxp = pc.x - sp.x, dyp = pc.y - (m.zombie ? sp.y - 4 : sp.y);
+      const dp = Math.hypot(dxp, dyp);
+      // Zombie đánh trại ban đêm: đi tới cổng / mồi nhử (src/raid.js)
+      const st = m.raid && s.raid ? s.raid.steer(m, time, dp) : null;
+      let dx = dxp, dy = dyp, d = dp;
+      if (st) {
+        dx = st.x - sp.x;
+        dy = st.y - sp.y;
+        d = Math.hypot(dx, dy) || 1;
+      }
       let vx = 0, vy = 0;
       const sight = m.zombie ? m.cfg.sight * (1 + night * 0.4) : 100;
-      const speed = m.zombie ? m.cfg.speed * (1 + night * 0.25) : m.cfg.speed;
-      if (d < sight || time < m.aggro) {
-        if (m.zombie && d < 220) this.chaseAt = time; // nhạc đánh nhau
+      const speed = (m.zombie ? m.cfg.speed * (1 + night * 0.25) : m.cfg.speed) * (st?.slow || 1);
+      if (st?.hold) {
+        if (dp < 220) this.chaseAt = time;
+        sp.setVelocity(0, 0);
+        m.face = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+        sp.anims.play(`zom_${m.type}_idle_${m.face}`, true);
+        const reach = 12 * (m.cfg.scale || 1);
+        if (dp < reach && time > this.invulnUntil) this.hurtPlayer(m, dxp, dyp, dp);
+        continue;
+      }
+      if (d < sight || time < m.aggro || st) {
+        if (m.zombie && dp < 220) this.chaseAt = time; // nhạc đánh nhau
         vx = (dx / d) * speed;
         vy = (dy / d) * speed;
-        if (m.zombie && time > this.nextGroan && d < 120) {
+        if (m.zombie && time > this.nextGroan && dp < 120) {
           this.nextGroan = time + Phaser.Math.Between(2500, 5000);
           sfx('groan', 0.25);
         }
@@ -170,7 +187,7 @@ export default class Combat {
       } else sp.anims.play(`mon_${m.type}_${dir}`, true);
 
       const reach = m.zombie ? 12 * (m.cfg.scale || 1) : 11;
-      if (d < reach && time > this.invulnUntil) this.hurtPlayer(m, dx, dy, d);
+      if (dp < reach && time > this.invulnUntil) this.hurtPlayer(m, dxp, dyp, dp);
     }
   }
 
@@ -229,6 +246,17 @@ export default class Combat {
       s.facing = Math.abs(dx) > Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
       s.setPose?.(false);
     }
+    if (w.throw) {
+      if (!m) {
+        toast('Không có zombie nào trong tầm ném');
+        this.lastSwing = now;
+        return true;
+      }
+      this.lastSwing = now;
+      addItem(w.id, -1, true);
+      this.throwAt(w, from, m);
+      return true;
+    }
     if (w.gun) {
       if (count(w.ammo) <= 0) {
         toast(`${w.name} hết đạn!`);
@@ -248,7 +276,7 @@ export default class Combat {
     }
     // Cận chiến
     this.lastSwing = now;
-    s.playAction('harvest');
+    s.playAction('attack');
     sfx('swing', 0.4);
     const f = s.facing;
     const hx = c.x + f.x * 12, hy = c.y + f.y * 12 - 4;
@@ -292,6 +320,40 @@ export default class Combat {
       tracer(ang, Phaser.Math.Distance.Between(from.x, from.y, p.x, p.y));
       this.hit(m, dmg, f);
     }
+  }
+
+  // Bom xăng: bay vòng cung tới chỗ zombie, nổ lửa trúng mọi con trong bán kính, để lại đám cháy
+  throwAt(w, from, m) {
+    const s = this.scene;
+    const p = this.aimPoint(m);
+    const tx = p.x, ty = p.y + 6;
+    sfx('swing', 0.4);
+    const b = s.add.image(from.x, from.y, 'surv', 'molotov').setDepth(9500);
+    const o = { t: 0 };
+    s.tweens.add({
+      targets: o, t: 1, duration: 380,
+      onUpdate: () => {
+        b.setPosition(from.x + (tx - from.x) * o.t, from.y + (ty - from.y) * o.t - Math.sin(o.t * Math.PI) * 26).setAngle(o.t * 540);
+      },
+      onComplete: () => {
+        b.destroy();
+        sfx('boom', 0.55);
+        s.cameras.main.shake(140, 0.006);
+        for (let i = 0; i < 3; i++) {
+          const f = s.add.image(tx + Phaser.Math.Between(-8, 8), ty - 4, 'fx_glow').setDisplaySize(w.radius * 2, w.radius * 1.4).setTint(i ? 0xff8a3a : 0xffd27a).setBlendMode(Phaser.BlendModes.ADD).setDepth(9450);
+          s.tweens.add({ targets: f, alpha: 0, duration: 3000, delay: i * 100, onComplete: () => f.destroy() });
+        }
+        const fire = s.add.sprite(tx, ty + 2, 'surv', 'campfire0').setOrigin(0.5, 1).setDepth(ty).setScale(1.2);
+        let fr = 0;
+        const ev = s.time.addEvent({ delay: 150, loop: true, callback: () => fire.active && fire.setFrame(`campfire${(fr = 1 - fr)}`) });
+        s.tweens.add({ targets: fire, alpha: 0, delay: 2500, duration: 500, onComplete: () => (ev.remove(), fire.destroy()) });
+        for (const t of [...this.monsters]) {
+          const q = this.aimPoint(t);
+          if (Phaser.Math.Distance.Between(tx, ty, q.x, q.y + 6) <= w.radius + 6) this.hit(t, w.dmg + (skillLv('combat') - 1), { x: Math.sign(q.x - tx), y: Math.sign(q.y - ty) });
+        }
+        s.raid?.burnAt(tx, ty, w.radius);
+      },
+    });
   }
 
   drawArc(x, y, f) {
@@ -366,6 +428,10 @@ export default class Combat {
     }
     if (m.zombie) {
       sfx('zdie', 0.5);
+      if (m.raid && state.raid?.log) {
+        state.raid.log.kills++;
+        state.raid.log.myKills++;
+      }
       this.splat(x, y, true);
       const z = this.zone && zoneState(this.zone);
       if (z) z.kills = (z.kills || 0) + 1;

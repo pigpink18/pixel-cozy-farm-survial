@@ -11,7 +11,7 @@
 // ============================================================
 import { state } from './state.js';
 
-export const FARM_W = 64;
+export const FARM_W = 92; // v6: mở rộng sang phía đông (khu đất hoang, ao thứ ba, xe bỏ hoang)
 export const FARM_H = 44;
 
 export const FARM = {
@@ -20,19 +20,21 @@ export const FARM = {
   chest: { x: 10, y: 7 },
   pond: { x: 28, y: 15, w: 6, h: 4 },
   pond2: { x: 46, y: 28, w: 7, h: 5 },
-  coop: { x: 20, y: 3, door: { x: 21, y: 4 }, trough: { x: 24, y: 4 }, pen: { x0: 19, y0: 6, x1: 25, y1: 8 }, sign: { x: 21, y: 4 }, fence: [18, 5, 26, 9], gate: [21, 22] },
-  barn: { x: 31, y: 1, door: { x: 32, y: 5 }, trough: { x: 36, y: 5 }, pen: { x0: 29, y0: 7, x1: 37, y1: 9 }, sign: { x: 32, y: 5 }, fence: [28, 6, 38, 10], gate: [32, 33] },
-  exit: [{ x: 63, y: 11 }, { x: 63, y: 12 }],
+  // Chuồng nằm GIỮA bãi rào (rào bao cả chuồng); vật nuôi đi vòng quanh chuồng trong rào
+  coop: { x: 20, y: 3, door: { x: 21, y: 4 }, trough: { x: 24, y: 4 }, pen: { x0: 19, y0: 3, x1: 25, y1: 8 }, sign: { x: 22, y: 5 }, fence: [18, 2, 26, 9], gate: [21, 22] },
+  barn: { x: 31, y: 1, door: { x: 32, y: 5 }, trough: { x: 36, y: 5 }, pen: { x0: 29, y0: 3, x1: 37, y1: 9 }, sign: { x: 33, y: 6 }, fence: [28, 2, 38, 10], gate: [32, 33] },
+  exit: [{ x: 91, y: 11 }, { x: 91, y: 12 }],
+  pond3: { x: 65, y: 21, w: 7, h: 4 },
   // Đường đất (x0, y0, x1, y1)
   paths: [
-    [4, 11, 63, 12], // đường chính → làng
+    [4, 11, 91, 12], // đường chính → làng (qua Cổng đông)
     [5, 8, 7, 10], // từ cửa nhà xuống đường chính
     [9, 8, 11, 10], // lối tới rương
     [21, 10, 22, 10], // cổng chuồng gà
     [16, 0, 17, 10], // lối tắt lên thị trấn
     [19, 13, 20, 43], // đường xuống rừng
   ],
-  path: { x0: 34, y0: 11, x1: 63, y1: 12 },
+  path: { x0: 34, y0: 11, x1: 91, y1: 12 },
   fromVillage: { x: 16, y: 2 },
   // Lối tắt lên thị trấn ngay cạnh nhà (phía bắc)
   northExit: [{ x: 16, y: 0 }, { x: 17, y: 0 }],
@@ -54,9 +56,10 @@ export const FARM = {
   flowerBeds: [[3, 8, 4, 9], [8, 8, 8, 9]],
   // Dải rừng dày ở mép (cây trang trí, không chặt được)
   forestBands: [
-    [56, 2, 62, 9],
-    [57, 14, 62, 41],
-    [22, 39, 55, 42],
+    [84, 2, 90, 9], // hai bên Cổng đông: rừng dày, chỉ chừa đường
+    [84, 14, 90, 41],
+    [56, 2, 83, 3],
+    [22, 39, 83, 42],
     [1, 25, 3, 41],
     [40, 2, 54, 4],
   ],
@@ -67,9 +70,10 @@ const RESERVED = [
   [2, 1, 13, 10], // nhà, rương, bồn hoa
   [14, 0, 17, 5], // lối tắt lên thị trấn
   [27, 14, 34, 19], // ao
-  [18, 2, 26, 10], // chuồng gà + rào
-  [28, 0, 39, 10], // chuồng bò + rào
-  [4, 10, 63, 13], // đường chính
+  [4, 10, 91, 13], // đường chính
+  [63, 19, 73, 26], // ao thứ ba
+  [69, 4, 76, 8], // xe bỏ hoang
+  [62, 5, 66, 8], // thùng phuy
   [18, 13, 21, 43], // đường xuống rừng
   [45, 27, 53, 33], // ao thứ hai
   [4, 14, 17, 14], [4, 23, 17, 23], [4, 14, 4, 23], [17, 14, 17, 23], // rào ruộng
@@ -94,11 +98,34 @@ const NO_SPAWN = [
 const inRect = (x, y, [x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
 const key = (x, y) => `${x},${y}`;
 
-export const isReserved = (x, y) => RESERVED.some((r) => inRect(x, y, r));
+// ---------- Chuồng trại dời được (state.penPos = { coop: {dx, dy}, barn: {dx, dy} }) ----------
+const shiftPen = (c, dx, dy) => ({
+  ...c,
+  x: c.x + dx, y: c.y + dy,
+  door: { x: c.door.x + dx, y: c.door.y + dy },
+  trough: { x: c.trough.x + dx, y: c.trough.y + dy },
+  sign: { x: c.sign.x + dx, y: c.sign.y + dy },
+  pen: { x0: c.pen.x0 + dx, y0: c.pen.y0 + dy, x1: c.pen.x1 + dx, y1: c.pen.y1 + dy },
+  fence: [c.fence[0] + dx, c.fence[1] + dy, c.fence[2] + dx, c.fence[3] + dy],
+  gate: [c.gate[0] + dx, c.gate[1] + dx],
+});
+export const PEN_IDS = ['coop', 'barn'];
+export const penOffset = (id) => state.penPos?.[id] || { dx: 0, dy: 0 };
+export function penCfg(id, off = penOffset(id)) {
+  return shiftPen(FARM[id], off.dx, off.dy);
+}
+// Cả khu chuồng: bãi rào (nhà chuồng nằm trong) + 1 hàng lối vào phía dưới cổng
+export function penRect(id, off) {
+  const [x0, y0, x1, y1] = penCfg(id, off).fence;
+  return [x0, y0, x1, y1 + 1];
+}
+const inPen = (x, y, except) => PEN_IDS.some((id) => id !== except && inRect(x, y, penRect(id)));
+
+export const isReserved = (x, y, exceptPen = null) => RESERVED.some((r) => inRect(x, y, r)) || inPen(x, y, exceptPen);
 export const inFarm = (x, y) => x >= 1 && y >= 2 && x <= FARM_W - 2 && y <= FARM_H - 2;
 export const inForestBand = (x, y) => FARM.forestBands.some((r) => inRect(x, y, r));
 // Khu hoang dã: chỉ ở đây mới mọc cây chặt được
-export const inWild = (x, y) => (y >= 25 || (x >= 36 && y >= 14)) && !inForestBand(x, y);
+export const inWild = (x, y) => (y >= 25 || (x >= 36 && y >= 14) || (x >= 56 && y >= 4)) && !inForestBand(x, y);
 
 export function isFarmFree(x, y) {
   const k = key(x, y);
@@ -151,6 +178,7 @@ export function generateObjects(region = null, seed = 7, scale = 2.7, types = ['
 
 // Bản đồ thiết kế lại (v3): dọn cây khỏi khu sân nhà / ruộng / đường, trồng lại ở khu hoang dã
 export function migrateFarmLayout() {
+  if (!state.objects) return; // ván mới: nông trại chưa được tạo
   for (const [k, o] of Object.entries(state.objects)) {
     const [x, y] = k.split(',').map(Number);
     const badTree = (o.type === 'tree' || o.type === 'stump') && !inWild(x, y);
@@ -168,6 +196,7 @@ export function addWildResources(seed = 51) {
 
 // Mỗi sáng: cây mọc lại ở khu hoang dã, thêm cỏ dại / cành củi / đá
 export function spawnDebris(n, winter) {
+  if (!state.objects) return;
   const objs = Object.values(state.objects);
   const trees = objs.filter((o) => o.type === 'tree').length;
   for (let i = 0, tries = 0; trees + i < 90 && i < 3 && tries < 300; tries++) {
@@ -186,4 +215,15 @@ export function spawnDebris(n, winter) {
     state.objects[key(x, y)] = makeObject(type);
     i++;
   }
+}
+
+// Bản đồ v6: khu đất mới phía đông (save cũ) — mọc cây, đá, cỏ dại
+export function expandFarmEast(seed = 77) {
+  const reg = (x, y) => x >= 56 && inWild(x, y);
+  for (const k of Object.keys(state.objects || {})) {
+    const [x, y] = k.split(',').map(Number);
+    if (x >= 56 && (isReserved(x, y) || inForestBand(x, y))) delete state.objects[k];
+  }
+  generateObjects(reg, seed, 0.9, ['tree', 'stump']);
+  generateObjects(reg, seed + 1, 0.9, ['rock', 'branch', 'weed']);
 }

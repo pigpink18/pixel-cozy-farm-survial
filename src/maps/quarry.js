@@ -112,7 +112,7 @@ export function buildQuarry(s) {
   const cave = s.add.image(c.x * TILE, (c.y + 1) * TILE, 'q_door').setOrigin(0, 1).setDepth((c.y + 1) * TILE);
   s.addWall(cave.x + 2, cave.y - 34, 44, 32);
   s.fx.light(cave.x + 40, cave.y - 18, 22);
-  s.add.text(cave.x + 24, cave.y - 50, 'Hầm sâu', { fontFamily: 'VT323', fontSize: '40px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5).setDepth(9000);
+  s.add.text(cave.x + 24, cave.y - 50, 'Hầm sâu', { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '40px', color: '#fdd179', stroke: '#3d3333', strokeThickness: 8 }).setScale(0.25).setOrigin(0.5).setDepth(9000);
   for (let x = c.x; x < c.x + 3; x++) s.statics.set(key(x, c.y), () => caveAction(s));
 
   // Bàn đập hốc đá
@@ -148,7 +148,7 @@ export function buildQuarry(s) {
 
 function sign(s, x, y, text) {
   s.add.image(x * TILE + 8, (y + 1) * TILE, 'nature', 'sign').setOrigin(0.5, 1).setDepth((y + 1) * TILE);
-  s.add.text(x * TILE + 8, y * TILE - 2, text, { fontFamily: 'VT323', fontSize: '32px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 }).setScale(0.25).setOrigin(0.5, 1).setDepth(9000);
+  s.add.text(x * TILE + 8, y * TILE - 2, text, { fontFamily: 'VT323, AshenGlyphs, monospace', fontSize: '32px', color: '#fee1b8', stroke: '#3d3333', strokeThickness: 7 }).setScale(0.25).setOrigin(0.5, 1).setDepth(9000);
 }
 
 // Ô trống để mọc đá
@@ -301,7 +301,7 @@ function crack(id) {
   addItem(out, n);
   xp('mining', 2);
   sfx(out.startsWith('gem') || out === 'bar_gold' ? 'success' : 'pick', 0.5);
-  toast(`Cạch! ${ITEMS[id].name} mở ra: ${n} ${ITEMS[out].name}${out.startsWith('gem') ? ' ✨' : ''}`);
+  toast(`Cạch! ${ITEMS[id].name} mở ra: ${n} ${ITEMS[out].name}${out.startsWith('gem') ? '!' : ''}`);
   changed();
 }
 

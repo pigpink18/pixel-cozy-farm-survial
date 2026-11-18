@@ -14,7 +14,7 @@ export const FURN = {
   bed_basic: { name: 'Giường gỗ', frame: 'bed_basic', fw: 1, fh: 2, kind: 'floor', price: 300, use: 'sleep', cat: 'bed' },
   table_basic: { name: 'Bàn ăn đỏ', frame: 'table_basic', fw: 2, fh: 1, kind: 'floor', price: 250, cat: 'table' },
   stove: { name: 'Bếp lò', frame: 'stove', fw: 2, fh: 1, kind: 'floor', price: 500, use: 'cook', cat: 'kitchen' },
-  storage_chest: { name: 'Rương chứa đồ', tex: 'objects', frame: 'chestStore', fw: 1, fh: 1, kind: 'floor', use: 'chest', cat: 'storage', bag: true },
+  storage_chest: { name: 'Rương chứa đồ', tex: 'pc_chest', fw: 1, fh: 1, kind: 'floor', use: 'chest', cat: 'storage', bag: true },
   // --- giường ---
   bed_blue: { name: 'Giường chăn xanh', frame: 'bed_blue', fw: 1, fh: 2, kind: 'floor', price: 450, use: 'sleep', cat: 'bed' },
   bed_pink: { name: 'Giường chăn hồng', frame: 'bed_pink', fw: 1, fh: 2, kind: 'floor', price: 450, use: 'sleep', cat: 'bed' },
@@ -95,12 +95,12 @@ export const FURN_CATS = [
 ];
 
 export const WALLS = {
-  cream: { name: 'Sọc kem', price: 0 }, green: { name: 'Lá xanh', price: 300 }, blue: { name: 'Caro xanh', price: 300 },
-  pink: { name: 'Chấm hồng', price: 300 }, wood: { name: 'Ốp gỗ', price: 450 }, brick: { name: 'Gạch đỏ', price: 450 },
+  cream: { name: 'Gỗ súc', price: 0 }, green: { name: 'Lá xanh', price: 300 }, blue: { name: 'Caro xanh', price: 300 },
+  pink: { name: 'Chấm hồng', price: 300 }, wood: { name: 'Ốp gỗ', price: 450 }, brick: { name: 'Đá xây', price: 450 },
   purple: { name: 'Hoa tím', price: 400 }, mint: { name: 'Bạc hà', price: 350 },
 };
 export const FLOORS = {
-  wood: { name: 'Gỗ sáng', price: 0 }, wood_dark: { name: 'Gỗ sẫm', price: 400 }, check: { name: 'Caro đen trắng', price: 500 },
+  wood: { name: 'Gỗ sáng', price: 0 }, wood_dark: { name: 'Gỗ xương cá', price: 400 }, check: { name: 'Gỗ ghép', price: 500 },
   tile_blue: { name: 'Gạch men xanh', price: 450 }, stone: { name: 'Đá lát', price: 450 }, carpet: { name: 'Thảm trải sàn', price: 350 },
   pink: { name: 'Gạch hồng', price: 400 }, grass: { name: 'Cỏ (vui nhộn)', price: 600 },
 };

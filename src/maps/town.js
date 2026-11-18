@@ -4,7 +4,10 @@
 // ============================================================
 import { TILE } from '../config.js';
 import { populateZone, container } from './zones.js';
-import { prop, fireBarrel } from './decor.js';
+import { prop, fireBarrel, patches } from './decor.js';
+import { state } from '../state.js';
+import { ruinKind } from './ruin.js';
+import { NPC_HOUSE_IN } from '../npcs.js';
 
 const key = (x, y) => `${x},${y}`;
 
@@ -19,11 +22,11 @@ export const TOWN = {
     ['homeOrange', 14, 6], ['homeBeige', 31, 6], ['homeSmall', 38, 6], ['store', 19, 16], ['market', 32, 16],
     ['homeBeige', 13, 28], ['homeOrange', 31, 28], ['homeSmall', 47, 16], ['homeOrange', 47, 28], ['homeSmall', 2, 16], ['homeBeige', 18, 28],
   ],
-  cars: [[22, 19, 'car_red'], [36, 18, 'car_blue', true], [7, 19, 'car_white'], [27, 12, 'car_white'], [26, 25, 'car_red', true], [16, 30, 'car_blue'], [40, 31, 'car_white', true], [49, 19, 'car_red'], [30, 8, 'car_blue', true]],
+  cars: [[22, 19, 'car_red'], [36, 18, 'car_blue', true], [7, 19, 'car_white'], [27, 12, 'truck_tan'], [26, 25, 'car_red', true], [16, 30, 'truck_green'], [40, 31, 'car_white', true], [49, 19, 'truck_tan', true], [30, 8, 'car_blue', true]],
   cans: [[18, 10], [35, 10], [5, 21], [24, 21], [40, 21], [22, 32], [37, 32], [50, 10]],
-  cabinets: [[3, 26], [21, 24], [36, 24], [52, 25], [17, 3], [40, 3], [6, 35], [33, 36]],
   barrels: [[13, 12], [42, 13], [8, 25], [47, 35], [30, 23]],
   nests: [[6, 12], [48, 24]],
+  sealed: [2, 9], // nhà bị chắn kín cửa (không vào được)
 };
 
 export function buildTown(s) {
@@ -40,13 +43,22 @@ export function buildTown(s) {
   for (const e of T.exit) s.exits.set(key(e.x, e.y), { map: 'village', spawn: { x: 20, y: 31 } });
 
   // Nhà đổ nát: tối màu, cửa bị chắn
-  for (const [frame, x, yB] of T.houses) {
+  // Nhà đổ nát: phần lớn vào được để lục đồ bên trong; vài nhà cửa bị chắn kín
+  T.houses.forEach(([frame, x, yB], idx) => {
     const img = s.building('nhouse', frame, x, yB, 2);
     img.setTint(0x9a948a);
     const w = Math.ceil(img.width / TILE);
-    prop(s, 'barricade', x + Math.floor(w / 2) - 1, yB, { tex: 'surv', w: 2, solid: false, dy: 2, depth: (yB + 1) * TILE + 1 });
-    for (let tx = x; tx < x + w; tx++) for (let ty = yB - 1; ty <= yB; ty++) if (!s.statics.has(key(tx, ty))) s.statics.set(key(tx, ty), () => ({ act: false, label: 'Nhà đổ nát — cửa bị chắn kín' }));
-  }
+    const door = x + Math.floor(w / 2);
+    if (T.sealed.includes(idx)) {
+      prop(s, 'barricade', door - 1, yB, { tex: 'surv', w: 2, solid: false, dy: 2, depth: (yB + 1) * TILE + 1 });
+      for (let tx = x; tx < x + w; tx++) for (let ty = yB - 1; ty <= yB; ty++) if (!s.statics.has(key(tx, ty))) s.statics.set(key(tx, ty), () => ({ act: false, label: 'Nhà đổ nát — cửa bị chắn kín' }));
+      return;
+    }
+    const kind = ruinKind(frame);
+    const enter = () => ({ label: `Vào ${kind === 'store' ? 'tiệm tạp hoá' : kind === 'market' ? 'chợ' : 'nhà'} bỏ hoang`, door: true, run: () => s.changeMap('ruin', { ...NPC_HOUSE_IN.enter }, { ruin: idx, kind, back: { x: door, y: yB + 1 } }) });
+    s.add.rectangle(door * TILE + 8, (yB + 1) * TILE - 6, 10, 12, 0x0a0806).setDepth((yB + 1) * TILE).setAlpha(0.85); // cửa mở toang, tối om
+    for (let tx = x; tx < x + w; tx++) for (let ty = yB - 1; ty <= yB; ty++) if (!s.statics.has(key(tx, ty))) s.statics.set(key(tx, ty), tx === door && ty === yB ? enter : () => ({ act: false, label: 'Nhà đổ nát — vào bằng cửa chính' }));
+  });
   // Tường đổ, lốp xe, cọc giao thông, máu & xương
   for (const [x, y] of [[3, 3], [22, 3], [46, 3], [2, 36], [24, 36], [50, 36], [36, 26], [14, 23]]) prop(s, 'ruinwall', x, y, { tex: 'surv', w: 2, label: 'Tường đổ nát' });
   for (const [x, y] of [[9, 22], [33, 21], [43, 33], [23, 11]]) prop(s, 'tires', x, y, { tex: 'surv', label: 'Chồng lốp xe' });
@@ -62,7 +74,6 @@ export function buildTown(s) {
   // Đồ để lục
   for (const [x, y, frame, flip] of T.cars) container(s, 'car', x, y, { frame, w: 3, flip });
   for (const [x, y] of T.cans) container(s, 'trashcan', x, y);
-  for (const [x, y] of T.cabinets) container(s, 'cabinet', x, y);
   for (const [x, y] of T.barrels) container(s, 'barrel', x, y);
 
   s.borderTrees({ top: [25, 29] });
@@ -70,4 +81,8 @@ export function buildTown(s) {
 
   const free = (x, y) => !s.blocked.has(key(x, y)) && !s.statics.has(key(x, y)) && s.inMap(x, y);
   populateZone(s, 'town', free, T.nests);
+  // Nấm mọc trên bãi cỏ hoang: thị trấn còn nhiễm bệnh → nấm phát quang & nấm độc; sạch rồi → nấm ăn được
+  const infected = (state.zones?.town?.infection ?? 100) > 0;
+  const grassy = (x, y) => free(x, y) && !s.isDirt(x, y) && !s.decor.has(key(x, y));
+  patches(s, grassy, infected ? 34 : 16, 404, infected ? ['mush_glow', 'mush_glow', 'mush_deathcap', 'mush_red', 'mush_oyster'] : ['mush_oyster', 'mush_termite', 'mush_brown']);
 }

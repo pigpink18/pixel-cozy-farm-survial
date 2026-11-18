@@ -9,15 +9,18 @@ import { BOOK, ACHIEVEMENTS, bookDone, achDone, claim, claimable, trackProgress 
 import { craftRows, furnShopPanel, wallPanel, floorPanel } from '../shops.js';
 import { FURN, FURN_CATS, ownedCount, ensureHome } from '../furniture.js';
 import AudioDirector from '../audio.js';
+import { QUESTS, questNow, questIdx, questProgress, checkQuest } from '../quests.js';
 import { growCrops } from '../crops.js';
 import Fishing from '../fishing.js';
 import { STORES } from '../config.js';
 import { absMin } from '../hayday.js';
 import { BUILDINGS } from '../config.js';
 import { finishFactories } from '../hayday.js';
+import { raidTick } from '../raid.js';
 import { farmLevel, farmProgress, onHour, storeFor, storeUsed, storeCap, storable, upgradeStore, costText as hdCost } from '../hayday.js';
 
-import { text, textLight, box, buttonKey, C } from '../ui/theme.js';
+import { basePanel, craftPanel } from '../survivalPanels.js';
+import { text, textLight, box, buttonKey, C, FONT } from '../ui/theme.js';
 const WEATHER = { sun: 'Nắng', rain: 'Mưa', snow: 'Tuyết' };
 
 const SLOT = 56;
@@ -54,7 +57,7 @@ export default class UIScene extends Phaser.Scene {
 
     this.hintText = this.add.text(W / 2, H - SLOT - 44, '', textLight(this.isTouch ? 19 : 16, C.gold)).setOrigin(0.5);
     this.toastText = this.add.text(W / 2, H - SLOT - 82, '', textLight(this.isTouch ? 21 : 19)).setOrigin(0.5, 1).setAlign('center').setAlpha(0).setDepth(400).setWordWrapWidth(W - 120); // luôn nổi trên bảng cửa hàng
-    this.keyHelp = this.add.text(W - 14, 64, 'Click: đi / làm việc  ·  WASD + Space\n1–9: chọn đồ  ·  I: túi đồ  ·  Esc: đóng', textLight(12)).setOrigin(1, 0).setAlign('right');
+    this.keyHelp = this.add.text(W - 8, 54, 'Click: đi / làm việc  ·  WASD + Space\n1–9: chọn đồ  ·  I: túi đồ  ·  Esc: đóng', textLight(12)).setOrigin(1, 0).setAlign('right');
     this.applyTouchMode();
     // Chạm màn hình thật → bật nút điều khiển (kể cả khi máy tự nhận là máy tính)
     this.input.on('pointerdown', (p) => {
@@ -91,17 +94,32 @@ export default class UIScene extends Phaser.Scene {
       else bus.emit('dialog', { face: 'portrait', name: `Uy tín cấp ${lv}!`, text, choices: [{ label: 'Tuyệt vời!', onClick: null }] });
     });
     on('flyToBag', this.flyToBag);
+    // Chữ to giữa màn hình (đợt zombie...)
+    on('banner', (text, color = '#ffd27a') => {
+      const t = this.add.text(this.W / 2, this.H * 0.3, text, textLight(34, color)).setOrigin(0.5).setDepth(5000).setStroke('#1d1418', 8).setScale(0.6).setAlpha(0);
+      this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 250, ease: 'Back.out' });
+      this.tweens.add({ targets: t, alpha: 0, y: t.y - 20, delay: 2600, duration: 600, onComplete: () => t.destroy() });
+    });
     on('openStorage', (key) => this.openStorage(key));
     // Đài radio trong nhà: đổi giai điệu
     on('radio', () => {
       const name = this.audio?.nextRadio();
       if (state.muted) return this.showToast('Âm thanh đang tắt — bấm nút "Âm: tắt" trên góc để bật');
-      if (state.musicOff) return this.showToast('Nhạc đang tắt — bấm nút "Nhạc: tắt" trên góc để bật');
+      if (state.musicOff) return this.showToast('Nhạc đang tắt — vào Cài đặt (góc phải trên) để bật');
       this.showToast(name ? `Đài đang phát: ${name} ♪` : 'Đã tắt đài');
     });
+    // Xong nhiệm vụ: không vướng bảng nào thì mở thư ngay (thư ghi phần thưởng), đang mở bảng thì chỉ báo ngắn
+    on('questDone', (msg) => (ui.modal || ui.transition ? this.showToast(msg, 3000) : this.time.delayedCall(300, () => (ui.modal ? this.showToast(msg, 3000) : this.showMail()))));
     on('fishStart', (where) => this.fishing.start(where));
     on('action', () => this.fishing.active && this.fishing.press());
     on('decoMode', (on) => (on ? this.openDecoBar() : this.closeDecoBar()));
+    // Dời chuồng: thanh hướng dẫn + nút Đặt / Huỷ
+    on('penMove', (on) => (on ? this.openPenBar() : this.closePenBar()));
+    on('penMoveState', (msg) => this.penBarText?.setText(msg));
+    // Đoạn phim mở đầu: khung đen trên/dưới, chữ kể chuyện, nút Bỏ qua
+    on('cine', (on) => (on ? this.openCine() : this.closeCine()));
+    on('clockNow', () => this.updateClock());
+    on('cineText', (t, ms) => this.cineSay(t, ms));
     on('decoHeld', (id) => {
       this.decoHeldId = id;
       if (this.decoC) this.buildDecoBar();
@@ -131,6 +149,7 @@ export default class UIScene extends Phaser.Scene {
       });
     }
     this.audio = new AudioDirector(this);
+    this.setupInvDrag();
     this.refresh();
     // Thư chưa đọc khi mở game (vd. thư mở đầu tận thế)
     if (state.mail?.length) this.time.delayedCall(1500, () => !ui.modal && this.showMail());
@@ -139,50 +158,278 @@ export default class UIScene extends Phaser.Scene {
   // =========================================================
   //  Bảng trạng thái
   // =========================================================
+  // Kiểu HUD "gọn nhẹ trong suốt": viên thuốc đen mờ bo tròn, icon to, không khung dày
+  pillDraw(g, x, y, w, h, a = 0.48) {
+    g.fillStyle(0x0d0a0b, a).fillRoundedRect(x, y, w, h, h / 2);
+    g.lineStyle(1.5, 0xffffff, 0.16).strokeRoundedRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5, (h - 1.5) / 2);
+  }
+
+  hudText(size, color = '#ffffff') {
+    return { fontFamily: FONT, fontSize: `${Math.round(size * 1.4)}px`, color, stroke: '#0d0a0b', strokeThickness: 3, padding: { top: 2, bottom: 2 } };
+  }
+
   buildStatus() {
-    box(this, 'ui_frame', 10, 10, 340, 112);
-    this.uiRects.push(new Phaser.Geom.Rectangle(10, 10, 340, 112));
-    box(this, 'ui_slot', 22, 24, 66, 72, 2);
-    this.add.image(55, 60, 'portrait').setScale(1);
-    // Cấp độ nông trại (kiểu Hay Day)
-    this.lvBadge = this.add.text(55, 100, '', textLight(12, C.gold)).setOrigin(0.5);
-    this.add.rectangle(24, 110, 62, 5, 0x734c44).setOrigin(0, 0.5);
-    this.lvBar = this.add.rectangle(24, 110, 62, 5, 0xfdd179).setOrigin(0, 0.5);
-    this.dateText = this.add.text(98, 18, '', text(16));
-    this.clockText = this.add.text(98, 41, '', text(16, '#bfe3ff'));
-    // Ô tiền riêng, nổi bật ngay dưới bảng trạng thái
-    box(this, 'ui_wood', 10, 126, 168, 44);
-    this.uiRects.push(new Phaser.Geom.Rectangle(10, 126, 168, 44));
-    this.add.image(36, 148, 'ui_coin').setScale(2.2);
-    this.coinText = this.add.text(56, 148, '', textLight(19, C.gold)).setOrigin(0, 0.5);
-    const bar = (y, color) => {
-      this.add.rectangle(98, y, 234, 14, 0x734c44).setOrigin(0, 0.5).setStrokeStyle(2, 0x3d3333);
-      const b = this.add.rectangle(98, y, 234, 14, color).setOrigin(0, 0.5);
-      const t = this.add.text(215, y, '', textLight(11)).setOrigin(0.5);
-      return [b, t];
+    const X = 8, Y = 8, W = 176, H = 26;
+    const g = this.add.graphics();
+    // Máu & No: viên thuốc có icon + thanh bo tròn + số
+    const bar = (y, icon, color, hi) => {
+      this.pillDraw(g, X, y, W, H);
+      this.add.image(X + 15, y + H / 2, icon).setScale(1.6);
+      const bg = this.add.graphics();
+      const t = this.add.text(X + W - 11, y + H / 2, '', this.hudText(13)).setOrigin(1, 0.5);
+      return { g: bg, t, x: X + 30, y: y + H / 2 - 4, w: W - 76, color, hi };
     };
-    [this.hpBar, this.hpText] = bar(76, 0xb55945);
-    [this.foodBar, this.foodText] = bar(98, 0xd9963a);
+    this.hpBar = bar(Y, 'ic_heart', 0xe0443a, 0xff8f80);
+    this.foodBar = bar(Y + H + 6, 'ic_food', 0xe8933a, 0xffc27a);
+    this.uiRects.push(new Phaser.Geom.Rectangle(X, Y, W, 2 * H + 6));
+    // Xu + Uy tín: 2 viên nhỏ, rộng theo chữ
+    this.chipG = this.add.graphics();
+    this.coinIcon = this.add.image(X + 15, Y + 2 * (H + 6) + H / 2, 'ui_coin').setScale(1.5);
+    this.coinText = this.add.text(X + 28, this.coinIcon.y, '', this.hudText(14, '#ffd86b')).setOrigin(0, 0.5);
+    this.lvBadge = this.add.text(0, this.coinIcon.y, '', this.hudText(12, '#cfd6e0')).setOrigin(0, 0.5);
+    this.chipRect = new Phaser.Geom.Rectangle(X, Y + 2 * (H + 6), W, H);
+    this.uiRects.push(this.chipRect);
+    // Nhiệm vụ: viên có chấm vàng "!", bấm xem gợi ý
+    const QY = Y + 3 * (H + 6) + 2;
+    this.questG = this.add.graphics();
+    this.add.circle(X + 14, QY + 14, 9, 0xffc93c).setStrokeStyle(1.5, 0x0d0a0b, 0.6);
+    this.add.text(X + 14, QY + 14, '!', this.hudText(13, '#3a2a10')).setOrigin(0.5).setStroke('#ffc93c', 0);
+    this.questTitle = this.add.text(X + 29, QY + 14, '', this.hudText(13)).setOrigin(0, 0.5);
+    this.questSub = this.add.text(0, QY + 14, '', this.hudText(13, '#ffd86b')).setOrigin(0, 0.5);
+    this.questY = QY;
+    this.questRect = new Phaser.Geom.Rectangle(X, QY, 200, 28);
+    this.uiRects.push(this.questRect);
+    this.questZone = this.add.zone(X, QY, 200, 28).setOrigin(0).setInteractive({ useHandCursor: true }).on('pointerdown', () => !ui.modal && this.showQuest());
+
+    // Đồng hồ giữa: icon trời · giờ · ngày; dưới là đếm ngược tới đêm
+    const MX = this.W / 2, CW = 190;
+    this.pillDraw(g, MX - CW / 2, Y, CW, 30);
+    this.uiRects.push(new Phaser.Geom.Rectangle(MX - CW / 2, Y, CW, 30));
+    this.skyIcon = this.add.image(MX - CW / 2 + 18, Y + 15, 'ic_sun').setScale(1.7);
+    this.clockText = this.add.text(MX - CW / 2 + 32, Y + 15, '', this.hudText(17)).setOrigin(0, 0.5);
+    this.dateText = this.add.text(0, Y + 15, '', this.hudText(12, '#cfd6e0')).setOrigin(0, 0.5);
+    this.nightG = this.add.graphics();
+    this.nightIcon = this.add.image(0, Y + 47, 'ic_skull').setScale(1.3);
+    this.nightText = this.add.text(MX + 8, Y + 47, '', this.hudText(12, '#cfd6e0')).setOrigin(0.5);
+    this.nightPulse = this.tweens.add({ targets: [this.nightIcon, this.nightText], alpha: 0.5, yoyo: true, repeat: -1, duration: 600, paused: true });
+  }
+
+  setBar(b, v, low) {
+    const k = Phaser.Math.Clamp(v, 0, 1);
+    const danger = low && k < 0.3;
+    b.g.clear();
+    b.g.fillStyle(0xffffff, 0.14).fillRoundedRect(b.x, b.y, b.w, 8, 4);
+    if (k > 0) {
+      const w = Math.max(8, b.w * k);
+      b.g.fillStyle(danger ? 0xff3b30 : b.color, 1).fillRoundedRect(b.x, b.y, w, 8, 4);
+      b.g.fillStyle(0xffffff, 0.28).fillRoundedRect(b.x + 2, b.y + 1, w - 4, 2, 1);
+    }
+  }
+
+  // Vẽ lại các viên rộng theo chữ (xu, nhiệm vụ)
+  layoutChips() {
+    const X = 8, H = 26, y = this.chipRect.y;
+    const g = this.chipG.clear();
+    const cw = this.coinText.width + 42;
+    this.pillDraw(g, X, y, cw, H);
+    this.lvBadge.setX(X + cw + 16);
+    const lw = this.lvBadge.width + 30;
+    this.pillDraw(g, X + cw + 6, y, lw, H, 0.36);
+    this.chipRect.width = cw + 6 + lw;
+    // Nhiệm vụ: cắt bớt tên dài cho vừa
+    const full = this.questTitle.text;
+    let t = full;
+    while (this.questTitle.width > 200 && t.length > 4) this.questTitle.setText((t = t.slice(0, -1)) + '…');
+    this.questSub.setX(this.questTitle.x + this.questTitle.width + 8);
+    const qw = this.questSub.x + this.questSub.width + 12 - X;
+    this.pillDraw(this.questG.clear(), X, this.questY, qw, 28);
+    this.questRect.width = qw;
+    this.questZone.setSize(qw, 28);
+    this.questZone.input.hitArea.setSize(qw, 28);
+  }
+
+  updateClock() {
+    const t = state.time;
+    const night = t >= 1200 || t < 360;
+    this.clockText.setText(clockText().slice(0, 5));
+    this.dateText.setX(this.clockText.x + this.clockText.width + 12);
+    this.skyIcon.setTexture(state.weather === 'rain' ? 'ic_rain' : state.weather === 'snow' ? 'ic_snow' : night ? 'ic_moon' : 'ic_sun');
+    let msg, col;
+    if (night) (msg = 'Đêm · zombie đang tới'), (col = '#ff6b5a');
+    else {
+      const r = 1200 - t;
+      msg = `Trời tối sau ${Math.floor(r / 60)}g${String(r % 60).padStart(2, '0')}`;
+      col = r <= 120 ? '#ffae6b' : '#cfd6e0';
+    }
+    this.nightText.setText(msg).setColor(col);
+    const MX = this.W / 2, w = this.nightText.width + 40;
+    this.nightText.setX(MX + 10);
+    this.nightIcon.setX(MX + 10 - this.nightText.width / 2 - 12).setTint(night ? 0xff8a7a : 0xffffff);
+    this.pillDraw(this.nightG.clear(), MX - w / 2 + 2, this.nightIcon.y - 11, w, 22, night ? 0.55 : 0.32);
+    const warn = night || 1200 - t <= 120;
+    if (warn && this.nightPulse.paused) this.nightPulse.resume();
+    if (!warn && !this.nightPulse.paused) {
+      this.nightPulse.pause();
+      this.nightIcon.setAlpha(1), this.nightText.setAlpha(1);
+    }
+  }
+
+  // Kéo thả trong túi đồ: bóng món đồ theo ngón tay, thả vào thùng rác thì hỏi bỏ
+  setupInvDrag() {
+    this.input.on('pointermove', (p) => {
+      const h = this.hotDrag;
+      if (h && p.isDown && !ui.modal) {
+        if (!h.ghost && Phaser.Math.Distance.Between(p.x, p.y, h.sx, h.sy) > 14) {
+          if (h.it.tool) {
+            this.hotDrag = null;
+            return this.showToast('Công cụ không bỏ được');
+          }
+          h.ghost = this.fitIcon(p.x, p.y, h.it.tex, h.it.frame, 44).setDepth(400).setAlpha(0.9);
+          this.showHotTrash(true);
+        }
+        if (h.ghost) {
+          h.ghost.setPosition(p.x, p.y);
+          this.hotTrash?.setScale(this.hotTrashRect.contains(p.x, p.y) ? 1.12 : 1);
+        }
+        return;
+      }
+      const d = this.invDrag;
+      if (!d || ui.modal !== 'inv' || !p.isDown) return;
+      if (!d.ghost && Phaser.Math.Distance.Between(p.x, p.y, d.sx, d.sy) > 12) {
+        const it = ITEMS[d.id];
+        d.ghost = this.fitIcon(p.x, p.y, it.tex, it.frame, 44).setDepth(400).setAlpha(0.9);
+      }
+      if (d.ghost) {
+        d.ghost.setPosition(p.x, p.y);
+        this.trashBox?.setTint?.(this.trashRect?.contains(p.x, p.y) ? 0xff9a8a : 0xffffff);
+      }
+    });
+    this.input.on('pointerup', (p) => {
+      const h = this.hotDrag;
+      this.hotDrag = null;
+      if (h?.ghost) {
+        h.ghost.destroy();
+        const drop = this.hotTrashRect?.contains(p.x, p.y);
+        this.showHotTrash(false);
+        if (drop) this.askDiscard(h.it.item, true);
+        return;
+      }
+      const d = this.invDrag;
+      this.invDrag = null;
+      if (!d?.ghost) return;
+      d.ghost.destroy();
+      this.invDropAt = this.time.now;
+      this.trashBox?.setTint?.(0xffffff);
+      if (ui.modal === 'inv' && this.trashRect?.contains(p.x, p.y)) this.askDiscard(d.id);
+    });
+  }
+
+  // Thùng rác tạm hiện phía trên thanh công cụ khi kéo đồ từ thanh công cụ
+  showHotTrash(on) {
+    this.hotTrash?.destroy();
+    this.hotTrash = null;
+    this.hotTrashRect = null;
+    if (!on) return;
+    const x = this.W / 2, y = this.hotbarRect.y - 70;
+    const c = (this.hotTrash = this.add.container(x, y).setDepth(390));
+    const g = this.add.graphics();
+    g.fillStyle(0x7c2a26, 0.85).fillRoundedRect(-90, -30, 180, 60, 16);
+    g.lineStyle(2, 0xffffff, 0.5).strokeRoundedRect(-90, -30, 180, 60, 16);
+    c.add([g, this.add.image(-58, 0, 'surv', 'trashcan').setScale(2), this.add.text(10, 0, 'Thả vào đây\nđể bỏ', { ...textLight(15), align: 'center', lineSpacing: -4 }).setOrigin(0.5)]);
+    this.hotTrashRect = new Phaser.Geom.Rectangle(x - 100, y - 40, 200, 80);
+    this.tweens.add({ targets: c, y: y - 4, yoyo: true, repeat: -1, duration: 500 });
+  }
+
+  askDiscard(id, fromHotbar = false) {
+    const it = ITEMS[id];
+    const n = count(id);
+    if (!it || !n) return;
+    const done = (k) => {
+      addItem(id, -k, true);
+      if (state.sel === `item:${id}` && !count(id)) state.sel = 'tool:hoe';
+      sfx('cancel', 0.4);
+      this.invInfo = `Đã bỏ ${k} ${it.name}`;
+      changed();
+      if (fromHotbar) this.showToast(`Đã bỏ ${k} ${it.name}`);
+      else this.openInventory('inv');
+    };
+    bus.emit('dialog', {
+      face: 'portrait',
+      name: 'Bỏ đồ',
+      text: `Bỏ ${it.name} đi? Đồ đã bỏ sẽ mất luôn.${it.sell ? `\n(Mẹo: món này bán được ${it.sell} xu/cái ở sạp ven đường)` : ''}`,
+      choices: [
+        ...(n > 1 ? [{ label: 'Bỏ 1', onClick: () => done(1) }] : []),
+        { label: n > 1 ? `Bỏ hết (${n})` : 'Bỏ', onClick: () => done(n) },
+        { label: 'Thôi', onClick: () => !fromHotbar && this.openInventory('inv') },
+      ],
+    });
+  }
+
+  showQuest() {
+    const q = questNow();
+    if (!q) return this.showToast('Đã xong mọi nhiệm vụ hiện có — chờ bản cập nhật sau nhé!');
+    const n = NPCS[q.from];
+    bus.emit('dialog', {
+      face: `face_${q.from}`,
+      name: `Nhiệm vụ ${questIdx() + 1}/${QUESTS.length} — ${n?.name || ''} nhờ`,
+      text: `${q.title} (${questProgress(q)}/${q.goal})\n${q.hint}`,
+      choices: [
+        // Nhiệm vụ xây / chế: mở thẳng bảng Căn cứ (chỉ khi đang ở nông trại)
+        ...(q.panel ? [{ label: q.panel === 'craft' ? 'Mở Bàn chế tạo' : 'Mở bảng Căn cứ', onClick: () => {
+          if (this.mapId !== 'farm') return this.showToast('Về nông trại rồi bấm lại nhé — Bàn chế tạo ở cạnh nhà');
+          bus.emit('panel', q.panel === 'craft' ? craftPanel : basePanel);
+        } }] : []),
+        { label: 'Đã hiểu', onClick: null },
+      ],
+    });
   }
 
   buildTopButtons() {
-    let x = this.W - 14;
-    const add = (label, w, onClick, color) => {
-      x -= w;
-      const b = this.button(x + w / 2, 32, label, onClick, w, color, 38);
-      this.uiRects.push(new Phaser.Geom.Rectangle(x, 13, w, 38));
-      x -= 8;
-      return b;
+    // 2 nút tròn mờ có icon: Túi đồ (ba lô) + Cài đặt (bánh răng)
+    const R = 21, cy = 8 + R, r = this.W - 8;
+    const roundBtn = (x, icon, onClick) => {
+      const c = this.add.container(x, cy);
+      const bg = this.add.circle(0, 0, R, 0x0d0a0b, 0.48).setStrokeStyle(1.5, 0xffffff, 0.16);
+      const ic = this.add.image(0, 0, icon).setScale(1.8);
+      bg.setInteractive({ useHandCursor: true });
+      bg.on('pointerover', () => bg.setFillStyle(0x0d0a0b, 0.68)).on('pointerout', () => bg.setFillStyle(0x0d0a0b, 0.48));
+      bg.on('pointerdown', () => c.setScale(0.92)).on('pointerup', () => (c.setScale(1), onClick()));
+      c.add([bg, ic]);
+      this.uiRects.push(new Phaser.Geom.Rectangle(x - R, cy - R, 2 * R, 2 * R));
+      return c;
     };
-    if (this.scale.fullscreen.available)
-      add('Toàn màn hình', 140, () => {
-        if (this.scale.isFullscreen) return this.scale.stopFullscreen();
-        this.scale.startFullscreen();
-        screen.orientation?.lock?.('landscape').catch(() => {});
-      }, 0x46607a);
+    this.menuBtn = roundBtn(r - R, 'ic_gear', () => this.toggleMenu());
+    this.bagBtn = roundBtn(r - 3 * R - 8, 'ic_bag', () => (this.toggleMenu(false), this.openInventory()));
+
+    // Bảng cài đặt: khung mờ bo tròn, mỗi dòng là một viên bấm được
+    const MW = 180, IH = 32;
+    const m = (this.menuC = this.add.container(0, 0).setDepth(320).setVisible(false));
+    const mg = this.add.graphics();
+    m.add(mg);
+    const rows = [];
+    const item = (onClick) => {
+      const i = rows.length;
+      const c = this.add.container(0, 0);
+      const hg = this.add.graphics();
+      const t = this.add.text(0, 0, '', this.hudText(14)).setOrigin(0.5);
+      const z = this.add.zone(0, 0, MW, IH).setInteractive({ useHandCursor: true });
+      const draw = (a) => hg.clear().fillStyle(0xffffff, a).fillRoundedRect(-MW / 2, -IH / 2, MW, IH, IH / 2);
+      draw(0.08);
+      z.on('pointerover', () => draw(0.18)).on('pointerout', () => draw(0.08)).on('pointerup', () => onClick());
+      c.add([hg, t, z]);
+      c.label = t;
+      rows.push(c);
+      m.add(c);
+      return c;
+    };
+    const soundLabel = () => (state.muted ? 'Âm thanh: tắt' : state.musicOff ? 'Nhạc: tắt' : 'Âm thanh: bật');
+    this.touchBtn = item(() => {
+      state.touchPref = !this.isTouch;
+      this.applyTouchMode(state.touchPref);
+      save();
+    });
     // Âm: bật → Nhạc: tắt (chỉ còn tiếng) → Âm: tắt
-    const soundLabel = () => (state.muted ? 'Âm: tắt' : state.musicOff ? 'Nhạc: tắt' : 'Âm: bật');
-    this.muteBtn = add('', 104, () => {
+    this.muteBtn = item(() => {
       if (state.muted) state.muted = state.musicOff = false;
       else if (state.musicOff) state.muted = true;
       else state.musicOff = true;
@@ -190,16 +437,39 @@ export default class UIScene extends Phaser.Scene {
       this.muteBtn.label.setText(soundLabel());
       this.audio?.tick();
       save();
-    }, 0x5b4a7a);
+    });
     this.muteBtn.label.setText(soundLabel());
-    this.bagBtn = add('Túi đồ (I)', 120, () => this.openInventory(), 0x8a6a2f);
-    this.touchBtn = add('', 120, () => {
-      state.touchPref = !this.isTouch;
-      this.applyTouchMode(state.touchPref);
+    // Âm lượng chung: Vừa → Nhỏ → To (mặc định Vừa)
+    const VOLS = [['Vừa', 0.7], ['Nhỏ', 0.4], ['To', 1]];
+    const volIdx = () => Math.max(0, VOLS.findIndex(([n]) => n === (state.volume || 'Vừa')));
+    const volBtn = item(() => {
+      state.volume = VOLS[(volIdx() + 1) % VOLS.length][0];
+      this.sound.volume = VOLS[volIdx()][1];
+      volBtn.label.setText(`Âm lượng: ${state.volume}`);
+      this.audio?.sfx('click', 0.6);
       save();
-    }, 0x46607a);
+    });
+    this.sound.volume = VOLS[volIdx()][1];
+    volBtn.label.setText(`Âm lượng: ${VOLS[volIdx()][0]}`);
+    if (this.scale.fullscreen.available)
+      item(() => {
+        if (this.scale.isFullscreen) return this.scale.stopFullscreen();
+        this.scale.startFullscreen();
+        screen.orientation?.lock?.('landscape').catch(() => {});
+      }).label.setText('Toàn màn hình');
+    const pad = 8, mh = rows.length * (IH + 6) - 6 + 2 * pad;
+    const mx = r - MW - 2 * pad, my = cy + R + 6;
+    mg.fillStyle(0x0d0a0b, 0.62).fillRoundedRect(mx, my, MW + 2 * pad, mh, 16);
+    mg.lineStyle(1.5, 0xffffff, 0.16).strokeRoundedRect(mx + 0.75, my + 0.75, MW + 2 * pad - 1.5, mh - 1.5, 16);
+    rows.forEach((c, i) => c.setPosition(mx + pad + MW / 2, my + pad + IH / 2 + i * (IH + 6)));
+    this.menuRect = new Phaser.Geom.Rectangle(mx, my, MW + 2 * pad, mh);
+    // Chạm ra ngoài thì đóng bảng
+    this.input.on('pointerdown', (p) => {
+      if (this.menuC.visible && !this.menuRect.contains(p.x, p.y) && !(p.x > r - 2 * R && p.y < cy + R)) this.toggleMenu(false);
+    });
+
     // Nút "Ra ngoài": chỉ hiện khi ở trong nhà / cửa hàng (cửa ra có thể bị thanh công cụ che)
-    const lw = 150, lx = this.W - 14 - lw, ly = 150;
+    const lw = 150, lx = this.W - 8 - lw, ly = 96;
     this.leaveRect = new Phaser.Geom.Rectangle(lx, ly - 20, lw, 40);
     this.leaveBtn = this.button(lx + lw / 2, ly, 'Ra ngoài ↓', () => bus.emit('leaveRoom'), lw, 0xb5603a, 40);
     // Nút "Trang trí": chỉ trong nhà
@@ -208,9 +478,74 @@ export default class UIScene extends Phaser.Scene {
     this.updateLeaveBtn();
   }
 
+  openCine() {
+    if (this.cineC) return;
+    this.cineHidden = this.children.list.filter((o) => o.visible && o !== this.toastText && o !== this.night);
+    for (const o of this.cineHidden) o.setVisible(false);
+    const c = (this.cineC = this.add.container(0, 0).setDepth(150)); // dưới hộp thoại (200) để nút Tiếp không bị che
+    const top = this.add.rectangle(0, 0, this.W, 56, 0x000000).setOrigin(0);
+    const bot = this.add.rectangle(0, this.H - 64, this.W, 64, 0x000000).setOrigin(0);
+    c.add([top, bot]);
+    this.tweens.add({ targets: top, y: { from: -56, to: 0 }, duration: 600, ease: 'Sine.easeOut' });
+    this.tweens.add({ targets: bot, y: { from: this.H, to: this.H - 64 }, duration: 600, ease: 'Sine.easeOut' });
+    this.cineCap = this.add.text(this.W / 2, this.H - 32, '', { fontFamily: FONT, fontSize: '30px', color: '#fff3d6', align: 'center' }).setOrigin(0.5).setAlpha(0);
+    const skip = this.add.text(this.W - 14, 28, 'Bỏ qua ▶▶', { fontFamily: FONT, fontSize: '24px', color: '#c8c0b0' }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    skip.on('pointerup', () => bus.emit('cineSkip'));
+    c.add([this.cineCap, skip]);
+    this.cineRect = new Phaser.Geom.Rectangle(this.W - 160, 0, 160, 56);
+    this.uiRects.push(this.cineRect);
+  }
+
+  cineSay(text, ms = 2600) {
+    const t = this.cineCap;
+    if (!t) return;
+    this.tweens.killTweensOf(t);
+    t.setText(text).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, duration: 450 });
+    if (ms) this.tweens.add({ targets: t, alpha: 0, delay: ms, duration: 450 });
+  }
+
+  closeCine() {
+    this.cineC?.destroy();
+    this.cineC = null;
+    this.cineCap = null;
+    for (const o of this.cineHidden || []) if (o.active) o.setVisible(true);
+    this.cineHidden = null;
+    this.uiRects = this.uiRects.filter((r) => r !== this.cineRect);
+  }
+
+  openPenBar() {
+    this.closePenBar();
+    const W = this.W, y = this.H - 128;
+    const c = (this.penBar = this.add.container(0, 0).setDepth(330));
+    const g = this.add.graphics().fillStyle(0x0d0a0b, 0.72).fillRoundedRect(W / 2 - 250, y - 34, 500, 104, 18);
+    const t1 = this.add.text(W / 2, y - 18, 'Chạm hoặc kéo tới chỗ muốn đặt chuồng', this.hudText(16)).setOrigin(0.5);
+    this.penBarText = this.add.text(W / 2, y + 4, '', this.hudText(15, '#f2bd3c')).setOrigin(0.5);
+    const ok = this.button(W / 2 - 80, y + 44, 'Đặt ở đây', () => bus.emit('penMoveOk'), 140, 0x5a8f3c, 36);
+    const no = this.button(W / 2 + 80, y + 44, 'Huỷ', () => bus.emit('penMoveCancel'), 140, 0xb5603a, 36);
+    c.add([g, t1, this.penBarText, ok, no]);
+    this.penBarRect = new Phaser.Geom.Rectangle(W / 2 - 250, y - 34, 500, 104);
+    this.uiRects.push(this.penBarRect);
+  }
+
+  closePenBar() {
+    this.penBar?.destroy();
+    this.penBar = null;
+    this.penBarText = null;
+    this.uiRects = this.uiRects.filter((r) => r !== this.penBarRect);
+  }
+
+  toggleMenu(open = !this.menuC?.visible) {
+    if (!this.menuC) return;
+    this.menuC.setVisible(open);
+    this.uiRects = this.uiRects.filter((r) => r !== this.menuRect);
+    if (open) this.uiRects.push(this.menuRect);
+    this.keyHelp?.setVisible(!open && !this.isTouch && !ui.deco);
+  }
+
   updateLeaveBtn() {
     if (!this.leaveBtn) return;
-    const on = ['home', 'shop', 'npchome'].includes(this.mapId) && !ui.deco;
+    const on = ['home', 'shop', 'npchome', 'ruin', 'pen'].includes(this.mapId) && !ui.deco;
     const home = this.mapId === 'home' && !ui.deco;
     this.leaveBtn.setVisible(on);
     this.decoBtn.setVisible(home);
@@ -322,7 +657,11 @@ export default class UIScene extends Phaser.Scene {
     items.forEach((it, i) => {
       const x = x0 + i * (SLOT + GAP);
       const bg = box(this, 'ui_slot', x, y, SLOT, SLOT, 2).setInteractive({ useHandCursor: true });
-      bg.on('pointerdown', () => this.selectSlot(i));
+      bg.on('pointerdown', (p) => {
+        this.selectSlot(i);
+        // giữ & kéo lên để bỏ đồ (thùng rác hiện ra phía trên thanh công cụ)
+        this.hotDrag = { it, sx: p.x, sy: p.y };
+      });
       const sel = box(this, 'ui_sel', x - 3, y - 3, SLOT + 6, SLOT + 6, 3).setVisible(false);
       const icon = this.add.image(x + SLOT / 2, y + SLOT / 2 - 2, it.tex, it.frame).setScale(2.6);
       const num = this.add.text(x + 5, y + 1, this.isTouch ? '' : `${(i + 1) % 10}`, text(11, '#cfcfe0'));
@@ -420,17 +759,20 @@ export default class UIScene extends Phaser.Scene {
   refresh() {
     trackProgress();
     const s = season();
-    this.dateText.setText(`${s.name} · Ngày ${state.day}/${DAYS_PER_SEASON} · Năm ${state.year}`);
-    this.clockText.setText(`${clockText()} · ${WEATHER[state.weather]}`);
-    this.coinText.setText(`${state.coins} xu`);
+    this.dateText.setText(`${s.name} · Ngày ${state.day}`);
+    this.updateClock();
+    this.coinText.setText(`${state.coins}`);
     this.lvBadge.setText(`Uy tín ${farmLevel()}`);
-    this.lvBar.width = 62 * farmProgress();
-    this.hpBar.width = 234 * Math.min(1, state.hp / maxHp());
-    this.hpText.setText(`Máu ${state.hp}/${maxHp()}`);
+    this.setBar(this.hpBar, state.hp / maxHp(), true);
+    this.hpBar.t.setText(`${state.hp}`);
     const food = Math.round(state.food ?? FOOD_MAX);
-    this.foodBar.width = 234 * Math.min(1, food / FOOD_MAX);
-    this.foodBar.fillColor = food < 20 ? 0xd04a3a : 0xd9963a;
-    this.foodText.setText(`No ${food}/${FOOD_MAX}`);
+    this.setBar(this.foodBar, food / FOOD_MAX, true);
+    this.foodBar.t.setText(`${food}`);
+    checkQuest();
+    const q = questNow();
+    this.questTitle.setText(q ? q.title : 'Đã xong mọi nhiệm vụ');
+    this.questSub.setText(q ? `${questProgress(q)}/${q.goal}` : '');
+    this.layoutChips();
 
     if (this.decoC) this.buildDecoBar();
     selected();
@@ -491,20 +833,25 @@ export default class UIScene extends Phaser.Scene {
             save();
           }
         }
+        try {
+          raidTick();
+        } catch (e) {
+          console.error('raidTick lỗi:', e);
+        }
         if (state.time % 60 === 0) {
           onHour();
           save();
         }
         // Cập nhật bảng đang mở (đồng hồ nhà máy, đơn hàng chờ)
         if (ui.modal === 'panel' && this.panelDef) this.renderPanel();
-        if (state.time === 22 * 60) toast('Đã 22 giờ rồi, nên về nhà ngủ thôi.');
+        if (state.time === 19 * 60) toast('Trời sập tối — 20:00 zombie sẽ kéo tới nông trại! Sửa cổng, đặt bẫy, mồi, đuốc.');
         if (state.time === 25 * 60) toast('Đã 1 giờ sáng! Về ngủ ngay kẻo ngất xỉu!');
         if (state.time >= DAY_END) {
           this.acc = 0;
           bus.emit('passout');
           break;
         }
-        this.clockText.setText(`${clockText()} · ${WEATHER[state.weather]}`);
+        this.updateClock();
       }
     }
     // Trời tối dần từ 17h
@@ -602,6 +949,7 @@ export default class UIScene extends Phaser.Scene {
 
   // Thư buổi sáng: đọc lần lượt
   showMail() {
+    if (ui.cine || ['start', 'cliff', 'beach', 'tour'].includes(state.intro)) return; // đang đoạn mở đầu: để thư lại sau
     const m = state.mail.shift();
     if (!m) return;
     save();
@@ -770,7 +1118,10 @@ export default class UIScene extends Phaser.Scene {
       const on = state.sel === `item:${id}`;
       const bg = box(this, 'ui_slot', cx + 2, cy + 2, cell - 4, cell - 4, 2).setInteractive({ useHandCursor: true });
       if (on) c.add(box(this, 'ui_sel', cx - 1, cy - 1, cell + 2, cell + 2, 3));
+      // Giữ & kéo ô đồ vào thùng rác để bỏ
+      bg.on('pointerdown', (p) => (this.invDrag = { id, sx: p.x, sy: p.y, ghost: null }));
       bg.on('pointerup', () => {
+        if (this.invDrag?.ghost || this.time.now - (this.invDropAt || 0) < 80) return; // vừa kéo thả, không tính là bấm chọn
         if (usable) state.sel = `item:${id}`;
         const use = it.weapon ? 'vũ khí — cầm lên rồi bấm Làm / Space để đánh' : it.heal ? `chữa +${it.heal} máu` : it.eat ? `ăn: +${it.eat.e} no${it.eat.h ? `, +${it.eat.h} máu` : ''}` : it.seed ? 'gieo vào đất đã cuốc' : it.place ? 'đặt trên nông trại' : it.home ? 'đặt trong nhà' : '';
         this.invInfo = `${it.name} × ${count(id)}` + (it.sell ? ` · bán ${it.sell} xu` : '') + (use ? ` · ${use}${usable ? ' (đã chọn)' : ''}` : '');
@@ -779,7 +1130,12 @@ export default class UIScene extends Phaser.Scene {
       c.add([bg, this.fitIcon(cx + cell / 2, cy + cell / 2, it.tex, it.frame, 38), this.add.text(cx + cell - 5, cy + cell - 1, count(id), textLight(12)).setOrigin(1, 1)]);
     });
     const iy = gy + gridRows * cell + 6;
-    c.add(this.add.text(x + w / 2, iy, this.invInfo, text(14, '#ffe9a8')).setOrigin(0.5, 0));
+    c.add(this.add.text(x + w / 2 - 60, iy, this.invInfo, { ...text(14, '#ffe9a8'), wordWrap: { width: w - 220 }, align: 'center' }).setOrigin(0.5, 0));
+    // Thùng rác: kéo đồ không dùng nữa thả vào đây
+    const tx = x + w - 166, ty = iy - 6;
+    this.trashBox = box(this, 'ui_row', tx, ty, 146, 34, 2);
+    c.add([this.trashBox, this.add.image(tx + 18, ty + 17, 'surv', 'trashcan').setScale(1.5), this.add.text(tx + 34, ty + 17, 'Kéo đồ vào\nđây để bỏ', { ...text(12, '#3d3333'), lineSpacing: -3 }).setOrigin(0, 0.5)]);
+    this.trashRect = new Phaser.Geom.Rectangle(tx - 10, ty - 10, 166, 54);
     // Chế tạo (phân trang theo chỗ trống còn lại)
     const all = craftRows();
     const top = iy + 30;
@@ -963,7 +1319,7 @@ export default class UIScene extends Phaser.Scene {
   }
 
   layoutGains() {
-    this.gains.slice(0, 4).forEach((g, i) => (g.c.setVisible(true), this.tweens.add({ targets: g.c, y: 178 + i * 38, duration: 150 })));
+    this.gains.slice(0, 4).forEach((g, i) => (g.c.setVisible(true), this.tweens.add({ targets: g.c, y: 146 + i * 38, duration: 150 })));
     this.gains.slice(4).forEach((g) => g.c.setVisible(false));
   }
 

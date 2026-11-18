@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { OBJECT_FRAMES, NINJA_FRAMES, NPCS, ANIMALS, MONSTERS, FISH } from '../config.js';
 import { makeUiTextures, FONT } from '../ui/theme.js';
+import { state } from '../state.js';
 import { makeFxTextures } from '../fx.js';
 import { loadSfx } from '../audio.js';
 
@@ -52,7 +53,8 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     const { width, height } = this.scale;
-    this.add.text(width / 2, height / 2 - 40, 'Nông Trại Tận Thế', { fontFamily: FONT, fontSize: '56px', color: '#c8e07a' }).setOrigin(0.5);
+    this.add.text(width / 2, height / 2 - 62, 'Ashen Acre', { fontFamily: FONT, fontSize: '60px', color: '#c8e07a' }).setOrigin(0.5);
+    this.add.text(width / 2, height / 2 - 22, 'Vườn Tàn Tro', { fontFamily: FONT, fontSize: '26px', color: '#b8a888' }).setOrigin(0.5);
     const bar = this.add.rectangle(width / 2 - 150, height / 2 + 10, 0, 12, 0xf4b467).setOrigin(0, 0.5);
     this.load.on('progress', (p) => (bar.width = 300 * p));
 
@@ -62,6 +64,21 @@ export default class BootScene extends Phaser.Scene {
     sheet('items', TW + 'items.png');
     // Farmer Pack (Pyong Hoo): nông dân 32x32, ô nền & cây trồng 16x16, vật nuôi
     sheet('fp_farmer', FP + 'farmer.png', 32, 32);
+    // Nhân vật chính: Pixel Crawler Body_A (Anokolisa) đã tô quần áo — tools/make_hero.py
+    sheet('hero', 'assets/hero/hero.png', 64, 64);
+    // Cây trồng từ Pixel Crawler + Farm RPG — tools/make_crops_pack.py
+    sheet('crop_plants', 'assets/crops/plants.png', 16, 32);
+    sheet('crop_items', 'assets/crops/items.png');
+    sheet('pc_grass', 'assets/pc/grass.png'); // tools/make_terrain_pc.py: 0–3 cỏ trơn, 4–7 cỏ có hoa
+    // tools/make_nature_pc.py: cây theo mùa (kiểu*4+mùa), cỏ dại/gốc cây, đá/cành khô
+    sheet('pc_trees', 'assets/pc/trees.png', 40, 80);
+    sheet('pc_bushes', 'assets/pc/bushes.png');
+    sheet('pc_nature', 'assets/pc/nature.png');
+    sheet('pc_bushes2', 'assets/pc/bushes2.png', 32, 32); // bụi hái lượm — tools/make_bushes_pc.py
+    for (const k of ['grass', 'sand', 'sea', 'rock_a', 'rock_b', 'rock_c', 'rock_d', 'deadtree', 'bush']) this.load.image(`intro_${k}`, `assets/intro/${k}.png`); // tools/make_intro_pc.py
+    for (const k of ['house', 'chest', 'workbench']) this.load.image(`pc_${k}`, `assets/pc/${k}.png`); // tools/make_buildings_pc.py
+    for (const k of ['coop', 'barn', 'coop_site', 'barn_site']) this.load.image(`pc_${k}`, `assets/pc/${k}.png`); // tools/make_pens_pc.py
+    this.load.atlas('icons', 'assets/icons/icons.png', 'assets/icons/icons.json'); // icon vật phẩm kiểu Pixel Crawler — tools/make_icons.py
     sheet('fp_tiles', FP + 'tiles.png');
     sheet('fp_crops', FP + 'crops.png');
     sheet('fp_chicken', FP + 'chicken.png');
@@ -94,7 +111,7 @@ export default class BootScene extends Phaser.Scene {
     for (const o of ['ore_copper', 'ore_iron', 'ore_gold', 'ore_gem']) this.load.image(o, `assets/cave/${o}.png`); // đống phế liệu & két sắt
     this.load.spritesheet('cave_torch', 'assets/cave/torch.png', { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('cave_lava', 'assets/cave/lava.png', { frameWidth: 16, frameHeight: 16 });
-    for (const t of ['path', 'water', 'plaza', 'road']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
+    for (const t of ['path', 'water', 'plaza', 'road', 'sand']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
     for (const [k, w, h] of [['cat', 16, 16], ['catorange', 22, 17], ['dog', 16, 16], ['dogyellow', 21, 17]]) sheet(`cr_${k}`, `${NJ}critters/${k}.png`, w, h); // Ninja Adventure (CC0)
     this.load.atlas('surv', 'assets/surv/surv.png', 'assets/surv/surv.json'); // tools/make_survival.py
     for (const z of ['walker', 'runner', 'brute', 'soldier']) sheet(`zom_${z}`, `assets/zombie/zom_${z}.png`, 32, 32); // tools/make_zombies.py
@@ -126,6 +143,7 @@ export default class BootScene extends Phaser.Scene {
     addFrames('nhouse', NINJA_FRAMES.house);
     addFrames('nature', NINJA_FRAMES.nature);
     addFrames('element', NINJA_FRAMES.element);
+    this.iconTextures();
     makeUiTextures(this);
     makeFxTextures(this);
     this.makeFish();
@@ -143,12 +161,21 @@ export default class BootScene extends Phaser.Scene {
     // Hầm mỏ: lửa đuốc & dung nham
     this.anims.create({ key: 'cave_torch', frames: this.anims.generateFrameNumbers('cave_torch', { start: 0, end: 1 }), frameRate: 6, repeat: -1 });
     this.anims.create({ key: 'cave_lava', frames: this.anims.generateFrameNumbers('cave_lava', { start: 0, end: 1 }), frameRate: 2, repeat: -1 });
-    ['down', 'up', 'left', 'right'].forEach((dir, i) => {
-      this.anims.create({ key: `hero_walk_${dir}`, ...row(i, 8, -1) });
-      this.anims.create({ key: `hero_idle_${dir}`, ...row(4 + i, 3, -1) });
-    });
-    ['hoe', 'can', 'plant', 'harvest'].forEach((act, i) =>
-      ['front', 'back', 'side'].forEach((v, j) => this.anims.create({ key: `hero_${act}_${v}`, ...row(8 + i * 3 + j, 11, 0) }))
+    // Nhân vật chính (hero.png): mỗi động tác 3 hàng (xuống, lên, ngang-nhìn-phải), 8 cột
+    const HERO_ROWS = ['walk', 'idle', 'crush', 'slice', 'water', 'collect', 'pierce', 'fish', 'hit', 'death', 'run'];
+    const HERO_N = { walk: 6, idle: 4, hit: 4, run: 6, slice: 7 };
+    const VIEWS = ['front', 'back', 'side'];
+    HERO_ROWS.forEach((a, i) =>
+      VIEWS.forEach((v, j) => {
+        const r = (i * 3 + j) * 8, n = HERO_N[a] || 8;
+        const loop = a === 'walk' || a === 'idle' || a === 'run';
+        this.anims.create({
+          key: `hero2_${a}_${v}`,
+          frames: this.anims.generateFrameNumbers('hero', { start: r, end: r + n - 1 }),
+          frameRate: a === 'idle' ? 5 : a === 'walk' ? 10 : a === 'run' ? 12 : 20,
+          repeat: loop ? -1 : 0,
+        });
+      })
     );
     this.anims.create({ key: 'fp_water_anim', frames: this.anims.generateFrameNumbers('fp_tiles', { start: 22, end: 25 }), frameRate: 2, repeat: -1 });
 
@@ -178,7 +205,23 @@ export default class BootScene extends Phaser.Scene {
         this.anims.create({ key: `mon_${id}_${dir}`, frames: [0, 1, 2, 3].map((r) => ({ key: `mon_${id}`, frame: r * 4 + col })), frameRate: 7, repeat: -1 })
       );
 
-    this.scene.start('World', { map: 'farm' });
+    // Ván mới: chiếu đoạn mở đầu; đang dở phần tham quan làng thì quay lại làng
+    if (['start', 'cliff', 'beach'].includes(state.intro)) this.scene.start('Intro'); // đang dở đoạn phim → xem lại từ màn tựa
+    else if (state.intro === 'tour') this.scene.start('World', { map: 'village', tour: true });
+    else this.scene.start('World', { map: 'farm' });
+  }
+
+  // Công cụ, gỗ, đá: thay ảnh cũ bằng icon mới (cùng tên texture → mọi chỗ đang dùng tự đổi theo)
+  iconTextures() {
+    const src = this.textures.get('icons');
+    for (const k of ['tool_hoe', 'tool_can', 'tool_axe', 'tool_pickaxe', 'tool_sword', 'tool_rod', 'wood', 'stone']) {
+      const f = src.get(k);
+      if (!f || f.name === '__BASE') continue;
+      if (this.textures.exists(k)) this.textures.remove(k);
+      const tex = this.textures.createCanvas(k, 16, 16);
+      tex.getContext().drawImage(src.getSourceImage(), f.cutX, f.cutY, 16, 16, 0, 0, 16, 16);
+      tex.refresh();
+    }
   }
 
   // Cá các loại = ảnh cá Ninja nhuộm màu

@@ -7,11 +7,19 @@ import { morningNews } from './festivals.js';
 import { maxHp } from './skills.js';
 import { baseLv, baseMorning, FOOD_MAX } from './survival.js';
 import { finishFactories } from './hayday.js';
+import { nightReport } from './raid.js';
 
 const key = (x, y) => `${x},${y}`;
 
 export function newDay(passedOut) {
   const notes = [];
+
+  // 0. Đêm qua: zombie đánh trại (các đợt chưa tới khi đã ngủ được tính tự động) → báo cáo + dự báo
+  try {
+    notes.push(...nightReport());
+  } catch (e) {
+    console.error('nightReport lỗi:', e);
+  }
 
   // 1. Cây lớn tới lúc đi ngủ (đất ướt lớn nhanh hơn), rồi đất khô lại. Cây tiếp tục lớn qua đêm.
   growCrops();
@@ -79,7 +87,7 @@ export function newDay(passedOut) {
   spawnDebris(7 + Math.floor(Math.random() * 4), winter);
 
   // 9. Nhiệm vụ
-  if (state.quest) {
+  if (state.quest && typeof state.quest === 'object') {
     state.quest.daysLeft--;
     if (state.quest.daysLeft <= 0) {
       notes.push(`Nhiệm vụ của ${NPCS[state.quest.npc].name} đã hết hạn.`);
