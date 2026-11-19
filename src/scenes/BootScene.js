@@ -73,6 +73,7 @@ export default class BootScene extends Phaser.Scene {
     // tools/make_nature_pc.py: cây theo mùa (kiểu*4+mùa), cỏ dại/gốc cây, đá/cành khô
     sheet('pc_trees', 'assets/pc/trees.png', 40, 80);
     sheet('pc_bushes', 'assets/pc/bushes.png');
+    sheet('pc_tufts', 'assets/pc/tufts.png', 16, 14); // cỏ mép đường — tools/make_tufts.py
     sheet('pc_nature', 'assets/pc/nature.png');
     sheet('pc_bushes2', 'assets/pc/bushes2.png', 32, 32); // bụi hái lượm — tools/make_bushes_pc.py
     for (const k of ['grass', 'sand', 'sea', 'rock_a', 'rock_b', 'rock_c', 'rock_d', 'deadtree', 'bush']) this.load.image(`intro_${k}`, `assets/intro/${k}.png`); // tools/make_intro_pc.py

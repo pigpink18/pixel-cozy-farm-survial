@@ -166,6 +166,7 @@ export default class WorldScene extends Phaser.Scene {
     else if (this.mapId === 'cliff') buildCliff(this);
     else if (this.mapId === 'beach') buildBeach(this);
     this.paintTerrain();
+    this.edgeTufts();
     // NPC theo lịch sinh hoạt (chủ tiệm do buildShop tự đặt sau quầy)
     this.place = this.mapId === 'shop' ? `shop:${this.shopId}` : this.mapId === 'npchome' ? `house:${this.houseId}` : this.mapId;
     ui.place = this.place;
@@ -331,6 +332,44 @@ export default class WorldScene extends Phaser.Scene {
     }
   }
 
+  // Bụi cỏ mọc dọc hai mép đường đất, đung đưa theo gió (gió thổi thành từng đợt từ trái sang phải)
+  edgeTufts() {
+    this.tufts = [];
+    if (!['farm', 'village', 'forest', 'town', 'base'].includes(this.mapId) || this.sea.snow) return;
+    const T = this.terrain;
+    const paved = (x, y) => T.path.has(key(x, y)) || T.plaza.has(key(x, y)) || T.road.has(key(x, y)) || T.water.has(key(x, y));
+    const grassy = (x, y) => {
+      const k = key(x, y);
+      return this.inMap(x, y) && !paved(x, y) && !this.blocked.has(k) && !this.statics.has(k) && !(this.mapId === 'farm' && (state.objects?.[k] || state.tiles?.[k]));
+    };
+    const rnd = seededRandom(this.mapId.length * 977 + 13);
+    const tint = this.sea.grassTint;
+    const put = (px, py) => {
+      const img = this.add.image(px, py, 'pc_tufts', Math.floor(rnd() * 6)).setOrigin(0.5, 1).setDepth(-880).setFlipX(rnd() < 0.5);
+      if (tint !== 0xffffff) img.setTint(tint);
+      img.phase = px * 0.045 + rnd() * 0.6; // lệch pha theo vị trí → đợt gió lan dọc đường
+      img.tk = key(Math.floor(px / TILE), Math.floor((py - 1) / TILE));
+      this.tufts.push(img);
+    };
+    for (const k of T.path) {
+      const [x, y] = k.split(',').map(Number);
+      if (T.road.has(k) || T.plaza.has(k)) continue;
+      // mép trái / phải: bụi cỏ đứng ngay trên đường viền cỏ
+      for (const dx of [-1, 1]) {
+        if (!grassy(x + dx, y)) continue;
+        const ex = dx < 0 ? x * TILE + 1 : (x + 1) * TILE - 1;
+        if (rnd() < 0.75) put(ex + (rnd() * 4 - 2), y * TILE + 6 + rnd() * 5);
+        if (rnd() < 0.45) put(ex + (rnd() * 4 - 2), y * TILE + 13 + rnd() * 3);
+      }
+      // mép trên / dưới
+      for (const dy of [-1, 1]) {
+        if (!grassy(x, y + dy)) continue;
+        const ey = dy < 0 ? y * TILE + 4 : (y + 1) * TILE + 2;
+        if (rnd() < 0.7) put(x * TILE + 3 + rnd() * 10, ey + rnd() * 2);
+      }
+    }
+  }
+
   // Hình ao tự nhiên: hợp của các elip nằm trong khung (x, y, w, h); lobes = [[cx, cy, rx, ry], ...] thêm thùy phụ
   pondShape({ x, y, w, h }, lobes = []) {
     const out = [];
@@ -440,6 +479,7 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   removeDecor(k) {
+    if (this.tufts?.some((g) => g.tk === k)) this.tufts = this.tufts.filter((g) => (g.tk === k ? (g.destroy(), false) : true)); // cỏ mép đường
     this.decor.get(k)?.destroy();
     this.decor.delete(k);
     if (this.statics.get(k)?.decor) this.statics.delete(k); // hoa dại / nấm đi kèm
@@ -1296,6 +1336,15 @@ export default class WorldScene extends Phaser.Scene {
 
   update(time, delta) {
     this.fx.update(time, delta);
+    if (this.tufts?.length) {
+      // gió: nghiêng hẳn về một phía rồi bật lại, kèm cơn gió mạnh thỉnh thoảng
+      const t = time / 1000, gust = 0.6 + 0.4 * Math.sin(t * 0.37);
+      const cam = this.cameras.main.worldView;
+      for (const g of this.tufts) {
+        if (g.x < cam.x - 20 || g.x > cam.right + 20 || g.y < cam.y - 20 || g.y > cam.bottom + 30) continue;
+        g.angle = 3 + 9 * gust * Math.sin(t * 2.1 - g.phase);
+      }
+    }
     const k = this.keys;
     const p = this.player;
     if (ui.cine) {
