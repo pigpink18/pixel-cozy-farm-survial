@@ -365,7 +365,7 @@ export default class UIScene extends Phaser.Scene {
     if (!it || !n) return;
     const done = (k) => {
       addItem(id, -k, true);
-      if (state.sel === `item:${id}` && !count(id)) state.sel = 'tool:hoe';
+      if (state.sel === `item:${id}` && !count(id)) state.sel = 'none';
       sfx('cancel', 0.4);
       this.invInfo = `Đã bỏ ${k} ${it.name}`;
       changed();
@@ -470,6 +470,14 @@ export default class UIScene extends Phaser.Scene {
     });
     this.sound.volume = VOLS[volIdx()][1];
     volBtn.label.setText(`Âm lượng: ${VOLS[volIdx()][0]}`);
+    // Tự đổi dụng cụ khi tới gần cây / đá
+    const autoLabel = () => `Tự đổi dụng cụ: ${state.autoTool === false ? 'tắt' : 'bật'}`;
+    const autoBtn = item(() => {
+      state.autoTool = state.autoTool === false;
+      autoBtn.label.setText(autoLabel());
+      save();
+    });
+    autoBtn.label.setText(autoLabel());
     if (this.scale.fullscreen.available)
       item(() => {
         if (this.scale.isFullscreen) return this.scale.stopFullscreen();
@@ -834,10 +842,10 @@ export default class UIScene extends Phaser.Scene {
         if (baseLv('medic') >= 2 && ui.place === 'farm' && state.hp < maxHp()) state.hp += 1;
         const grew = growCrops();
         if (grew.length) bus.emit('cropsGrew', grew);
-        // Nhà máy Chú Tư xây xong
+        // Nhà máy Chú Frank xây xong
         for (const name of finishFactories()) {
           sfx('fanfare', 0.5);
-          toast(`Chú Tư đã dựng xong ${name}! Chạm vào để sản xuất.`);
+          toast(`Chú Frank đã dựng xong ${name}! Chạm vào để sản xuất.`);
           bus.emit('buildingDone');
           save();
         }
@@ -848,7 +856,7 @@ export default class UIScene extends Phaser.Scene {
             state.buildings[id] = 'built';
             delete state.buildDone[id];
             sfx('success', 0.5);
-            toast(`${BUILDINGS[id].name} đã xây xong! Ghé trại Cô Mai mua vật nuôi nhé.`);
+            toast(`${BUILDINGS[id].name} đã xây xong! Ghé trại Cô Emily mua vật nuôi nhé.`);
             bus.emit('buildingDone', id);
             save();
           }
@@ -1418,7 +1426,7 @@ export default class UIScene extends Phaser.Scene {
       if (n <= 0) return quiet || toast(`${STORES[sk].name} đã đầy — hãy nâng cấp`);
       store[id] = (store[id] || 0) + n;
       addItem(id, -n, true);
-      if (!count(id) && state.sel === `item:${id}`) state.sel = 'tool:hoe';
+      if (!count(id) && state.sel === `item:${id}`) state.sel = 'none';
       if (!quiet) (sfx('click', 0.25), changed());
       return;
     }
@@ -1430,7 +1438,7 @@ export default class UIScene extends Phaser.Scene {
       if (!store[id] && Object.keys(store).length >= CHEST_SLOTS) return quiet || toast('Rương đã đầy!');
       store[id] = (store[id] || 0) + count(id);
       delete state.inv[id];
-      if (state.sel === `item:${id}`) state.sel = 'tool:hoe';
+      if (state.sel === `item:${id}`) state.sel = 'none';
     }
     if (!quiet) {
       sfx('click', 0.25);

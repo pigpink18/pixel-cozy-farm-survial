@@ -125,5 +125,5 @@ export function buildPenInside(s, id) {
   s.time.delayedCall(350, () =>
     toast(mine().length
       ? animalsIndoors() ? `${BUILDINGS[id].name} — vật nuôi đang ngủ trong chuồng` : `${BUILDINGS[id].name} — ban ngày vật nuôi ra sân, tối (19h) mới vào chuồng`
-      : `${BUILDINGS[id].name} — chưa có vật nuôi (mua ở trại Cô Mai)`));
+      : `${BUILDINGS[id].name} — chưa có vật nuôi (mua ở trại Cô Emily)`));
 }

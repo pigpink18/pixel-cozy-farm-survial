@@ -16,6 +16,9 @@ export function heldWeapon() {
 
 // giọng zombie: khổng lồ trầm, zombie chạy cao/gắt
 const ZPITCH = { walker: 1, runner: 1.18, brute: 0.72, soldier: 0.9 };
+// chiều cao hình & độ cao mắt từng loại (tools/make_zombies_pa.py → zom_meta.json)
+let ZMETA = null;
+const zmeta = (s, type) => (ZMETA ||= s.cache.json.get('zom_meta') || {})[type] || { eye: 22, height: 30 };
 
 export default class Combat {
   constructor(scene, zone = null) {
@@ -54,10 +57,10 @@ export default class Combat {
   spawnZombie(type, tx, ty) {
     const cfg = ZOMBIES[type];
     const s = this.scene;
-    const sprite = this.group.create(tx * TILE + 8, (ty + 1) * TILE, `zom_${type}`, 16).setOrigin(0.5, 1);
+    const sprite = this.group.create(tx * TILE + 8, (ty + 1) * TILE, `zom_${type}`, 32).setOrigin(0.5, 1);
     const sc = cfg.scale || 1;
     sprite.setScale(sc);
-    sprite.body.setSize(10, 8).setOffset(11, 23);
+    sprite.body.setSize(10, 8).setOffset(27, 55); // chân ở đáy khung 64x64
     s.fx?.followShadow(sprite, 13 * sc, -1);
     const m = {
       kind: 'monster', zombie: true, type, cfg, sprite,
@@ -117,7 +120,7 @@ export default class Combat {
       sp.setDepth(m.zombie || m.nest ? sp.y : sp.y + 8);
       if (m.bar) {
         const show = m.hp < m.maxHp;
-        const h = (m.cfg.scale || 1) * (m.nest ? 22 : 30);
+        const h = (m.cfg.scale || 1) * (m.nest ? 22 : zmeta(s, m.type).height + 3);
         m.barBg.setVisible(show).setPosition(sp.x - 8, sp.y - h);
         m.bar.setVisible(show).setPosition(sp.x - 8, sp.y - h).setSize(16 * Math.max(0, m.hp / m.maxHp), 2);
       }
@@ -158,7 +161,7 @@ export default class Combat {
         if (dp < 220) this.chaseAt = time;
         sp.setVelocity(0, 0);
         m.face = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
-        sp.anims.play(`zom_${m.type}_idle_${m.face}`, true);
+        if (!(time < m.attackUntil)) sp.anims.play(`zom_${m.type}_idle_${m.face}`, true);
         const reach = 12 * (m.cfg.scale || 1);
         if (dp < reach && time > this.invulnUntil) this.hurtPlayer(m, dxp, dyp, dp);
         continue;
@@ -184,8 +187,10 @@ export default class Combat {
       if (m.zombie) {
         m.face = dir;
         const moving = Math.abs(vx) + Math.abs(vy) > 2;
-        sp.anims.play(`zom_${m.type}_${moving ? '' : 'idle_'}${dir}`, true);
-        sp.anims.timeScale = speed / 30;
+        if (!(time < m.attackUntil)) {
+          sp.anims.play(`zom_${m.type}_${moving ? '' : 'idle_'}${dir}`, true);
+          sp.anims.timeScale = Phaser.Math.Clamp(speed / 26, 0.6, 1.5);
+        }
       } else sp.anims.play(`mon_${m.type}_${dir}`, true);
 
       const reach = m.zombie ? 12 * (m.cfg.scale || 1) : 11;
@@ -198,7 +203,7 @@ export default class Combat {
     const dark = this.scene.mapId === 'mine' ? 0.9 : this.scene.fx?.darkness || 0;
     const a = m.face === 'up' ? 0 : Phaser.Math.Clamp((dark - 0.2) * 2.2, 0, 1) * (0.85 + Math.sin(time / 260 + sp.x) * 0.15);
     const side = m.face === 'left' ? -1 : m.face === 'right' ? 1 : 0;
-    const x = sp.x + side * 2 * sc, y = sp.y - 20 * sc;
+    const x = sp.x + side * 3 * sc, y = sp.y - zmeta(this.scene, m.type).eye * sc;
     m.eyes.setTexture(side ? 'fx_eye' : 'fx_eyes').setPosition(Math.round(x), Math.round(y)).setAlpha(a);
     m.eyeGlow.setPosition(x, y).setAlpha(a * 0.9);
   }
@@ -208,7 +213,11 @@ export default class Combat {
     this.invulnUntil = s.time.now + 900;
     state.hp = Math.max(0, state.hp - m.cfg.dmg);
     sfx('hurt', 0.5);
-    if (m.zombie) sfx('zbite', 0.6, ZPITCH[m.type] || 1);
+    if (m.zombie) {
+      sfx('zbite', 0.6, ZPITCH[m.type] || 1);
+      m.attackUntil = s.time.now + 420; // diễn động tác vồ
+      m.sprite.anims.play(`zom_${m.type}_attack_${m.face || 'down'}`, true);
+    }
     bus.emit('hurtFlash');
     s.burst(s.player.x, s.player.y - 14, 'fx_blood', 6, 0xffffff, 12, 10, 420);
     s.player.setTint(0xff6060);
@@ -232,7 +241,7 @@ export default class Combat {
   }
 
   aimPoint(m) {
-    return { x: m.sprite.x, y: m.zombie ? m.sprite.y - 10 * (m.cfg.scale || 1) : m.nest ? m.sprite.y - 8 : m.sprite.y };
+    return { x: m.sprite.x, y: m.zombie ? m.sprite.y - zmeta(this.scene, m.type).height * 0.4 * (m.cfg.scale || 1) : m.nest ? m.sprite.y - 8 : m.sprite.y };
   }
 
   // Nút tấn công: tự ngắm zombie gần nhất. Trả về true nếu đã xử lý.
@@ -512,8 +521,9 @@ export default class Combat {
       const pool = s.add.ellipse(x, y - 2, 6 * sc, 3 * sc, 0x6a0c10, 0.8).setDepth(-695);
       s.tweens.add({ targets: pool, scaleX: 3.2, scaleY: 2.6, duration: 900, ease: 'Quad.easeOut' });
       s.tweens.add({ targets: pool, alpha: 0, delay: 9000, duration: 3000, onComplete: () => pool.destroy() });
-      const body = s.add.sprite(x, y, `zom_${m.type}`, 32).setOrigin(0.5, 1).setScale(sc).setDepth(y - 1).setFlipX(f.x < 0 || (f.x === 0 && m.face === 'left'));
-      body.play(`zom_${m.type}_die`);
+      const left = f.x < 0 || (f.x === 0 && m.face === 'left');
+      const body = s.add.sprite(x, y, `zom_${m.type}`, (left ? 13 : 12) * 8).setOrigin(0.5, 1).setScale(sc).setDepth(y - 1);
+      body.play(left ? `zom_${m.type}_die_left` : `zom_${m.type}_die`);
       s.tweens.add({ targets: body, x: x + f.x * 6, duration: 300, ease: 'Quad.easeOut' });
       s.tweens.add({ targets: body, alpha: 0, delay: 2200, duration: 900, onComplete: () => body.destroy() });
       this.impactFx(x, y - 12, f, true, true);

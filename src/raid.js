@@ -2,7 +2,7 @@
 //  Đêm xuống, zombie đánh vào nông trại theo 3 ĐỢT (20:00 · 21:30 · 23:00).
 //  - Ở nông trại: zombie thật kéo tới 3 cổng, đập cổng; cổng vỡ → tràn vào, đuổi người / ăn mồi.
 //  - Ở chỗ khác hoặc đã đi ngủ: trận đánh được tính tự động (cổng, tháp canh, bẫy, mồi, đuốc vẫn có tác dụng).
-//  - Sáng ra: báo cáo thiệt hại + dự báo đêm tới (thư của Anh Ba).
+//  - Sáng ra: báo cáo thiệt hại + dự báo đêm tới (thư của Anh Jack).
 //  Đồ phòng thủ đặt xuống nông trại nằm trong state.objects: trap_spike, torch, bait (o.item = món làm mồi).
 // ============================================================
 import { TILE, ITEMS, CROPS } from './config.js';
@@ -179,7 +179,7 @@ export function nightReport() {
   state.stats.nights = r.nights;
   const text = `Báo cáo đêm qua:\n${lines.join('\n')}\n\nDự báo: ${TAGS[r.plan.tag]}`;
   state.mail = [...(state.mail || []), { from: 'ba', text }];
-  return []; // chi tiết nằm trong thư Anh Ba (mở ngay khi tỉnh dậy)
+  return []; // chi tiết nằm trong thư Anh Jack (mở ngay khi tỉnh dậy)
 }
 
 // ---------- Đánh thật ở nông trại ----------

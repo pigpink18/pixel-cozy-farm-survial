@@ -48,7 +48,7 @@ export const shopOpen = () => state.time >= SHOP_OPEN && state.time < SHOP_CLOSE
 
 // ---------- Tiệm tạp hoá ----------
 export const storePanel = {
-  title: 'Tiệm tạp hoá của Bà Lan',
+  title: 'Tiệm tạp hoá của Bà Martha',
   face: 'face_lan',
   rows() {
     const sid = season().id;
@@ -108,7 +108,7 @@ export const storePanel = {
 
 // ---------- Xưởng mộc ----------
 export const carpenterPanel = {
-  title: 'Chú Tư — nhờ xây công trình',
+  title: 'Chú Frank — nhờ xây công trình',
   face: 'face_tu',
   rows() {
     const rows = Object.entries(BUILDINGS).map(([id, b]) => {
@@ -133,7 +133,7 @@ export const carpenterPanel = {
                     state.buildings[id] = 'building';
                     state.buildDone = { ...(state.buildDone || {}), [id]: absMin() + BUILD_MIN };
                     sfx('success');
-                    toast(`Chú Tư đang xây ${b.name} — xong sau ${BUILD_MIN} phút!`);
+                    toast(`Chú Frank đang xây ${b.name} — xong sau ${BUILD_MIN} phút!`);
                     changed();
                   },
                 },
@@ -174,7 +174,7 @@ export const carpenterPanel = {
                         if (!pay(nextHome.coins, nextHome.cost)) return;
                         state.home.lv = homeLv() + 1;
                         sfx('success');
-                        toast(`Chú Tư đã mở rộng nhà thành ${nextHome.name}! Về nhà xem thử nhé.`);
+                        toast(`Chú Frank đã mở rộng nhà thành ${nextHome.name}! Về nhà xem thử nhé.`);
                         changed();
                       },
                     },
@@ -226,7 +226,7 @@ export const carpenterPanel = {
 
 // ---------- Trại chăn nuôi ----------
 export const ranchPanel = {
-  title: 'Trại chăn nuôi của Cô Mai',
+  title: 'Trại chăn nuôi của Cô Emily',
   face: 'face_mai',
   rows() {
     const rows = Object.entries(ANIMALS).map(([id, a]) => {
@@ -237,7 +237,7 @@ export const ranchPanel = {
       return {
         icon: { tex: a.tex, frame: a.frame },
         name: `${a.name} — ${a.price} xu`,
-        desc: lock || (!built ? `Cần ${BUILDINGS[a.house].name} trước (xây ở Xưởng mộc của Chú Tư)` : full ? `${BUILDINGS[a.house].name} đã đầy (${n}/${BUILDINGS[a.house].cap})` : state.coins < a.price ? `Còn thiếu ${a.price - state.coins} xu` : `Cho ${ITEMS[a.product].name} mỗi ngày nếu được cho ăn · đang có ${n}/${BUILDINGS[a.house].cap}`),
+        desc: lock || (!built ? `Cần ${BUILDINGS[a.house].name} trước (xây ở Xưởng mộc của Chú Frank)` : full ? `${BUILDINGS[a.house].name} đã đầy (${n}/${BUILDINGS[a.house].cap})` : state.coins < a.price ? `Còn thiếu ${a.price - state.coins} xu` : `Cho ${ITEMS[a.product].name} mỗi ngày nếu được cho ăn · đang có ${n}/${BUILDINGS[a.house].cap}`),
         buttons: lock ? [lockBtn(id)] : [
           {
             label: 'Mua',
@@ -468,12 +468,12 @@ export function talk(npcId, text, greet = true) {
   changed();
 }
 
-// ---------- Cô Mai cho nhận nuôi chó mèo (miễn phí, 1 con) ----------
+// ---------- Cô Emily cho nhận nuôi chó mèo (miễn phí, 1 con) ----------
 const PETS = [['dogyellow', 'Chó vàng', 'Vàng'], ['dog', 'Chó vện', 'Vện'], ['cat', 'Mèo mướp', 'Mướp'], ['catorange', 'Mèo cam', 'Cam']];
 function adoptDialog() {
   bus.emit('dialog', {
     face: 'face_mai',
-    name: 'Cô Mai',
+    name: 'Cô Emily',
     text: 'Nhà cô có mấy bé đang cần chủ mới. Cháu muốn nhận nuôi bé nào? Nó sẽ ở nông trại với cháu, nhớ vuốt ve mỗi ngày nha!',
     choices: [
       ...PETS.map(([kind, label, name]) => ({
@@ -490,10 +490,10 @@ function adoptDialog() {
   });
 }
 
-// ---------- Ông Năm mua cá (cao hơn thùng bán hàng 25%) ----------
+// ---------- Ông Walter mua cá (cao hơn thùng bán hàng 25%) ----------
 const FISH_BONUS = 1.25;
 export const fishBuyPanel = {
-  title: 'Ông Năm — thu mua cá',
+  title: 'Ông Walter — thu mua cá',
   face: 'face_nam',
   rows() {
     const ids = Object.keys(ITEMS).filter((id) => ITEMS[id].fish && count(id) > 0);
@@ -516,10 +516,10 @@ export const fishBuyPanel = {
   },
 };
 
-// ---------- Quán Chị Hoa: món ăn hồi sức ----------
+// ---------- Quán Chị Rosa: món ăn hồi sức ----------
 const COOK_MENU = ['dish_noodle', 'dish_potato', 'dish_tea', 'dish_cake', 'dish_grill', 'dish_corn', 'dish_eggplant'];
 export const cookShopPanel = {
-  title: 'Quán Chị Hoa',
+  title: 'Quán Chị Rosa',
   face: 'face_hoa',
   rows() {
     return COOK_MENU.filter((id) => ITEMS[id]).map((id) => {

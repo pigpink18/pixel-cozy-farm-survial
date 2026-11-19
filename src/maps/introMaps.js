@@ -1,7 +1,7 @@
 // ============================================================
 //  Đoạn mở đầu diễn NGAY TRONG GAME (bản đồ thật, cận cảnh như lúc chơi):
 //   'cliff' — nửa đêm mưa trên vách đá ven biển: đánh bầy zombie khổng lồ, bị dồn ra mép vực, nhảy xuống biển
-//   'beach' — bình minh: trôi dạt vào bãi cát, Ông Năm (trưởng làng) tìm thấy, hỏi chuyện → vào làng tham quan
+//   'beach' — bình minh: trôi dạt vào bãi cát, Ông Walter (trưởng làng) tìm thấy, hỏi chuyện → vào làng tham quan
 //  UIScene bật chế độ phim (khung đen trên/dưới, chữ kể chuyện, nút Bỏ qua) qua bus 'cine'.
 // ============================================================
 import Phaser from 'phaser';
@@ -128,11 +128,12 @@ export function playCliff(s) {
     s.fx.followShadow(z, 13 * sc, -1);
     const eyes = s.add.image(z.x, z.y, 'fx_glow').setDisplaySize(9 * sc, 5 * sc).setTint(0xff2a10).setBlendMode(Phaser.BlendModes.ADD).setDepth(9420);
     z.eyes = eyes;
+    z.eyeH = (s.cache.json.get('zom_meta')?.[type]?.eye || 22) * sc;
     zs.push(z);
     return z;
   };
   const walk = (z, tx, ms) => s.tweens.add({ targets: z, x: tx * TILE + 8, duration: ms, onUpdate: () => z.setDepth(z.y) });
-  s.events.on('update', () => zs.forEach((z) => z.eyes.setPosition(z.x + 1 * z.scale, z.y - 25 * z.scale).setDepth(9420)));
+  s.events.on('update', () => zs.forEach((z) => z.eyes.setPosition(z.x + 1 * z.scale, z.y - z.eyeH).setDepth(9420)));
   const at = (ms, fn) => s.time.delayedCall(ms, () => !s.introDone && fn());
 
   say('Năm thứ ba sau đại dịch…', 2600);
@@ -162,7 +163,7 @@ export function playCliff(s) {
   });
   // con khổng lồ xuất hiện, dồn ra mép vực
   at(6600, () => {
-    const giant = zombie('brute', -3, 7, 2.2);
+    const giant = zombie('brute', -3, 7, 1.5); // zombie to (đã cao gấp rưỡi người) phóng thêm → khổng lồ
     giant.anims.timeScale = 0.6;
     snd('groan', 0.8);
     s.cameras.main.shake(300, 0.004);
@@ -249,7 +250,7 @@ export function playBeach(s) {
           ['me', '(Ho sặc sụa nước biển, từ từ mở mắt…)', () => (p.setAngle(0), p.play('hero2_idle_front'))],
           ['nam', 'Hú hồn, còn sống! Cháu là ai? Sao lại trôi tới tận đây?'],
           ['me', 'Cháu… bị cả bầy zombie khổng lồ dồn ra mép vực. Không còn đường nên nhảy xuống biển…'],
-          ['nam', 'Trời đất… sống sót được là ông trời thương rồi. Ta là Năm — người già nhất, cũng là trưởng làng ở trại này.'],
+          ['nam', 'Trời đất… sống sót được là ông trời thương rồi. Ta là Walter — người già nhất, cũng là trưởng làng ở trại này.'],
           ['nam', 'Ở đây bọn ta còn ít người, sống nhờ ruộng vườn với đồ lục được. Đi, ta dẫn cháu đi chào mọi người.'],
         ];
         let i = 0;
@@ -259,7 +260,7 @@ export function playBeach(s) {
           fx?.();
           bus.emit('dialog', {
             face: who === 'nam' ? 'face_nam' : 'portrait',
-            name: who === 'nam' ? 'Ông Năm' : 'Bạn',
+            name: who === 'nam' ? 'Ông Walter' : 'Bạn',
             text,
             choices: [{ label: i >= lines.length ? 'Đi thôi' : 'Tiếp ▶', onClick: next }],
           });

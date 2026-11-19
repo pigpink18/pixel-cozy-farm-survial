@@ -114,7 +114,8 @@ export default class BootScene extends Phaser.Scene {
     for (const t of ['path', 'water', 'plaza', 'road', 'sand']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
     for (const [k, w, h] of [['cat', 16, 16], ['catorange', 22, 17], ['dog', 16, 16], ['dogyellow', 21, 17]]) sheet(`cr_${k}`, `${NJ}critters/${k}.png`, w, h); // Ninja Adventure (CC0)
     this.load.atlas('surv', 'assets/surv/surv.png', 'assets/surv/surv.json'); // tools/make_survival.py
-    for (const z of ['walker', 'runner', 'brute', 'soldier']) sheet(`zom_${z}`, `assets/zombie/zom_${z}.png`, 32, 32); // tools/make_zombies.py
+    for (const z of ['walker', 'runner', 'brute', 'soldier']) sheet(`zom_${z}`, `assets/zombie/zom_${z}.png`, 64, 64); // tools/make_zombies_pa.py
+    this.load.json('zom_meta', 'assets/zombie/zom_meta.json');
     this.load.atlas('props', 'assets/props/props.png', 'assets/props/props.json'); // tools/make_props.py
     this.load.atlas('furn', 'assets/furn/furn.png', 'assets/furn/furn.json'); // nội thất trang trí (tools/make_furniture.py)
     for (const g of ['barcopper', 'bariron', 'bargold', 'gemgreen', 'gempurple', 'gemyellow', 'gemred']) this.load.image(g, `${NJ}items/${g}.png`);
@@ -191,15 +192,18 @@ export default class BootScene extends Phaser.Scene {
     for (const id of ['chicken', 'pig', 'cow'])
       this.anims.create({ key: `animal_${id}_walk`, frames: this.anims.generateFrameNumbers(`fp_${id}`, { start: 0, end: 3 }), frameRate: 6, repeat: -1 });
 
-    // Zombie: cùng bố cục với NPC (hàng 0–3 đi, 4–7 đứng)
+    // Zombie (PostApocalypse pack, tools/make_zombies_pa.py): khung 64x64, 8 cột — đi / đứng / vồ / ngã
+    const ZM = this.cache.json.get('zom_meta') || {};
     for (const z of ['walker', 'runner', 'brute', 'soldier']) {
-      const zr = (r, rate) => ({ frames: this.anims.generateFrameNumbers(`zom_${z}`, { start: r * 4, end: r * 4 + 3 }), frameRate: rate, repeat: -1 });
+      const m = ZM[z] || { walk: 6, idle: 6, attack: 4, death: 6 };
+      const row = (r, n, rate, repeat) => ({ frames: this.anims.generateFrameNumbers(`zom_${z}`, { start: r * 8, end: r * 8 + n - 1 }), frameRate: rate, repeat });
       ['down', 'up', 'left', 'right'].forEach((dir, i) => {
-        this.anims.create({ key: `zom_${z}_${dir}`, ...zr(i, 6) });
-        this.anims.create({ key: `zom_${z}_idle_${dir}`, ...zr(4 + i, 2) });
+        this.anims.create({ key: `zom_${z}_${dir}`, ...row(i, m.walk, z === 'runner' ? 12 : 8, -1) });
+        this.anims.create({ key: `zom_${z}_idle_${dir}`, ...row(4 + i, m.idle, 6, -1) });
+        this.anims.create({ key: `zom_${z}_attack_${dir}`, ...row(8 + i, m.attack, 14, 0) });
       });
-      // ngã xuống (hàng 8–9 của sheet, tools/make_zombies_human.py)
-      this.anims.create({ key: `zom_${z}_die`, frames: this.anims.generateFrameNumbers(`zom_${z}`, { start: 32, end: 39 }), frameRate: 12, repeat: 0 });
+      this.anims.create({ key: `zom_${z}_die`, ...row(12, m.death, 10, 0) });
+      this.anims.create({ key: `zom_${z}_die_left`, ...row(13, m.death, 10, 0) });
     }
     // Quái: cột = hướng, hàng = khung hình
     for (const id of Object.keys(MONSTERS))

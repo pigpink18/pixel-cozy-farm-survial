@@ -40,6 +40,7 @@ SKINS = {SKIN, SHADE, DARK, LIGHT}
 HAIR = {SKIN: (96, 60, 38), LIGHT: (128, 84, 52), SHADE: (66, 40, 28), DARK: (48, 28, 20)}
 SHIRT = {SKIN: (112, 132, 78), LIGHT: (140, 160, 96), SHADE: (78, 94, 56), DARK: (58, 70, 42)}
 PANTS = {SKIN: (70, 92, 132), LIGHT: (92, 116, 156), SHADE: (50, 64, 98), DARK: (38, 48, 74)}
+HAIR_STYLE = 'short'  # short | long | bald (NPC dùng — tools/make_npcs_pc.py)
 BOOTS = {SKIN: (84, 58, 40), LIGHT: (104, 74, 50), SHADE: (60, 40, 28), DARK: (44, 30, 22)}
 
 
@@ -114,12 +115,16 @@ def dress(fr, view, tag=''):
             dx = x - cx
             m = None
             if dy <= 12:  # đầu
-                if view == 'Up':
-                    m = HAIR if dy <= 11 else None
+                if HAIR_STYLE == 'bald':
+                    m = None
+                elif view == 'Up':
+                    m = HAIR if dy <= (12 if HAIR_STYLE == 'long' else 11) else None
                 elif view == 'Down':
-                    m = HAIR if dy <= 4 or (dy <= 8 and abs(dx) >= 4.5) else None
+                    m = HAIR if dy <= 4 or (dy <= (12 if HAIR_STYLE == 'long' else 8) and abs(dx) >= 4.5) else None
                 else:  # nhìn sang phải: tóc phủ trên + nửa sau đầu
-                    m = HAIR if dy <= 4 or (dy <= 10 and dx <= -1) else None
+                    m = HAIR if dy <= 4 or (dy <= (12 if HAIR_STYLE == 'long' else 10) and dx <= (0 if HAIR_STYLE == 'long' else -1)) else None
+            elif HAIR_STYLE == 'long' and dy <= 15 and ((view == 'Up' and abs(dx) <= 4.5) or (view == 'Side' and dx <= -1)):
+                m = HAIR  # tóc dài xoã xuống vai / lưng
             elif dy <= 20:
                 # thân + tay áo; bàn tay (hàng 19-20 ở xa tâm) giữ màu da
                 if dy >= 19 and abs(dx) > 4.5:

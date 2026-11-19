@@ -18,12 +18,12 @@ export const QUESTS = [
   // --- Mở đầu (ván mới) ---
   {
     title: 'Nghỉ một đêm ở căn nhà mới', from: 'nam', goal: 1, cur: () => (state.day > 1 || state.season > 0 || state.year > 1 ? 1 : 0),
-    hint: 'Căn nhà cũ Ông Năm cho ở nằm trên nông trại phía tây trại. Vào nhà, bấm vào giường để ngủ. Mái hơi dột nhưng vẫn ngủ được.',
+    hint: 'Căn nhà cũ Ông Walter cho ở nằm trên nông trại phía tây trại. Vào nhà, bấm vào giường để ngủ. Mái hơi dột nhưng vẫn ngủ được.',
     reward: { canned: 2, water: 2 }, done: 'Ngủ ngon chứ cháu? Sáng nay ta mang đồ nghề qua cho.',
   },
   {
     title: 'Nhận đồ nghề từ trưởng làng', from: 'nam', goal: 1, cur: () => (state.gotTools ? 1 : 0),
-    hint: 'Ông Năm đang đợi ngay trước cửa nhà — bước ra ngoài là gặp.',
+    hint: 'Ông Walter đang đợi ngay trước cửa nhà — bước ra ngoài là gặp.',
     reward: { seed_carrot: 4, seed_potato: 2 }, done: 'Đất có sẵn, đồ nghề có rồi. Cuốc đất, gieo hạt, tưới nước — cứ thế mà sống.',
   },
   {
@@ -39,7 +39,7 @@ export const QUESTS = [
   },
   {
     title: 'Trồng & thu hoạch 10 nông sản', from: 'lan', goal: 10, cur: () => st().crops || 0,
-    hint: 'Cuốc đất, gieo hạt, tưới nước mỗi ngày. Hạt giống mua ở tiệm Bà Lan trong trại.',
+    hint: 'Cuốc đất, gieo hạt, tưới nước mỗi ngày. Hạt giống mua ở tiệm Bà Martha trong trại.',
     reward: { seed_corn: 5, canned: 2 }, done: 'Có rau ăn là sống được rồi cháu. Bà gửi thêm hạt ngô.',
   },
   {
@@ -58,8 +58,8 @@ export const QUESTS = [
     reward: { scrap: 10, wood: 15 }, done: 'Rào chắc rồi, đêm ngủ yên hơn hẳn.',
   },
   {
-    title: 'Đổi hàng với Anh Ba', from: 'ba', goal: 1, cur: () => st().trades || 0,
-    hint: 'Anh Ba gác cổng trại: nói chuyện → "Đổi hàng". Đổi nông sản dư lấy đạn, vải, linh kiện.',
+    title: 'Đổi hàng với Anh Jack', from: 'ba', goal: 1, cur: () => st().trades || 0,
+    hint: 'Anh Jack gác cổng trại: nói chuyện → "Đổi hàng". Đổi nông sản dư lấy đạn, vải, linh kiện.',
     reward: { parts: 2 }, done: 'Có qua có lại. Mai anh có mối hàng mới.',
   },
   {
@@ -68,8 +68,8 @@ export const QUESTS = [
     reward: { ammo_shell: 6, medkit: 1 }, done: 'Rừng bớt nguy hiểm rồi. Dọn nốt zombie là giải phóng được!',
   },
   {
-    title: 'Nhờ Chú Tư dựng Cối xay gió', from: 'tu', goal: 1, cur: () => (state.factories?.mill ? 1 : 0),
-    hint: 'Mang 10 sắt vụn + 2 linh kiện + 15 gỗ tới Xưởng mộc của Chú Tư trong trại. Cối xay làm bột & thức ăn gia súc.',
+    title: 'Nhờ Chú Frank dựng Cối xay gió', from: 'tu', goal: 1, cur: () => (state.factories?.mill ? 1 : 0),
+    hint: 'Mang 10 sắt vụn + 2 linh kiện + 15 gỗ tới Xưởng mộc của Chú Frank trong trại. Cối xay làm bột & thức ăn gia súc.',
     reward: { wood: 20, scrap: 5 }, done: 'Cối xay quay rồi! Có bột làm bánh, có cám cho gà.',
   },
   {

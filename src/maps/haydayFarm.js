@@ -31,7 +31,7 @@ export function buildHayday(s) {
     place('surv', p.x, p.yB, () => ({ label: `Mở ${STORES[id].name}`, run: () => bus.emit('openStorage', id) }), 2, frame);
   }
 
-  // Nhà máy: Chú Tư dựng bằng đồ lục được (chưa xây / đang xây: cắm biển báo)
+  // Nhà máy: Chú Frank dựng bằng đồ lục được (chưa xây / đang xây: cắm biển báo)
   for (const [id, f] of Object.entries(FACTORIES)) {
     const p = H.factories[id];
     if (factoryBuilt(id)) {
@@ -50,10 +50,10 @@ export function buildHayday(s) {
       s.addWall(sx * TILE + 3, p.yB * TILE + 8, 10, 8);
       s.statics.set(key(sx, p.yB), () =>
         facBuilding(id)
-          ? { act: false, label: `Chú Tư đang dựng ${f.name} — xong sau ${facLeft(id)} phút` }
+          ? { act: false, label: `Chú Frank đang dựng ${f.name} — xong sau ${facLeft(id)} phút` }
           : farmLevel() < f.level
             ? { act: false, label: `Đất xây ${f.name} — mở khoá ở uy tín cấp ${f.level}` }
-            : { act: false, label: `Đất xây ${f.name} — mang ${costText(f.cost)} tới Xưởng mộc của Chú Tư trong trại để nhờ xây` }
+            : { act: false, label: `Đất xây ${f.name} — mang ${costText(f.cost)} tới Xưởng mộc của Chú Frank trong trại để nhờ xây` }
       );
     }
   }

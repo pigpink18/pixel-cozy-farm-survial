@@ -123,7 +123,7 @@ export function upgradeStore(k) {
 // ---------- Nhà máy ----------
 export const factoryBuilt = (id) => !!state.factories[id];
 
-// Nhờ Chú Tư xây: mang đồ lục được tới, chú dựng xong sau FAC_BUILD_MIN phút (giờ game)
+// Nhờ Chú Frank xây: mang đồ lục được tới, chú dựng xong sau FAC_BUILD_MIN phút (giờ game)
 export const FAC_BUILD_MIN = 180;
 export const facBuilding = (id) => state.facBuild?.[id] != null;
 export const facLeft = (id) => Math.max(1, (state.facBuild?.[id] ?? absMin()) - absMin());
@@ -141,7 +141,7 @@ export function buildFactory(id) {
   if (!payCost(f.cost)) return;
   state.facBuild = { ...(state.facBuild || {}), [id]: absMin() + FAC_BUILD_MIN };
   sfx('fanfare', 0.5);
-  toast(`Chú Tư nhận đồ rồi! ${f.name} sẽ dựng xong sau ${FAC_BUILD_MIN / 60} tiếng.`);
+  toast(`Chú Frank nhận đồ rồi! ${f.name} sẽ dựng xong sau ${FAC_BUILD_MIN / 60} tiếng.`);
   changed();
 }
 // Gọi mỗi nhịp đồng hồ & sang ngày mới: công trình nào tới giờ thì hoàn thành

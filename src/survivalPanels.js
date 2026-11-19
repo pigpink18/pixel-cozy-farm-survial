@@ -1,4 +1,4 @@
-// Bảng: Bàn chế tạo (nâng cấp căn cứ + chế đồ) và Trạm đổi hàng của Anh Ba
+// Bảng: Bàn chế tạo (nâng cấp căn cứ + chế đồ) và Trạm đổi hàng của Anh Jack
 import { ITEMS } from './config.js';
 import { state, bus, changed, toast, sfx, addItem, count, roomFor } from './state.js';
 import { BASE, baseLv, CRAFTS, CRAFT_INFO, costText, canPay, pay, todayTrades, SHOP_AMMO } from './survival.js';
@@ -80,7 +80,7 @@ export const craftPanel = {
 };
 
 export const tradePanel = {
-  title: 'Trạm đổi hàng — Anh Ba',
+  title: 'Trạm đổi hàng — Anh Jack',
   rowH: 64,
   face: 'face_ba',
   rows() {

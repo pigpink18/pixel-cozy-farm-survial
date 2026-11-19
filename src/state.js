@@ -46,7 +46,7 @@ function newState() {
     forageDay: null,
     mineDeepest: 0,
     sel: 'tool:hoe',
-    // Ván mới: đoạn mở đầu → tham quan làng → đêm đầu ở nhà dột → sáng hôm sau Ông Năm trao đồ nghề
+    // Ván mới: đoạn mở đầu → tham quan làng → đêm đầu ở nhà dột → sáng hôm sau Ông Walter trao đồ nghề
     intro: SKIP_INTRO ? 'done' : 'start', // start | tour | night | done
     gotTools: SKIP_INTRO,
     roofFixed: SKIP_INTRO,
@@ -232,7 +232,13 @@ export function hotbarItems() {
 
 export function selected() {
   const [kind, id] = state.sel.split(':');
-  if ((kind === 'item' && !has(id)) || (kind === 'tool' && TOOLS[id]?.unlock && !state[TOOLS[id].unlock]) || kind === 'none') {
+  if (kind === 'none') return { kind: 'none', id: null }; // tay không
+  if (kind === 'item' && !has(id)) {
+    // hết món (vd. gieo hết gói hạt): bỏ chọn — KHÔNG tự chuyển sang cuốc (chạm tiếp sẽ lỡ tay lấp đất)
+    state.sel = 'none';
+    return { kind: 'none', id: null };
+  }
+  if (kind === 'tool' && TOOLS[id]?.unlock && !state[TOOLS[id].unlock]) {
     // chọn món đầu tiên trên thanh công cụ (ván mới chưa có đồ nghề thì có thể chưa có gì)
     const first = hotbarItems()[0];
     state.sel = first?.key || 'none';

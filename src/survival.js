@@ -24,7 +24,7 @@ export const WEAPONS = {
 export const ZOMBIES = {
   walker: { name: 'Zombie', hp: 24, dmg: 8, speed: 20, sight: 110, xu: [3, 8] },
   runner: { name: 'Zombie chạy', hp: 16, dmg: 6, speed: 44, sight: 130, xu: [3, 8] },
-  brute: { name: 'Zombie khổng lồ', hp: 90, dmg: 18, speed: 15, sight: 100, scale: 1.35, xu: [15, 30] },
+  brute: { name: 'Zombie khổng lồ', hp: 90, dmg: 18, speed: 15, sight: 100, xu: [15, 30] }, // hình đã to sẵn (PostApocalypse)
   soldier: { name: 'Zombie lính', hp: 50, dmg: 13, speed: 26, sight: 140, xu: [8, 16] },
 };
 // Đồ rơi khi hạ zombie: [id, tỉ lệ, số lượng tối đa]
@@ -198,7 +198,7 @@ export function baseMorning() {
   if (gifts.length) state.mail = [...(state.mail || []), { from: 'tu', text: `Căn cứ báo cáo sáng nay: ${gifts.join(', ')} đã vào túi.` }];
 }
 
-// ---------- Trạm đổi hàng (Anh Ba gác cổng) ----------
+// ---------- Trạm đổi hàng (Anh Jack gác cổng) ----------
 // Đổi theo ngày: 5 mối hàng ngẫu nhiên từ danh sách
 const TRADES = [
   { give: { canned: 3 }, get: { ammo_pistol: 10 } },

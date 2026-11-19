@@ -24,17 +24,11 @@ function measure() {
   }
   const cs = getComputedStyle(probe);
   const px = (v) => parseFloat(v) || 0;
-  // App ngoài màn hình chính (iPhone): innerHeight bị trừ sẵn thanh trạng thái dù trang vẫn vẽ được ở đó
-  // → lấy thẳng kích thước màn hình thật (screen luôn báo theo chiều dọc: đảo lại khi đang nằm ngang).
-  const portrait = window.innerHeight >= window.innerWidth;
-  const sLong = Math.max(screen.width, screen.height), sShort = Math.min(screen.width, screen.height);
-  const scrW = standalone() ? (portrait ? sShort : sLong) : 0;
-  const scrH = standalone() ? (portrait ? sLong : sShort) : 0;
+  // Về lại cách cũ: chỉ dùng phần trình duyệt thật sự hiển thị (innerWidth/innerHeight) —
+  // có thể hở một dải dưới thanh Safari, nhưng không bao giờ bị che mất chữ/nút.
   return {
-    W: Math.max(window.innerWidth, document.documentElement.clientWidth, scrW),
-    // Phủ kín tới mép dưới màn hình (100lvh). Thanh Safari trên iOS mới là lớp trong suốt đè lên trang,
-    // chừa phần đó ra thì lộ một khúc trống → phủ luôn.
-    H: Math.max(window.innerHeight, probe.offsetHeight, scrH),
+    W: window.innerWidth,
+    H: window.innerHeight,
     top: px(cs.paddingTop), right: px(cs.paddingRight), bottom: px(cs.paddingBottom), left: px(cs.paddingLeft),
   };
 }
@@ -46,10 +40,10 @@ function layout() {
   g.classList.toggle('rot', rot);
   if (rot) {
     // khung xoay 90°: chiều dài = chiều cao màn hình trừ vùng Dynamic Island phía trên; phủ tới tận mép dưới
-    Object.assign(g.style, { width: `${m.H - m.top}px`, height: `${m.W}px`, left: `${m.W}px`, top: `${m.top}px` });
+    Object.assign(g.style, { width: `${m.H - m.top - m.bottom}px`, height: `${m.W}px`, left: `${m.W}px`, top: `${m.top}px` });
   } else if (touch()) {
     // điện thoại nằm ngang thật: Dynamic Island ở mép trái/phải → chừa hai bên
-    Object.assign(g.style, { position: 'fixed', left: `${m.left}px`, top: '0px', width: `${m.W - m.left - m.right}px`, height: `${m.H}px` });
+    Object.assign(g.style, { position: 'fixed', left: `${m.left}px`, top: '0px', width: `${m.W - m.left - m.right}px`, height: `${m.H - m.bottom}px` });
   } else Object.assign(g.style, { width: '', height: '', left: '', top: '', position: '' });
   return rot;
 }

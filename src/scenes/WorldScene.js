@@ -248,7 +248,7 @@ export default class WorldScene extends Phaser.Scene {
       this.time.delayedCall(200, () => playBeach(this));
     }
     if (this.mapId === 'farm' && state.intro === 'night' && state.day > 1) this.time.delayedCall(600, () => this.toolsGift());
-    if (this.mapId === 'home' && state.intro === 'night' && state.day > 1) this.time.delayedCall(800, () => toast('Có tiếng gõ cửa… Ông Năm đang đợi ngoài sân.'));
+    if (this.mapId === 'home' && state.intro === 'night' && state.day > 1) this.time.delayedCall(800, () => toast('Có tiếng gõ cửa… Ông Walter đang đợi ngoài sân.'));
     this.lastHint = null;
     bus.emit('mapChanged', this.mapId);
   }
@@ -608,7 +608,7 @@ export default class WorldScene extends Phaser.Scene {
       this.addWall(s.x * TILE + 3, s.y * TILE + 8, 10, 8);
       this.statics.set(key(s.x, s.y), () => ({
         act: false,
-        label: `Đất xây ${BUILDINGS[id].name} — nhờ Chú Tư ở Xưởng mộc trong trại xây`,
+        label: `Đất xây ${BUILDINGS[id].name} — nhờ Chú Frank ở Xưởng mộc trong trại xây`,
       }));
       return;
     }
@@ -666,14 +666,14 @@ export default class WorldScene extends Phaser.Scene {
   penFeedAction(id, refresh = () => {}) {
     const hungry = () => state.animals.filter((a) => ANIMALS[a.type].house === id && !a.fed);
     const n = hungry().length;
-    if (!state.animals.some((a) => ANIMALS[a.type].house === id)) return { act: false, label: 'Máng cỏ — chưa có vật nuôi (mua ở trại Cô Mai)' };
+    if (!state.animals.some((a) => ANIMALS[a.type].house === id)) return { act: false, label: 'Máng cỏ — chưa có vật nuôi (mua ở trại Cô Emily)' };
     if (!n) return { act: false, label: 'Vật nuôi đã được cho ăn hôm nay' };
     return {
       label: `Cho ăn (${n} phần — có ${have('hay')} cỏ khô, ${have('feed')} thức ăn)`,
       run: () => {
         const list = hungry();
         const food = have('hay') + have('feed');
-        if (!food) return toast('Cần cỏ khô (trại Cô Mai, nhổ cỏ dại) hoặc thức ăn gia súc (Cối xay)');
+        if (!food) return toast('Cần cỏ khô (trại Cô Emily, nhổ cỏ dại) hoặc thức ăn gia súc (Cối xay)');
         const k = Math.min(list.length, food);
         list.slice(0, k).forEach((a) => (a.fed = true));
         const fromHay = Math.min(k, have('hay'));
@@ -698,7 +698,7 @@ export default class WorldScene extends Phaser.Scene {
       ['hoa', 'Chị lo bếp núc cho cả trại. Hái được rau củ, nấm ngon thì qua chị chỉ cách nấu.'],
       ['sau', 'Bác từng làm thợ mỏ. Dưới rừng có hầm quân sự cũ, nhiều sắt vụn lắm — mà nguy hiểm.'],
       ['ti', 'Anh mới tới hả? Mai chơi với em nha!'],
-      ['bin', 'Em là Bin! Em biết chỗ có hoa đẹp lắm, mai em chỉ cho.'],
+      ['bin', 'Em là Ben! Em biết chỗ có hoa đẹp lắm, mai em chỉ cho.'],
       ['nam', 'Ở rìa phía tây trại có căn nhà cũ bỏ trống. Mái hơi dột nhưng che mưa được, mảnh đất quanh nhà cũng là của cháu. Nghỉ ngơi đi — sáng mai ta qua.'],
     ];
     const cam = this.cameras.main;
@@ -731,7 +731,7 @@ export default class WorldScene extends Phaser.Scene {
     this.changeMap('farm', { x: FARM.door.x, y: FARM.door.y + 2 });
   }
 
-  // Sáng ngày thứ 2: Ông Năm ghé nông trại trao cuốc, bình tưới, rìu, cuốc chim
+  // Sáng ngày thứ 2: Ông Walter ghé nông trại trao cuốc, bình tưới, rìu, cuốc chim
   toolsGift() {
     if (state.intro !== 'night') return;
     const p = this.player;
@@ -754,7 +754,7 @@ export default class WorldScene extends Phaser.Scene {
             this.tweens.add({ targets: nam, x: nam.x - 120, alpha: 0, duration: 1800, onComplete: () => nam.destroy() });
             return;
           }
-          bus.emit('dialog', { face: 'face_nam', name: 'Ông Năm', text: lines[i++], choices: [{ label: i >= lines.length ? 'Cảm ơn ông!' : 'Tiếp ▶', onClick: next }] });
+          bus.emit('dialog', { face: 'face_nam', name: 'Ông Walter', text: lines[i++], choices: [{ label: i >= lines.length ? 'Cảm ơn ông!' : 'Tiếp ▶', onClick: next }] });
         };
         next();
       },
@@ -854,7 +854,7 @@ export default class WorldScene extends Phaser.Scene {
     if (!m) return;
     if (!m.ok) return toast(this.penPlaceProblem(m.id, m.off) || 'Không đặt được ở đây');
     state.penPos = { ...(state.penPos || {}), [m.id]: m.off };
-    // Chú Tư dọn giúp cây, đá, cỏ trong khu mới → gỗ/đá vào túi
+    // Chú Frank dọn giúp cây, đá, cỏ trong khu mới → gỗ/đá vào túi
     const [ax0, ay0, ax1, ay1] = penRect(m.id, m.off);
     const got = {};
     for (let y = ay0; y <= ay1; y++)
@@ -866,7 +866,7 @@ export default class WorldScene extends Phaser.Scene {
       }
     for (const [id, n] of Object.entries(got)) if (n) addItem(id, n, true);
     const gotTxt = Object.entries(got).filter(([, n]) => n).map(([id, n]) => `${n} ${ITEMS[id].name}`).join(', ');
-    if (gotTxt) this.time.delayedCall(1800, () => toast(`Chú Tư dọn đất giúp, bạn nhận ${gotTxt}`));
+    if (gotTxt) this.time.delayedCall(1800, () => toast(`Chú Frank dọn đất giúp, bạn nhận ${gotTxt}`));
     save();
     sfx('success', 0.5);
     toast(`Đã dời ${BUILDINGS[m.id].name}! Vật nuôi theo về chỗ mới.`);
@@ -1104,7 +1104,8 @@ export default class WorldScene extends Phaser.Scene {
     // Các khung giờ NPC có mặt ở bản đồ này: [{ from, to, x, y, r }]
     const slots = cfg.slots || [{ from: cfg.from ?? 0, to: cfg.to ?? 24, x: cfg.x, y: cfg.y, r: cfg.r || 0 }];
     // Khung 32x32 giống nhân vật chính: chân ở hàng 31 → gốc dưới khung đặt tại đáy ô
-    const sprite = this.add.sprite(cfg.x * TILE + 8, (cfg.y + 1) * TILE, `npc_${id}`, 16).setOrigin(0.5, 1);
+    const kid = NPCS[id].sheet === 'Child';
+    const sprite = this.add.sprite(cfg.x * TILE + 8, (cfg.y + 1) * TILE, `npc_${id}`, 16).setOrigin(0.5, 1).setScale(kid ? 0.8 : 1); // trẻ con nhỏ hơn
     sprite.play(`npc_${id}_idle_down`);
     // Đỉnh đầu thật (NPC không đội mũ / trẻ con thấp hơn) để đặt tên cho sát
     let headTop = 0;
@@ -1118,7 +1119,7 @@ export default class WorldScene extends Phaser.Scene {
     const m = {
       kind: 'npc',
       id,
-      nameDy: 32 - headTop - 3,
+      nameDy: (32 - headTop) * (kid ? 0.8 : 1) - 3,
       sprite,
       name,
       home: cfg,
@@ -1333,6 +1334,16 @@ export default class WorldScene extends Phaser.Scene {
       if (near) this.target = near;
     }
     if (!frozen && (vx || vy) && this.doorAssist(tx, ty, vx, vy, time)) return;
+    // Tự đổi dụng cụ khi đi ngang cây / đá (ô trước mặt trước, rồi các ô sát bên)
+    if (!frozen) {
+      const pk = key(tx, ty) + ':' + this.facing.x + ',' + this.facing.y;
+      if (pk !== this.autoToolKey) {
+        this.autoToolKey = pk;
+        const f = this.facing;
+        const around = [[f.x, f.y], [0, -1], [1, 0], [-1, 0], [0, 1], [1, -1], [-1, -1], [1, 1], [-1, 1]];
+        for (const [dx, dy] of around) if (this.autoTool({ tx: tx + dx, ty: ty + dy }, false)) break;
+      }
+    }
     const shown = this.inputMode === 'mouse' && this.hover ? this.hover : this.target;
     const st = shown.mover ? this.moverTile(shown.mover) : { x: shown.tx, y: shown.ty };
     this.cursor.setVisible(false); // không hiện ô trắng chọn ô
@@ -1453,6 +1464,21 @@ export default class WorldScene extends Phaser.Scene {
     return null;
   }
 
+  // Tự chọn dụng cụ phù hợp với thứ ở ô t (dựa vào gợi ý "cần Rìu / cần Cuốc chim" của chính ô đó).
+  // explicit = người chơi chạm thẳng vào → được đổi cả khi đang cầm hạt giống / vũ khí.
+  autoTool(t, explicit) {
+    if (state.autoTool === false || !state.gotTools || t?.tx == null) return;
+    const sel = selected();
+    if (!explicit && sel.kind === 'item') return; // đang cầm hạt/vũ khí: chỉ đổi khi chạm thẳng
+    const label = this.actionAt(t)?.label || '';
+    const want = /cần Rìu|cầm Rìu/.test(label) ? 'axe' : /cần Cuốc chim|cầm Cuốc chim/.test(label) ? 'pickaxe' : null;
+    if (!want) return false;
+    if (sel.kind === 'tool' && sel.id === want) return true;
+    state.sel = `tool:${want}`;
+    bus.emit('changed');
+    return true;
+  }
+
   // Bấm Làm mà không có việc gì: giải thích lý do (chỉ khi bấm, không hiện thường trực)
   whyNoAction(t) {
     if (this.mapId !== 'farm' || t?.tx == null) return;
@@ -1512,6 +1538,7 @@ export default class WorldScene extends Phaser.Scene {
     if (food) return food.run();
     let target = this.resolveTarget(pointer.worldX, pointer.worldY);
     if (!this.inMap(target.tx, target.ty)) return;
+    if (!target.mover) this.autoTool(target, true); // chạm thẳng vào cây/đá → tự cầm đúng dụng cụ
     const a = this.actionAt(target);
 
     // Kiểu Hay Day: chạm vào luống trong tầm 4 ô → làm ngay, rồi vuốt để làm hàng loạt
@@ -1585,7 +1612,7 @@ export default class WorldScene extends Phaser.Scene {
     this.swipe.last = k;
     if (!this.isSwipeTile(target) || !this.inSwipeReach(target)) return;
     const a = this.actionAt(target);
-    if (a?.run && a.act !== false) {
+    if (a?.run && a.act !== false && a.label !== 'Lấp đất') { // vuốt hàng loạt không bao giờ lấp mất luống
       this.faceTo(target.tx, target.ty);
       a.run();
     }
@@ -1908,7 +1935,7 @@ export default class WorldScene extends Phaser.Scene {
       if (this.sea.id === 'winter' && where === 'pond') return { label: 'Câu cá (ao đóng băng mỏng)', run: () => this.startFishing(where, tx, ty) };
       return { label: 'Câu cá', run: () => this.startFishing(where, tx, ty) };
     }
-    return { act: false, label: state.hasRod ? 'Chọn cần câu để câu cá, bình tưới để lấy nước' : 'Mặt nước — mua cần câu ở tiệm Bà Lan để câu cá' };
+    return { act: false, label: state.hasRod ? 'Chọn cần câu để câu cá, bình tưới để lấy nước' : 'Mặt nước — mua cần câu ở tiệm Bà Martha để câu cá' };
   }
 
   startFishing(where, tx, ty) {

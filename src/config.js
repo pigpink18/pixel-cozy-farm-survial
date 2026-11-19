@@ -172,7 +172,7 @@ for (const [id, f] of Object.entries({ carrot: 8, tomato: 10, strawberry: 10, po
   if (ITEMS[id] && !ITEMS[id].eat) ITEMS[id].eat = { e: f, h: 0, raw: true };
 
 export const TOOLS = {
-  // gotTools: ván mới nhận từ Ông Năm sáng ngày thứ 2 (xem đoạn mở đầu)
+  // gotTools: ván mới nhận từ Ông Walter sáng ngày thứ 2 (xem đoạn mở đầu)
   hoe: { name: 'Cuốc', tex: 'tool_hoe', energy: 2, unlock: 'gotTools' },
   can: { name: 'Bình tưới', tex: 'tool_can', energy: 1, unlock: 'gotTools' },
   axe: { name: 'Rìu', tex: 'tool_axe', energy: 3, unlock: 'gotTools' },
@@ -265,7 +265,7 @@ export const STORES = {
   silo: { name: 'Kho thóc', desc: 'Chứa nông sản (rau củ, trái cây)', caps: [0, 50, 80, 120, 180, 250], upgrade: [null, { coins: 400, wood: 20 }, { coins: 900, wood: 30, stone: 20 }, { coins: 1800, bar_copper: 3, wood: 40 }, { coins: 3500, bar_iron: 3, stone: 40 }] },
   barn: { name: 'Nhà kho', desc: 'Chứa sản phẩm, đồ chế biến, nguyên liệu', caps: [0, 50, 80, 120, 180, 250], upgrade: [null, { coins: 400, stone: 20 }, { coins: 900, wood: 20, stone: 30 }, { coins: 1800, bar_copper: 3, stone: 40 }, { coins: 3500, bar_iron: 3, wood: 40 }] },
 };
-// Nhà máy: level = cấp nông trại cần, cost = đồ lục được mang tới Chú Tư để nhờ xây (frame: hình trong atlas 'surv'), slots = số món xếp hàng, recipes: out ← cost trong min phút (giờ game)
+// Nhà máy: level = cấp nông trại cần, cost = đồ lục được mang tới Chú Frank để nhờ xây (frame: hình trong atlas 'surv'), slots = số món xếp hàng, recipes: out ← cost trong min phút (giờ game)
 export const FACTORIES = {
   mill: {
     name: 'Cối xay gió', frame: 'f_mill', level: 2, cost: { scrap: 10, parts: 2, wood: 15 }, slots: 3,
@@ -355,56 +355,56 @@ export const NPCS = {
   lan: {
     birthday: { season: 0, day: 9 },
     gifts: { 2: { seed_carrot: 5, seed_potato: 3 }, 4: { dish_soup: 1, f_painting: 1 } },
-    name: 'Bà Lan', sheet: 'OldWoman', role: 'store', loves: ['pumpkin', 'tomato'],
+    name: 'Bà Martha', sheet: 'OldWoman', role: 'store', loves: ['pumpkin', 'tomato'],
     lines: ['Hạt giống mới về đây cháu ơi!', 'Trồng đúng mùa thì cây mới tốt.', 'Bà thích nhất là bí ngô mùa thu.'],
   },
   tu: {
     birthday: { season: 1, day: 4 },
     gifts: { 2: { wood: 15, sprinkler: 1 }, 4: { bar_iron: 3 } },
-    name: 'Chú Tư', sheet: 'OldMan', role: 'carpenter', loves: ['potato', 'egg'],
+    name: 'Chú Frank', sheet: 'OldMan', role: 'carpenter', loves: ['potato', 'egg'],
     lines: ['Cần xây gì thì cứ nói chú.', 'Gỗ tốt thì chuồng mới bền.', 'Hồi trẻ chú cũng làm nông như cháu đó.'],
   },
   mai: {
     birthday: { season: 2, day: 12 },
     gifts: { 2: { hay: 10, milk: 1 }, 4: { dish_cake: 2, gem_yellow: 1 } },
-    name: 'Cô Mai', sheet: 'Woman', role: 'ranch', loves: ['carrot', 'milk'],
+    name: 'Cô Emily', sheet: 'Woman', role: 'ranch', loves: ['carrot', 'milk'],
     lines: ['Con vật cũng cần được yêu thương.', 'Nhớ cho ăn cỏ khô mỗi ngày nha.', 'Vuốt ve tụi nó thường xuyên thì tụi nó vui lắm.'],
   },
   ti: {
     birthday: { season: 3, day: 6 },
     gifts: { 2: { flower: 3, honey: 1 }, 4: { gem_purple: 1, f_lamp: 1 } },
-    name: 'Bé Tí', sheet: 'Child', role: null, loves: ['egg', 'beans'],
+    name: 'Bé Timmy', sheet: 'Child', role: null, loves: ['egg', 'beans'],
     lines: ['Anh chị chơi với em hông?', 'Em thích đi bắt chuồn chuồn!', 'Hôm nay trời đẹp ghê!'],
   },
   sau: {
     birthday: { season: 3, day: 12 },
     gifts: { 2: { geode: 3, ore_iron: 5 }, 4: { bar_gold: 2, gem_red: 1 } },
-    name: 'Bác Sáu', sheet: 'Miner', role: 'miner', loves: ['gem_red', 'dish_grill'],
+    name: 'Bác George', sheet: 'Miner', role: 'miner', loves: ['gem_red', 'dish_grill'],
     lines: ['Bãi phế liệu này bác lục mấy năm rồi.', 'Hộp khoá quân dụng phá ra nhiều khi có ngọc đó.', 'Phế liệu có lại mỗi sáng.'],
   },
   ba: {
     birthday: { season: 1, day: 11 },
     gifts: { 2: { fish_chep: 1, dish_grill: 1 }, 4: { fish_gold: 1 } },
-    name: 'Anh Ba', sheet: 'Villager', role: 'guard', loves: ['truffle', 'pumpkin'],
+    name: 'Anh Jack', sheet: 'Villager', role: 'guard', loves: ['truffle', 'pumpkin'],
     lines: ['Làng mình yên bình ha.', 'Nghe nói nấm cục bán được giá lắm.', 'Có rảnh ghé bảng nhiệm vụ coi nha.'],
   },
   nam: {
     birthday: { season: 2, day: 5 },
     gifts: { 2: { fish_loc: 2, dish_grill: 1 }, 4: { fish_gold: 1, gem_green: 1 } },
-    name: 'Ông Năm', sheet: 'Villager', role: 'fisher', loves: ['fish_gold', 'dish_tea'],
+    name: 'Ông Walter', sheet: 'Villager', role: 'fisher', loves: ['fish_gold', 'dish_tea'],
     lines: ['Câu cá là phải kiên nhẫn con à.', 'Cá chép vàng hiếm lắm, ông câu cả đời được có ba con.', 'Ban đêm cá trê hay ăn mồi lắm.'],
   },
   hoa: {
     birthday: { season: 0, day: 3 },
     gifts: { 2: { dish_cake: 2, dish_tea: 2 }, 4: { dish_soup: 2, f_lamp: 1 } },
-    name: 'Chị Hoa', sheet: 'Woman', role: 'cook', loves: ['strawberry', 'milk'],
+    name: 'Chị Rosa', sheet: 'Woman', role: 'cook', loves: ['strawberry', 'milk'],
     lines: ['Quán chị nấu bằng rau củ của làng mình đó.', 'Ăn no mới có sức làm việc nha em.', 'Em có rau ngon thì đem qua chị nấu thử!'],
   },
   bin: {
     birthday: { season: 1, day: 13 },
     gifts: { 2: { flower: 3, strawberry: 2 }, 4: { gem_yellow: 1, f_plant: 1 } },
-    name: 'Bé Bin', sheet: 'Child', role: null, loves: ['strawberry', 'flower'],
-    lines: ['Chị Tí... à không, anh Tí chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
+    name: 'Bé Ben', sheet: 'Child', role: null, loves: ['strawberry', 'flower'],
+    lines: ['Chị Timmy... à không, anh Timmy chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
   },
 };
 // ---------- Lễ hội (ở làng, 9:00–16:00) ----------
@@ -412,22 +412,22 @@ export const NPCS = {
 export const FESTIVALS = [
   {
     season: 0, day: 13, name: 'Lễ hội Hoa Xuân', host: 'lan', decor: 'flower',
-    desc: 'Thi cắm hoa! Nộp 3 Hoa dại cho Bà Lan để nhận thưởng.',
+    desc: 'Thi cắm hoa! Nộp 3 Hoa dại cho Bà Martha để nhận thưởng.',
     accept: { flower: 3 }, prize: () => 300,
   },
   {
     season: 1, day: 11, name: 'Hội thi Câu cá', host: 'ba', decor: 'banner',
-    desc: 'Mang con cá đẹp nhất tới cho Anh Ba — cá càng quý thưởng càng to.',
+    desc: 'Mang con cá đẹp nhất tới cho Anh Jack — cá càng quý thưởng càng to.',
     acceptTag: 'fish', prize: (id, ITEMS) => ITEMS[id].sell * 4,
   },
   {
     season: 2, day: 16, name: 'Hội chợ Nông sản', host: 'tu', decor: 'banner',
-    desc: 'Nộp 1 nông sản hoặc món ăn cho Chú Tư chấm điểm.',
+    desc: 'Nộp 1 nông sản hoặc món ăn cho Chú Frank chấm điểm.',
     acceptTag: 'produce', prize: (id, ITEMS) => Math.max(100, ITEMS[id].sell * 3),
   },
   {
     season: 3, day: 8, name: 'Lễ hội Đèn lồng', host: 'mai', decor: 'lantern',
-    desc: 'Cả làng thả đèn lồng. Gặp Cô Mai để nhận quà mùa đông!',
+    desc: 'Cả làng thả đèn lồng. Gặp Cô Emily để nhận quà mùa đông!',
     gift: { hay: 10, dish_tea: 2 }, prize: () => 200,
   },
 ];

@@ -41,7 +41,7 @@ export function newDay(passedOut) {
     }
   }
 
-  for (const name of finishFactories(true)) notes.push(`Chú Tư đã dựng xong ${name}!`);
+  for (const name of finishFactories(true)) notes.push(`Chú Frank đã dựng xong ${name}!`);
 
   // 4. NPC: reset trò chuyện / quà trong ngày
   for (const n of Object.values(state.npcs)) {

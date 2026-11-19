@@ -32,13 +32,13 @@ npm run build        # xuất bản vào dist/ (chạy thử: npm run preview)
 - Nhổ cỏ dại có thể được cỏ khô.
 
 **Vật nuôi**
-- Gặp **Chú Tư** (xưởng mộc) để xây Chuồng gà hoặc Chuồng bò. Chuồng xây xong vào sáng hôm sau.
-- Gặp **Cô Mai** (trại chăn nuôi) để mua gà, bò, heo và cỏ khô.
+- Gặp **Chú Frank** (xưởng mộc) để xây Chuồng gà hoặc Chuồng bò. Chuồng xây xong vào sáng hôm sau.
+- Gặp **Cô Emily** (trại chăn nuôi) để mua gà, bò, heo và cỏ khô.
 - Bấm vào máng cỏ để cho ăn, bấm vào con vật để vuốt ve hoặc nhặt trứng, sữa, nấm cục.
 
 **Làng & NPC**
 - Đi về phía đông nông trại để sang làng. Cửa hàng mở từ 8:00 đến 18:00.
-- **Bà Lan** bán hạt giống, cần câu và nội thất. **Chú Tư** xây chuồng, nâng cấp công cụ, bán gỗ và đá. **Cô Mai** bán vật nuôi và cỏ khô.
+- **Bà Martha** bán hạt giống, cần câu và nội thất. **Chú Frank** xây chuồng, nâng cấp công cụ, bán gỗ và đá. **Cô Emily** bán vật nuôi và cỏ khô.
 - Trò chuyện mỗi ngày và tặng quà để tăng tình cảm (♥). Đạt 2♥ hoặc 4♥ thì NPC tặng quà. **Sinh nhật** NPC: quà được tình cảm gấp 3.
 - **Bảng nhiệm vụ** cạnh lối vào làng: nhận việc giao hàng để lấy thưởng.
 - **4 lễ hội** (xem tab Lịch): Hoa Xuân (Xuân 13), Thi câu cá (Hạ 11), Hội chợ nông sản (Thu 16), Đèn lồng (Đông 8). Lễ hội diễn ra từ 9:00 đến 16:00 ở quảng trường. Nói chuyện với người chủ trì để tham gia.
@@ -56,15 +56,15 @@ npm run build        # xuất bản vào dist/ (chạy thử: npm run preview)
 - Rừng có hồ để câu cá và đồ hái lượm mọc mới mỗi ngày theo mùa.
 - **Hầm mỏ**: đập đá lấy đá, quặng đồng/sắt/vàng và đá quý. Cầu thang xuống tầng dưới giấu dưới một hòn đá. Thang máy dừng mỗi 5 tầng.
 - Quái vật (slime, dơi, chuột chũi, đầu lâu) mạnh dần theo độ sâu. Dùng **kiếm** (nhặt được lần đầu vào hầm). Hết máu sẽ ngất và mất ít tiền.
-- Nung 5 quặng + 2 gỗ thành thỏi (trong Menu → Chế tạo). Mang thỏi tới Chú Tư để **nâng cấp công cụ**: đồng → sắt → vàng. Cuốc và tưới được nhiều ô hơn, chặt và đập mạnh hơn, kiếm đau hơn.
+- Nung 5 quặng + 2 gỗ thành thỏi (trong Menu → Chế tạo). Mang thỏi tới Chú Frank để **nâng cấp công cụ**: đồng → sắt → vàng. Cuốc và tưới được nhiều ô hơn, chặt và đập mạnh hơn, kiếm đau hơn.
 
 **Câu cá**
-- Mua cần câu ở tiệm Bà Lan, chọn cần câu rồi chạm vào mặt nước (quăng xa tối đa 3 ô).
+- Mua cần câu ở tiệm Bà Martha, chọn cần câu rồi chạm vào mặt nước (quăng xa tối đa 3 ô).
 - Chờ dấu **!** thì chạm ngay, rồi chạm khi kim trắng nằm trong vùng xanh. Có 7 loại cá theo mùa, giờ và thời tiết.
 
 **Nhà & nấu ăn**
 - Bấm cửa để vào nhà. Ngủ trên giường. Nấu ăn ở bếp (7 món). Chọn món ăn trên thanh công cụ rồi chạm để ăn, hồi sức lực và máu.
-- Mua nội thất ở tiệm Bà Lan, chọn trên thanh công cụ rồi đặt trong nhà. Bấm vào đồ đã đặt để cất lại.
+- Mua nội thất ở tiệm Bà Martha, chọn trên thanh công cụ rồi đặt trong nhà. Bấm vào đồ đã đặt để cất lại.
 
 **Kỹ năng** (Menu → Kỹ năng): Trồng trọt, Khai khoáng, Hái lượm, Câu cá, Chiến đấu, mỗi kỹ năng 10 cấp. Cấp càng cao càng có cơ hội được thêm sản phẩm. Từ cấp 5, công cụ tương ứng tốn ít sức hơn.
 
@@ -123,6 +123,8 @@ src/lofi.js              bộ tạo nhạc lofi
 | `public/assets/tiny-wonder/` | Tiny Wonder Farm (bản free) — nhà, rương, đá, khoai tây/bí ngô/đậu, nội thất | Bản free **chỉ phi thương mại** — cần mua bản trả phí hoặc thay thế trước khi bán/quảng cáo thương mại |
 | `public/assets/interior/` | "interior free" | Kiểm tra giấy phép gốc trước khi dùng thương mại |
 | `public/assets/hero/`, `public/assets/pc/`, `public/assets/crops/`, sàn & tường trong `public/assets/furn/` | **Pixel Crawler — Free Pack** (Anokolisa): nhân vật chính + động tác, cỏ/đất/đá lát/nước, cây theo mùa, cỏ dại, đá, cành, bàn chế tạo, sàn & tường trong nhà, cà rốt/bắp cải | Dùng **thương mại** được, không cần ghi công; không bán lại asset. Tạo bằng `tools/make_hero.py`, `make_terrain_pc.py`, `make_nature_pc.py`, `make_buildings_pc.py`, `patch_furn_pc.py`, `make_crops_pack.py` (cần thư mục gốc `Pixel Crawler - Free Pack/` ở gốc dự án) |
+| `public/assets/zombie/zom_*.png` | **PostApocalypse Asset Pack v1.1.2** — TheLazyStone: zombie thường / nhỏ / to béo / cầm rìu (đi, đứng, vồ cắn, ngã) | Miễn phí **phi thương mại**; dùng thương mại phải mua (≥ 2 USD); không phát lại nguyên bộ. Tạo bằng `tools/make_zombies_pa.py` (cần thư mục `PostApocalypse_AssetPack_v1.1.2/` ở gốc dự án) |
+| `public/assets/fp/npc_*.png` | Dân làng dựng từ thân người Pixel Crawler (như nhân vật chính) | Như Pixel Crawler. Tạo bằng `tools/make_npcs_pc.py` |
 | `public/assets/crops/`, `public/assets/pc/house.png`, `chest.png` | **Farm RPG FREE 16x16 — Tiny Asset Pack**: dâu tây, khoai tây (+ gói hạt), nhà nông trại, rương | Bản free — kiểm tra điều khoản trang tải trước khi bán thương mại. Tool tự giải nén file `.rar` ở gốc dự án |
 | `public/fonts/VT323-Regular.ttf` | VT323 (Google Fonts), đã vá móc chữ Ơ/Ư cho rõ (`tools/patch_font_horn.py`, bản gốc ở `tools/fonts/`) | SIL Open Font License — dùng thương mại được, được sửa (không có tên bảo lưu) |
 

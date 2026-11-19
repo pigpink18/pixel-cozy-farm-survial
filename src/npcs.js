@@ -9,13 +9,13 @@ import { state } from './state.js';
 export const SCHEDULE = {
   lan: [[6, 8, 'house:lan', 7, 6, 1], [8, 18, 'shop:store'], [18, 20, 'village', 17, 15, 3], [20, 22, 'house:lan', 7, 6, 1]],
   tu: [[6, 8, 'house:tu', 3, 6, 1], [8, 18, 'shop:carpenter'], [18, 20, 'quarry', 20, 14, 3], [20, 22, 'house:tu', 3, 6, 1]],
-  mai: [[6, 8, 'farm', 17, 8, 1], [8, 18, 'shop:ranch'], [18, 20, 'village', 24, 15, 3], [20, 22, 'house:mai', 8, 5, 1]],
+  mai: [[6, 8, 'village', 26, 16, 2], [8, 18, 'shop:ranch'], [18, 20, 'village', 24, 15, 3], [20, 22, 'house:mai', 8, 5, 1]],
   ti: [[6, 9, 'house:ti', 3, 6, 1], [9, 12, 'village', 18, 13, 5], [12, 16, 'forest', 11, 9, 1], [16, 19, 'village', 33, 25, 3], [19, 22, 'house:ti', 3, 6, 1]],
   ba: [[6, 10, 'forest', 34, 23, 0], [10, 17, 'village', 40, 13, 6], [17, 21, 'village', 23, 12, 5], [21, 22, 'house:ti', 8, 6, 1]],
   sau: [[6, 7, 'house:sau', 2, 6, 1], [7, 17, 'quarry', 13, 9, 2], [17, 21, 'village', 27, 14, 4], [21, 22, 'house:sau', 2, 6, 1]],
   nam: [[5, 7, 'house:nam', 3, 6, 1], [7, 12, 'forest', 9, 11, 1], [12, 17, 'village', 43, 21, 1], [17, 20, 'village', 46, 25, 2], [20, 22, 'house:nam', 3, 6, 1]],
   hoa: [[6, 8, 'house:hoa', 8, 5, 1], [8, 11, 'village', 28, 12, 1], [11, 14, 'village', 20, 13, 4], [14, 18, 'village', 32, 12, 1], [18, 22, 'house:hoa', 8, 5, 1]],
-  bin: [[7, 9, 'house:hoa', 4, 6, 1], [9, 12, 'village', 22, 14, 4], [12, 15, 'farm', 26, 13, 3], [15, 19, 'village', 38, 24, 2], [19, 22, 'house:hoa', 4, 6, 1]],
+  bin: [[7, 9, 'house:hoa', 4, 6, 1], [9, 12, 'village', 22, 14, 4], [12, 15, 'village', 30, 20, 3], [15, 19, 'village', 38, 24, 2], [19, 22, 'house:hoa', 4, 6, 1]],
 };
 
 // Giờ mở cửa nhà dân
@@ -31,31 +31,31 @@ export function slotNow(id, t = state.time) {
 // Nhà trong làng: ảnh (vị trí trong VILLAGE.houses), chủ nhà, kiểu tường/sàn, nội thất [id, x, y, lật]
 export const HOUSES = {
   lan: {
-    title: 'Nhà Bà Lan', house: 0, owners: ['lan'], wall: 'pink', floor: 'carpet',
+    title: 'Nhà Bà Martha', house: 0, owners: ['lan'], wall: 'pink', floor: 'carpet',
     furn: [['bed_pink', 1, 2], ['bookshelf', 9, 2], ['plant_big', 10, 2], ['table_round', 5, 4], ['chair_wood', 4, 4], ['chair_wood', 7, 4, true], ['rug_red', 5, 5], ['vase_pink', 3, 2], ['dresser', 6, 2], ['painting_flower', 4, 1], ['clock', 8, 1], ['window_red', 2, 1]],
   },
   tu: {
-    title: 'Nhà Chú Tư', house: 3, owners: ['tu'], wall: 'wood', floor: 'wood_dark',
+    title: 'Nhà Chú Frank', house: 3, owners: ['tu'], wall: 'wood', floor: 'wood_dark',
     furn: [['bed_basic', 1, 2], ['desk', 4, 2], ['wardrobe', 8, 2], ['table_long', 5, 5], ['stool_round', 4, 5], ['stool_round', 7, 5], ['cabinet', 10, 2], ['painting_mountain', 3, 1], ['window_blue', 6, 1], ['wall_shelf', 8, 0], ['rug_long', 4, 6]],
   },
   mai: {
-    title: 'Nhà Cô Mai', house: 4, owners: ['mai'], wall: 'green', floor: 'wood',
+    title: 'Nhà Cô Emily', house: 4, owners: ['mai'], wall: 'green', floor: 'wood',
     furn: [['bed_green', 1, 2], ['sofa_green', 4, 2], ['coffee_table', 4, 4], ['plant_big', 7, 2], ['kitchen_counter', 9, 2], ['sink', 10, 2], ['cactus', 3, 5], ['rug_green', 4, 5], ['painting_farm', 5, 0], ['hanging_plant', 8, 1], ['calendar', 2, 1]],
   },
   ti: {
-    title: 'Nhà Anh Ba & Bé Tí', house: 1, owners: ['ti', 'ba'], wall: 'blue', floor: 'tile_blue',
+    title: 'Nhà Anh Jack & Bé Timmy', house: 1, owners: ['ti', 'ba'], wall: 'blue', floor: 'tile_blue',
     furn: [['bed_blue', 1, 2], ['bed_basic', 3, 2], ['toy_box', 5, 2], ['aquarium', 7, 2], ['radio', 10, 2], ['table_round', 6, 5], ['armchair_teal', 9, 5], ['rug_check', 2, 5], ['garland', 4, 0], ['window_blue', 8, 1], ['mirror', 2, 1]],
   },
   sau: {
-    title: 'Nhà Bác Sáu', house: 5, owners: ['sau'], wall: 'brick', floor: 'stone',
+    title: 'Nhà Bác George', house: 5, owners: ['sau'], wall: 'brick', floor: 'stone',
     furn: [['bed_basic', 1, 2], ['fireplace', 5, 2], ['armchair_red', 4, 4], ['cabinet', 9, 2], ['bookshelf', 10, 2], ['table_round', 7, 5], ['floor_lamp', 3, 2], ['rug_long', 4, 6], ['painting_mountain', 8, 1], ['clock', 2, 1]],
   },
   nam: {
-    title: 'Nhà Ông Năm', house: 6, owners: ['nam'], wall: 'blue', floor: 'wood',
+    title: 'Nhà Ông Walter', house: 6, owners: ['nam'], wall: 'blue', floor: 'wood',
     furn: [['bed_basic', 1, 2], ['aquarium', 4, 2], ['bookshelf', 9, 2], ['table_round', 6, 5], ['stool_round', 5, 5], ['armchair_teal', 9, 5], ['rug_blue', 5, 6], ['painting_mountain', 3, 1], ['window_blue', 7, 1], ['radio', 10, 2]],
   },
   hoa: {
-    title: 'Quán & nhà Chị Hoa', house: 7, owners: ['hoa', 'bin'], wall: 'cream', floor: 'check',
+    title: 'Quán & nhà Chị Rosa', house: 7, owners: ['hoa', 'bin'], wall: 'cream', floor: 'check',
     furn: [['bed_pink', 1, 2], ['kitchen_counter', 5, 2], ['stove', 7, 2], ['sink', 9, 2], ['table_long', 4, 5], ['chair_wood', 3, 5], ['chair_wood', 7, 5, true], ['toy_box', 10, 2], ['plant_big', 10, 5], ['painting_flower', 4, 1], ['hanging_plant', 2, 1]],
   },
 };
@@ -80,7 +80,7 @@ export const LINES = {
   },
   ti: {
     1: ['Anh chị chơi với em hông?', 'Em thích đi bắt chuồn chuồn!', 'Hôm nay trời đẹp ghê!'],
-    3: ['Buổi trưa em hay ra hồ trong rừng ngắm cá đó!', 'Anh Ba hứa dạy em câu cá mà hoài chưa dạy...', 'Anh chị có thấy con bướm vàng nào hông?'],
+    3: ['Buổi trưa em hay ra hồ trong rừng ngắm cá đó!', 'Anh Jack hứa dạy em câu cá mà hoài chưa dạy...', 'Anh chị có thấy con bướm vàng nào hông?'],
     5: ['Anh chị là bạn thân nhất của em luôn!', 'Lớn lên em cũng sẽ có nông trại to như của anh chị!', 'Em để dành viên bi đẹp nhất tặng anh chị nè.'],
   },
   ba: {
@@ -103,11 +103,11 @@ Object.assign(LINES, {
   },
   hoa: {
     1: ['Quán chị nấu bằng rau củ của làng mình đó.', 'Ăn no mới có sức làm việc nha em.', 'Buổi trưa chị hay ra quảng trường hóng gió.'],
-    3: ['Rau nhà em tươi ghê, nấu canh ngọt lắm.', 'Bé Bin nhà chị hay chạy qua nông trại em chơi, có phiền không?', 'Chị đang nghĩ món mới từ dâu tây đó.'],
+    3: ['Rau nhà em tươi ghê, nấu canh ngọt lắm.', 'Bé Ben nhà chị hay chạy qua nông trại em chơi, có phiền không?', 'Chị đang nghĩ món mới từ dâu tây đó.'],
     5: ['Em là khách quen số một của quán chị rồi!', 'Muốn học nấu món gì chị chỉ cho, khỏi tốn tiền.', 'Có em, chợ làng vui hơn hẳn.'],
   },
   bin: {
-    1: ['Chị Tí... à không, anh Tí chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
+    1: ['Chị Timmy... à không, anh Timmy chơi đuổi bắt với em nè!', 'Mẹ em nấu ăn ngon nhất làng!', 'Em đếm được 12 con cá trong ao làng đó!'],
     3: ['Buổi trưa em hay chạy qua nông trại coi gà con!', 'Em hái hoa tặng anh chị nè... à quên, em lỡ cầm về rồi.', 'Đài phun nước có đồng xu ai bỏ dưới đáy kìa!'],
     5: ['Anh chị là siêu anh hùng của làng!', 'Lớn lên em sẽ mở quán bán bánh dâu!', 'Em vẽ tặng anh chị một bức tranh nông trại nè.'],
   },
@@ -127,11 +127,11 @@ Object.assign(LINES, {
   },
   mai: {
     1: ['Gà bò là nguồn sống của trại, chăm kỹ nha.', 'Tiếng zombie làm tụi bò sợ, không chịu cho sữa.', 'Cô có mấy bé chó mèo cần chủ, nuôi đi cho vui nhà.'],
-    3: ['Trứng sữa của cháu đổi được đạn ở chỗ Anh Ba đó.', 'Có hàng rào chắc thì tụi vật nuôi mới yên.', 'Cô nhớ hồi xưa, làng mình yên bình lắm...'],
+    3: ['Trứng sữa của cháu đổi được đạn ở chỗ Anh Jack đó.', 'Có hàng rào chắc thì tụi vật nuôi mới yên.', 'Cô nhớ hồi xưa, làng mình yên bình lắm...'],
     5: ['Cháu là chỗ dựa của cả trại.', 'Cô sẽ dạy cháu mọi thứ về chăn nuôi.', 'Khi nào hết dịch, mình mở lại chợ phiên nha.'],
   },
   ti: {
-    1: ['Anh chị có thấy zombie chưa? Em sợ lắm...', 'Anh Ba không cho em ra cổng nam.', 'Em đếm được 3 con zombie ngoài hàng rào hôm qua!'],
+    1: ['Anh chị có thấy zombie chưa? Em sợ lắm...', 'Anh Jack không cho em ra cổng nam.', 'Em đếm được 3 con zombie ngoài hàng rào hôm qua!'],
     3: ['Lớn lên em cũng sẽ cầm súng bảo vệ trại!', 'Em nhặt được viên pin này, tặng anh chị nè.', 'Anh chị dẹp xong thị trấn thì cho em đi theo nha.'],
     5: ['Anh chị là anh hùng của em!', 'Em vẽ hình anh chị đánh zombie dán ở lều đó.', 'Có anh chị ở đây em không sợ nữa.'],
   },
@@ -152,7 +152,7 @@ Object.assign(LINES, {
   },
   hoa: {
     1: ['Bếp của chị nuôi cả trại, có rau thì đem qua.', 'Ăn no mới có sức đánh zombie nha em.', 'Đồ hộp ăn mãi cũng ngán, rau tươi quý lắm.'],
-    3: ['Rau nhà em tươi ghê, cả trại khen đó.', 'Bé Bin cứ đòi theo em ra ngoài, em đừng cho nha.', 'Món bắp cải cuộn hồi sức tốt lắm.'],
+    3: ['Rau nhà em tươi ghê, cả trại khen đó.', 'Bé Ben cứ đòi theo em ra ngoài, em đừng cho nha.', 'Món bắp cải cuộn hồi sức tốt lắm.'],
     5: ['Em là ân nhân của mẹ con chị.', 'Chị nấu riêng cho em, khỏi tính tiền.', 'Hết dịch, chị mở lại quán cho cả làng.'],
   },
   bin: {
