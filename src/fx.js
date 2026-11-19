@@ -104,7 +104,7 @@ export const nightFactor = (t = state.time) => Phaser.Math.Clamp((t - 18.5 * 60)
 export default class WorldFX {
   constructor(scene) {
     this.s = scene;
-    this.outdoor = ['farm', 'village', 'forest', 'quarry', 'town', 'cliff', 'beach'].includes(scene.mapId);
+    this.outdoor = ['farm', 'village', 'forest', 'quarry', 'town', 'base', 'cliff', 'beach'].includes(scene.mapId);
     this.follow = []; // bóng đi theo sprite di chuyển
     this.lights = [];
     this.parts = [];
@@ -116,7 +116,7 @@ export default class WorldFX {
     this.cm = cam.postFX?.addColorMatrix?.() || null;
     scene.registry.set('skyFx', !!this.cm);
     // Viền tối quanh màn hình — không khí u ám, mắt dồn vào giữa
-    if (this.outdoor) cam.postFX?.addVignette?.(0.5, 0.5, ['forest', 'town'].includes(scene.mapId) ? 0.78 : 0.86, 0.32);
+    if (this.outdoor) cam.postFX?.addVignette?.(0.5, 0.5, ['forest', 'town', 'base'].includes(scene.mapId) ? 0.78 : 0.86, 0.32);
   }
 
   // Nguồn sáng thêm (lửa, thùng phuy cháy...) — chỉ đục bóng tối, quầng sáng tự vẽ riêng
@@ -129,7 +129,7 @@ export default class WorldFX {
     const s = this.s;
     if (!this.outdoor) return 0;
     if (s.forceDark != null) return s.forceDark; // đoạn mở đầu: độ tối cố định
-    const zone = s.mapId === 'forest' || s.mapId === 'town';
+    const zone = s.mapId === 'forest' || s.mapId === 'town' || s.mapId === 'base';
     let d = nightFactor() * (zone ? 0.92 : 0.84);
     // trước bình minh (sau nửa đêm hoặc trước 6h) vẫn tối
     const h = state.time / 60;

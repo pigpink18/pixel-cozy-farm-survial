@@ -11,8 +11,8 @@ import { mineEntryChoices, MINE_SPAWN } from './mine.js';
 const key = (x, y) => `${x},${y}`;
 
 export const QUARRY = {
-  w: 46,
-  h: 30,
+  w: 64, // v2: mở rộng sang đông & xuống nam
+  h: 40,
   fromVillage: { x: 2, y: 14 },
   exit: [{ x: 0, y: 14 }, { x: 0, y: 15 }],
   toVillage: { x: 49, y: 13 },
@@ -23,7 +23,7 @@ export const QUARRY = {
   // Lối đi (không mọc đá): đường ray từ cổng vào tới hang
   paths: [[1, 14, 38, 15], [37, 6, 38, 15], [6, 7, 13, 13]],
   // Mỏm đá cao (vách hẻm núi)
-  plateaus: [[17, 3, 22, 7], [26, 18, 32, 22], [6, 20, 11, 24], [40, 20, 43, 25]],
+  plateaus: [[17, 3, 22, 7], [26, 18, 32, 22], [6, 20, 11, 24], [40, 20, 43, 25], [48, 7, 53, 11], [50, 27, 56, 31], [16, 30, 23, 34], [34, 31, 38, 35]],
 };
 
 // Yêu cầu cuốc chim & độ cứng
@@ -56,55 +56,81 @@ const inRect = (x, y, [x0, y0, x1, y1], pad = 0) => x >= x0 - pad && x <= x1 + p
 
 export function buildQuarry(s) {
   const Q = QUARRY;
-  // Nền sỏi đá xám, vệt dầu loang
-  s.add.rectangle(0, 0, s.worldW, s.worldH, 0x8c877c).setOrigin(0).setDepth(-999);
+  // ---- Hình từ PostApocalypse Asset Pack (tools/make_pa_props.py, atlas 'pa') ----
   const r = rng(99);
-  for (let i = 0; i < 620; i++)
-    s.add.rectangle(r() * s.worldW, r() * s.worldH, 2 + r() * 3, 2, r() < 0.5 ? 0x77726a : 0xa29d92).setDepth(-990);
-  for (let i = 0; i < 14; i++) s.add.ellipse(r() * s.worldW, r() * s.worldH, 20 + r() * 26, 8 + r() * 8, 0x3a3836, 0.35).setDepth(-988);
-  // Lối đi nhựa đường + đường ray cũ
-  for (const [x0, y0, x1, y1] of Q.paths) s.add.rectangle(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE, 0x5e5c58).setOrigin(0).setDepth(-985);
-  for (let x = 1; x <= 36; x++) s.add.image(x * TILE + 8, 15 * TILE, 'q_rail').setRotation(Math.PI / 2).setDepth(-980).setTint(0xb0aaa0);
-  for (let y = 8; y <= 15; y++) s.add.image(38 * TILE, y * TILE + 8, 'q_rail').setDepth(-980).setTint(0xb0aaa0);
+  const h2 = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+  const T = TILE;
+  const pa = (px, py, f, ox = 0.5, d = py) => s.add.image(px, py, 'pa', f).setOrigin(ox, 1).setDepth(d);
+  // Nền đất bạc màu + đường nhựa nứt
+  for (let y = 0; y < Q.h; y++)
+    for (let x = 0; x < Q.w; x++) {
+      const onPath = Q.paths.some((p) => inRect(x, y, p));
+      const hv = h2(x, y) % 23;
+      const f = onPath ? `asphalt${hv % 3}` : `dirt${hv < 2 ? 6 + hv : hv % 6}`;
+      s.add.image(x * T, y * T, 'pa', f).setOrigin(0).setDepth(-999);
+    }
+  for (let i = 0; i < 16; i++) s.add.ellipse(r() * s.worldW, r() * s.worldH, 20 + r() * 26, 8 + r() * 8, 0x2a2622, 0.3).setDepth(-988); // vệt dầu
+  for (let x = 1; x <= 36; x++) s.add.image(x * T + 8, 15 * T, 'q_rail').setRotation(Math.PI / 2).setDepth(-980).setTint(0xb0aaa0);
+  for (let y = 8; y <= 15; y++) s.add.image(38 * T, y * T + 8, 'q_rail').setDepth(-980).setTint(0xb0aaa0);
 
-  // Tường bê tông phía bắc (3 hàng) + viền
-  for (let x = 0; x < Q.w; x++) {
-    s.add.image(x * TILE, 0, 'relief', 5 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
-    s.add.image(x * TILE, TILE, 'relief', 6 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
-    s.add.image(x * TILE, 2 * TILE, 'relief', 7 * 20 + 5).setOrigin(0).setDepth(-950).setTint(0x9a968e);
-  }
-  s.addWall(0, 0, s.worldW, 3 * TILE - 4);
-  const edge = (x, y) => s.add.image(x * TILE, y * TILE, 'relief', 6 * 20 + 2).setOrigin(0).setDepth(-950).setTint(0x9a968e);
-  for (let y = 3; y < Q.h; y++) {
-    if (!Q.exit.some((e) => e.y === y)) edge(0, y);
-    edge(Q.w - 1, y);
-  }
-  for (let x = 0; x < Q.w; x++) edge(x, Q.h - 1);
-  s.addWall(0, 3 * TILE, TILE, (Q.exit[0].y - 3) * TILE);
-  s.addWall(0, (Q.exit[1].y + 1) * TILE, TILE, s.worldH);
-  s.addWall(s.worldW - TILE, 0, TILE, s.worldH);
-  s.addWall(0, s.worldH - TILE, s.worldW, TILE);
+  // Gò rác (ghép ô: góc / cạnh / giữa) — dùng làm tường bao & mỏm cao
+  const mound = (x0, y0, x1, y1, wall = true) => {
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const v = y === y0 ? 't' : y === y1 ? 'b' : '';
+        const hz = x === x0 ? 'l' : x === x1 ? 'r' : '';
+        const f = v || hz ? `g_${v}${hz}` : `g_c${h2(x, y) % 8}`;
+        s.add.image(x * T, y * T, 'pa', f).setOrigin(0).setDepth(-960);
+        s.blocked.add(key(x, y));
+      }
+    if (wall) s.addWall(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T - 4);
+  };
+  // Phía bắc: hàng container dựng đứng chồng sát nhau
+  const vert = ['cont_1_gray_vertical', 'cont_5_red_vertical', 'cont_9_green_vertical', 'cont_2_gray_vertical_og_bleak-yellow', 'cont_6_red_vertical_og_bleak-yellow', 'cont_10_green_vertical_og_bleak-yellow'];
+  for (let px = -6, i = 0; px < s.worldW; px += 28, i++) pa(px + 14, 3 * T + 2, vert[h2(i, 7) % vert.length], 0.5, 3 * T - 2);
+  s.addWall(0, 0, s.worldW, 3 * T - 4);
+  for (let x = 0; x < Q.w; x++) for (let y = 0; y < 3; y++) s.blocked.add(key(x, y));
+  // Tây / đông / nam: gò rác bao quanh (chừa lối ra làng)
+  mound(0, 3, 1, Q.exit[0].y - 1, false);
+  mound(0, Q.exit[1].y + 1, 1, Q.h - 1, false);
+  mound(Q.w - 2, 3, Q.w - 1, Q.h - 1, false);
+  mound(2, Q.h - 2, Q.w - 3, Q.h - 1, false);
+  s.addWall(0, 3 * T, 2 * T, (Q.exit[0].y - 3) * T);
+  s.addWall(0, (Q.exit[1].y + 1) * T, 2 * T, s.worldH);
+  s.addWall(s.worldW - 2 * T, 0, 2 * T, s.worldH);
+  s.addWall(0, s.worldH - 2 * T, s.worldW, 2 * T);
   for (const e of Q.exit) s.exits.set(key(e.x, e.y), { map: 'village', spawn: Q.toVillage });
 
-  // Container & xe nát chất đống (thay mỏm đá)
-  const tints = [0xffffff, 0xd8a090, 0xa0b8d8, 0xe0d0a0];
+  // Mỏm cao: gò rác + xe nát / container chất lên trên
+  const heap = [['scrap_orange', 'cont_3_gray_horizontal'], ['flip_blue', 'cont_8_red_horizontal_og_bleak-yellow'], ['scrap_green', 'tire_1'], ['flip_orange', 'barrel_rust_red_1'], ['scrap_blue', 'cont_12_green_horizontal_og_bleak-yellow'], ['flip_orange', 'cont_4_gray_horizontal_og_bleak-yellow'], ['scrap_red', 'washing_machine'], ['carv_yellow', 'refrigerator']];
   Q.plateaus.forEach(([x0, y0, x1, y1], i) => {
-    s.addWall(x0 * TILE, y0 * TILE, (x1 - x0 + 1) * TILE, (y1 - y0 + 1) * TILE - 4);
-    for (let cx = x0, k = 0; cx + 3 <= x1 + 1; cx += 4, k++) {
-      s.add.image(cx * TILE, (y1 + 1) * TILE, 'surv', 'container').setOrigin(0, 1).setDepth((y1 + 1) * TILE - 2).setTint(tints[(i + k) % 4]);
-      if (y1 - y0 >= 4) s.add.image(cx * TILE + 2, (y1 - 1) * TILE, 'surv', 'container').setOrigin(0, 1).setDepth((y1 - 1) * TILE - 2).setTint(tints[(i + k + 1) % 4]);
-    }
-    if (x1 - x0 + 1 < 4) s.add.image(x0 * TILE, (y1 + 1) * TILE, 'surv', 'car_white').setOrigin(0, 1).setDepth((y1 + 1) * TILE - 2).setTint(0xb8b0a0);
+    mound(x0, y0, x1, y1);
+    const cx = ((x0 + x1 + 1) / 2) * T, by = (y1 + 1) * T - 6;
+    pa(cx - 6, by - 10, heap[i][1], 0.5, by - 12);
+    pa(cx + 4, by, heap[i][0], 0.5, by);
   });
-  for (const [x, y, f] of [[15, 10, 'car_red'], [30, 9, 'car_blue'], [22, 24, 'car_white'], [36, 25, 'car_red']]) {
-    s.add.image(x * TILE, (y + 1) * TILE, 'surv', f).setOrigin(0, 1).setDepth((y + 1) * TILE - 1).setTint(0xc0b8a8);
-    s.addWall(x * TILE + 2, y * TILE + 2, 48, 12);
-    for (let dx = 0; dx < 3; dx++) s.blocked.add(key(x + dx, y));
+
+  // Xe gỉ sét nằm rải rác (chắn đường đi)
+  for (const [x, y, f, w] of [[15, 10, 'scrap_red', 3], [30, 9, 'van_blue', 3], [22, 24, 'bus', 4], [36, 25, 'car_orange', 3], [3, 26, 'truck', 4], [57, 18, 'truck', 4], [44, 37, 'bus', 4], [8, 36, 'van_green', 3], [58, 35, 'scrap_blue', 3]]) {
+    const img = pa(x * T + (w * T) / 2, (y + 1) * T + 2, f);
+    s.addWall(x * T + 2, y * T + 2, w * T - 4, 12);
+    for (let dx = 0; dx < w; dx++) s.blocked.add(key(x + dx, y));
+    if (img.height > 30) for (let dx = 0; dx < w; dx++) s.blocked.add(key(x + dx, y - 1));
   }
-  for (const [x, y] of [[4, 9], [25, 12], [34, 20], [14, 26]]) {
-    s.add.image(x * TILE + 8, (y + 1) * TILE, 'surv', 'tires').setOrigin(0.5, 1).setDepth((y + 1) * TILE - 1);
-    s.addWall(x * TILE + 2, y * TILE + 4, 12, 10);
+  // Đồ lặt vặt: thùng phuy, lốp, pallet, tủ lạnh, máy giặt, túi rác
+  const small = ['barrel_rust_red_1', 'barrel_rust_blue_2', 'tire_1', '2_tires_grass_bleak_yellow', 'pallet_1', 'refrigerator', 'washing_machine', 'trash_bag_1', 'barrel_rust_red_2', 'pallet_2', 'tire_2_grass_bleak_yellow', 'shopping_cart'];
+  for (const [x, y] of [[4, 9], [25, 12], [34, 20], [14, 26], [3, 5], [24, 4], [33, 12], [43, 5], [10, 17], [28, 26], [41, 15], [19, 18], [46, 14], [55, 5], [60, 24], [47, 25], [30, 36], [12, 30], [40, 28], [58, 12]]) {
+    if (s.blocked.has(key(x, y)) || Q.paths.some((p) => inRect(x, y, p))) continue;
+    pa(x * T + 8, (y + 1) * T, small[h2(x, y) % small.length]);
+    s.addWall(x * T + 2, y * T + 4, 12, 10);
     s.blocked.add(key(x, y));
+  }
+  // Rác vụn trên đất (không chắn)
+  for (let i = 0; i < 70; i++) {
+    const x = 2 + Math.floor(r() * (Q.w - 4)), y = 4 + Math.floor(r() * (Q.h - 7));
+    if (s.blocked.has(key(x, y))) continue;
+    const f = ['cardboard_1', 'cardboard_2', 'iron_beam', 'gray_brick', 'rock1', 'rock3', 'rock5', 'trash_bag_2'][Math.floor(r() * 8)];
+    s.add.image(x * T + r() * 12 + 2, y * T + r() * 12 + 4, 'pa', f).setDepth(-970);
   }
 
   // Cửa xuống tầng hầm sâu
@@ -170,7 +196,7 @@ function spawnNodes(s) {
   const nodes = (state.quarry.nodes = {});
   const taken = new Set();
   const can = (x, y) => freeTile(s, x, y) && !taken.has(key(x, y));
-  for (let i = 0, tries = 0; i < 70 && tries < 2000; tries++) {
+  for (let i = 0, tries = 0; i < 115 && tries < 3000; tries++) {
     const x = 2 + Math.floor(Math.random() * (QUARRY.w - 4)), y = 4 + Math.floor(Math.random() * (QUARRY.h - 6));
     const r = Math.random();
     if (r < 0.07 && [[0, 0], [1, 0], [0, 1], [1, 1]].every(([dx, dy]) => can(x + dx, y + dy))) {

@@ -114,6 +114,8 @@ export default class BootScene extends Phaser.Scene {
     for (const t of ['path', 'water', 'plaza', 'road', 'sand']) this.load.image(`ter_${t}`, `assets/terrain/${t}.png`); // tools/make_terrain.py
     for (const [k, w, h] of [['cat', 16, 16], ['catorange', 22, 17], ['dog', 16, 16], ['dogyellow', 21, 17]]) sheet(`cr_${k}`, `${NJ}critters/${k}.png`, w, h); // Ninja Adventure (CC0)
     this.load.atlas('surv', 'assets/surv/surv.png', 'assets/surv/surv.json'); // tools/make_survival.py
+    this.load.atlas('pa', 'assets/pa/pa.png', 'assets/pa/pa.json'); // tools/make_pa_props.py (bãi phế liệu)
+    for (const f of [0, 1]) this.load.image(`nest_pa${f}`, `assets/surv/nest_pa${f}.png`); // ổ zombie
     for (const z of ['walker', 'runner', 'brute', 'soldier']) sheet(`zom_${z}`, `assets/zombie/zom_${z}.png`, 64, 64); // tools/make_zombies_pa.py
     this.load.json('zom_meta', 'assets/zombie/zom_meta.json');
     this.load.atlas('props', 'assets/props/props.png', 'assets/props/props.json'); // tools/make_props.py

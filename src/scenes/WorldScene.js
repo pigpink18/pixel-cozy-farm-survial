@@ -3,7 +3,8 @@ import {
   HOME_CHEST, TILE, ZOOM, PLAYER_SPEED, COLORS, CROPS, ITEMS, TOOLS, ANIMALS, BUILDINGS, NPCS, RIPE_STAGE, REGROW_STAGE, MAX_HP, MAX_ENERGY, AREA_BY_LEVEL, MINE_W, MINE_H, DAY_START,
 } from '../config.js';
 import { state, ui, bus, changed, save, toast, sfx, season, selected, addItem, count, useEnergy, hearts, toolLv, waterCap, xp, roomFor, isTouchDevice } from '../state.js';
-import { FARM, FARM_W, FARM_H, isReserved, penCfg, penRect, penOffset, PEN_IDS, generateObjects, migrateFarmLayout, migrateHaydayLayout, addWildResources, expandFarmEast } from '../farmLayout.js';
+import { FARM, FARM_W, FARM_H, isReserved, penCfg, penRect, penOffset, PEN_IDS, generateObjects, migrateFarmLayout, migrateHaydayLayout, addWildResources, expandFarmEast, expandFarmSouth } from '../farmLayout.js';
+import { BASE, buildBase } from '../maps/base.js';
 import { container } from '../maps/zones.js';
 import { buildHayday, updateHayday } from '../maps/haydayFarm.js';
 import { farmXp, have, take, earnCoins, absMin, unlocked, needLevel } from '../hayday.js';
@@ -107,7 +108,7 @@ export default class WorldScene extends Phaser.Scene {
 
   create() {
     this.sea = season();
-    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], town: [TOWN.w, TOWN.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], ruin: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], pen: [PEN_IN.w, PEN_IN.h], cliff: [INTRO_MAPS.cliff.w, INTRO_MAPS.cliff.h], beach: [INTRO_MAPS.beach.w, INTRO_MAPS.beach.h] };
+    const SIZES = { farm: [FARM_W, FARM_H], village: [VILLAGE.w, VILLAGE.h], forest: [FOREST.w, FOREST.h], mine: [MINE_W, MINE_H], home: [HOME.w, HOME.h], shop: [SHOP_IN.w, SHOP_IN.h], quarry: [QUARRY.w, QUARRY.h], town: [TOWN.w, TOWN.h], base: [BASE.w, BASE.h], npchome: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], ruin: [NPC_HOUSE_IN.w, NPC_HOUSE_IN.h], pen: [PEN_IN.w, PEN_IN.h], cliff: [INTRO_MAPS.cliff.w, INTRO_MAPS.cliff.h], beach: [INTRO_MAPS.beach.w, INTRO_MAPS.beach.h] };
     [this.mapW, this.mapH] = SIZES[this.mapId];
     this.worldW = this.mapW * TILE;
     this.worldH = this.mapH * TILE;
@@ -117,14 +118,14 @@ export default class WorldScene extends Phaser.Scene {
     this.objShadows = new Map();
     this.lakeTiles = new Set();
     this.fx = new WorldFX(this);
-    if (['farm', 'village', 'forest', 'town', 'cliff', 'beach'].includes(this.mapId)) this.grassGround();
+    if (['farm', 'village', 'forest', 'town', 'base', 'cliff', 'beach'].includes(this.mapId)) this.grassGround();
     else this.add.rectangle(0, 0, this.worldW, this.worldH, this.sea.ground).setOrigin(0).setDepth(-1000);
 
     // Ván mới đi vào làng trước (đoạn mở đầu): tạo sẵn cây/đá nông trại để mọi chỗ dùng state.objects không lỗi
     if (!state.objects) {
       generateObjects();
       addWildResources();
-      state.farmSize = 6;
+      state.farmSize = 7;
       save();
     }
     this.blocked = new Set();
@@ -159,6 +160,7 @@ export default class WorldScene extends Phaser.Scene {
     else if (this.mapId === 'quarry') buildQuarry(this);
     else if (this.mapId === 'npchome') buildNpcHome(this, this.houseId);
     else if (this.mapId === 'town') buildTown(this);
+    else if (this.mapId === 'base') buildBase(this);
     else if (this.mapId === 'ruin') buildRuin(this, this.ruinIdx, this.ruinKind);
     else if (this.mapId === 'pen') buildPenInside(this, this.penId);
     else if (this.mapId === 'cliff') buildCliff(this);
@@ -450,7 +452,7 @@ export default class WorldScene extends Phaser.Scene {
     if (!state.objects) {
       generateObjects();
       addWildResources();
-      state.farmSize = 6;
+      state.farmSize = 7;
       save();
     } else if ((state.farmSize || 1) < 5) {
       // Save cũ → bố cục thiết kế tay mới + chỗ cho công trình Hay Day + lối tắt + thêm tài nguyên
@@ -463,6 +465,11 @@ export default class WorldScene extends Phaser.Scene {
     if (state.farmSize < 6) {
       expandFarmEast();
       state.farmSize = 6;
+      save();
+    }
+    if (state.farmSize < 7) {
+      expandFarmSouth();
+      state.farmSize = 7;
       save();
     }
     const winter = this.sea.id === 'winter';
@@ -493,7 +500,19 @@ export default class WorldScene extends Phaser.Scene {
     this.statics.set(key(sx, sy), () => ({ label: 'Mở rương chứa đồ', run: () => bus.emit('openStorage', HOME_CHEST) }));
 
     // Ao nước
-    for (const p of [FARM.pond, FARM.pond2, FARM.pond3]) this.addWater(this.pondShape(p, p.lobes));
+    for (const p of [FARM.pond, FARM.pond2, FARM.pond3, FARM.pond4]) this.addWater(this.pondShape(p, p.lobes));
+    // Đồng phía nam: trạm nông cụ đổ nát (máy cày gỉ, tường đổ, thùng phuy) — lục được đồ
+    {
+      const g = FARM.greenhouse;
+      for (const [dx, f] of [[0, 'wall_broken'], [7, 'wall_broken']]) this.add.image((g.x + dx) * TILE + 8, (g.y + 1) * TILE, 'pa', f).setOrigin(0.5, 1).setDepth((g.y + 1) * TILE - 1).setFlipX(dx > 0);
+      container(this, 'car', g.x + 2, g.y + 1, { tex: 'pa', frame: 'tractor', w: 2 });
+      container(this, 'barrel', g.x + 5, g.y + 1, { tex: 'pa', frame: 'barrel_rust_red_1' });
+      for (const [dx, dy, f] of [[6, 2, 'tire_1'], [1, 2, 'pallet_1'], [4, -1, '2_tires_grass_bleak_yellow']]) {
+        this.add.image((g.x + dx) * TILE + 8, (g.y + dy + 1) * TILE, 'pa', f).setOrigin(0.5, 1).setDepth((g.y + dy + 1) * TILE - 1);
+        this.blocked.add(key(g.x + dx, g.y + dy));
+        this.addWall((g.x + dx) * TILE + 2, (g.y + dy) * TILE + 4, 12, 10);
+      }
+    }
 
     // Đường đất nối nhà – ruộng – chuồng – làng – rừng
     for (const [x0, y0, x1, y1] of FARM.paths) this.dirtArea(x0, y0, x1, y1);
@@ -1438,7 +1457,7 @@ export default class WorldScene extends Phaser.Scene {
     return { tx, ty };
   }
 
-  actionAt(target) {
+  actionAt(target, noFood = false) {
     if (!target) return null;
     // Chiều tối cầm bí ngô / thịt thối: chạm xuống đất = đặt làm mồi nhử (chứ không ăn)
     if (this.mapId === 'farm' && !target.mover && target.tx != null && (state.time >= 16 * 60 || state.time < 5 * 60)) {
@@ -1448,9 +1467,13 @@ export default class WorldScene extends Phaser.Scene {
         if (a) return a;
       }
     }
-    const food = this.foodAction();
-    if (food) return food;
-    if (target.mover) return target.mover.action();
+    if (target.mover) return target.mover.action(); // đang cầm đồ ăn mà chạm NPC/vật nuôi → vẫn nói chuyện / tặng quà
+    // Cầm đồ ăn: ô trước mặt có việc thật (rương, cửa, thu hoạch...) thì làm việc đó, không có gì mới ăn
+    const food = !noFood && this.foodAction();
+    if (food) {
+      const other = this.actionAt(target, true);
+      return other?.run && other.act !== false ? other : food;
+    }
     const { tx, ty } = target;
     if (!this.inMap(tx, ty)) return null;
     const sel = selected();
@@ -1534,12 +1557,13 @@ export default class WorldScene extends Phaser.Scene {
       const c = this.player.body.center;
       if (w.gun || this.combat.nearest(w.range + 14, { x: c.x, y: c.y - 6 })) return void this.combat.attack();
     }
+    // Đang cầm đồ ăn: chỉ ăn khi chạm vào chính nhân vật; chạm chỗ khác thì vẫn đi lại / làm việc bình thường
     const food = this.foodAction();
-    if (food) return food.run();
+    if (food && Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, this.player.x, this.player.y - 14) < 22) return food.run();
     let target = this.resolveTarget(pointer.worldX, pointer.worldY);
     if (!this.inMap(target.tx, target.ty)) return;
     if (!target.mover) this.autoTool(target, true); // chạm thẳng vào cây/đá → tự cầm đúng dụng cụ
-    const a = this.actionAt(target);
+    const a = this.actionAt(target, true);
 
     // Kiểu Hay Day: chạm vào luống trong tầm 4 ô → làm ngay, rồi vuốt để làm hàng loạt
     if (this.isSwipeTile(target) && a?.run && a.act !== false && this.inSwipeReach(target)) {

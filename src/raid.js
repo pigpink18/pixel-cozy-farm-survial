@@ -20,7 +20,7 @@ export const isNight = (t = state.time) => t >= 19 * 60 || t < 5 * 60;
 export const GATES = {
   east: { name: 'Cổng đông', x: 86, y: 11, vert: true, out: { x: 1, y: 0 }, spawn: [[91, 11], [91, 12], [90, 10], [90, 13]] },
   north: { name: 'Cổng bắc', x: 16, y: 4, out: { x: 0, y: -1 }, spawn: [[16, 0], [17, 0]] },
-  south: { name: 'Cổng nam', x: 19, y: 39, out: { x: 0, y: 1 }, spawn: [[19, 43], [20, 43]] },
+  south: { name: 'Cổng nam', x: 19, y: 55, out: { x: 0, y: 1 }, spawn: [[19, 59], [20, 59]] },
 };
 const GATE_IDS = ['east', 'north', 'south'];
 const GATE_WEIGHT = { east: 0.45, north: 0.25, south: 0.3 };

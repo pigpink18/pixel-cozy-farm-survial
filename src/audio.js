@@ -82,7 +82,7 @@ export const SFX_DEF = {
   impact: { n: 2, v: 0.9, r: [0.9, 1.1] },
 };
 const AMB = ['wind', 'rain', 'river'];
-const OUTDOOR = new Set(['farm', 'village', 'forest', 'town', 'quarry']);
+const OUTDOOR = new Set(['farm', 'village', 'forest', 'town', 'quarry', 'base']);
 const INDOOR = new Set(['home', 'shop', 'npchome', 'ruin', 'pen']);
 
 export function loadSfx(load) {
@@ -177,6 +177,7 @@ export default class AudioDirector {
     const night = h >= 19.5 || h < 5;
     if (map === 'mine' || map === 'quarry') return 'cave';
     if (map === 'ruin') return (state.zones?.town?.infection ?? 100) <= 0 ? 'town_free' : 'town';
+    if (map === 'base') return (state.zones?.base?.infection ?? 100) <= 0 ? 'town_free' : 'town';
     if (map === 'forest' || map === 'town') return (state.zones?.[map]?.infection ?? 100) <= 0 ? `${map}_free` : map;
     if (map === 'village' || map === 'shop' || map === 'npchome') {
       if (festivalActive()) return 'fest';
@@ -258,7 +259,7 @@ export default class AudioDirector {
     const h = (state.time || 0) / 60;
     const night = h >= 19.5 || h < 5;
     const rain = state.weather === 'rain' && map !== 'mine' && map !== 'quarry';
-    const zone = map === 'forest' || map === 'town';
+    const zone = map === 'forest' || map === 'town' || map === 'base';
     const t = { wind: 0, rain: 0, river: 0 };
     if (out) t.wind = zone ? 0.1 : night ? 0.07 : state.weather === 'snow' ? 0.09 : 0.03;
     if (rain) t.rain = out ? 0.2 : INDOOR.has(map) ? 0.07 : 0;

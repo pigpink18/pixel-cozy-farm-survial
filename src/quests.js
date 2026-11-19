@@ -94,13 +94,23 @@ export const QUESTS = [
   },
   {
     title: 'Giải phóng Thị trấn bỏ hoang', from: 'ba', goal: 1, cur: () => (zoneFree('town') ? 1 : 0),
-    hint: 'Phá 2 ổ zombie trong thị trấn và hạ zombie tới khi độ nhiễm về 0%. Nên mang súng & bộ sơ cứu.',
+    hint: 'Phá 3 ổ zombie trong thị trấn và hạ zombie tới khi độ nhiễm về 0%. Nên mang súng & bộ sơ cứu.',
     reward: { milchip: 1, medkit: 2 }, done: 'Thị trấn đã là của chúng ta! Giờ có thể dọn về dần rồi.',
   },
   {
     title: 'Máy phát điện cấp 3 — bắt sóng radio', from: 'tu', panel: 'base', goal: 3, cur: () => base('generator'),
     hint: 'Nâng Máy phát điện lên cấp 3 ở Bàn chế tạo (cần chip quân sự). Radio sẽ bắt được tín hiệu từ khu quân sự...',
-    reward: { milchip: 1 }, done: 'Rè rè... "...còn ai sống sót... khu quân sự phía bắc..." Có người ngoài kia! (còn tiếp ở bản sau)',
+    reward: { milchip: 1 }, done: 'Rè rè... "...còn ai sống sót... căn cứ quân sự phía đông, theo quốc lộ..." Có người ngoài kia!',
+  },
+  {
+    title: 'Tìm tới Căn cứ quân sự', from: 'ba', goal: 1, cur: () => (state.baseVisited ? 1 : 0),
+    hint: 'Trong Rừng hoang đi theo đường mòn ra quốc lộ ở mép đông, gần trạm xăng có biển "Căn cứ quân sự →".',
+    reward: { ammo_rifle: 10, medkit: 1 }, done: 'Căn cứ còn nguyên rào kẽm gai... nhưng toàn zombie mặc quân phục. Cẩn thận đó!',
+  },
+  {
+    title: 'Giải phóng Căn cứ quân sự', from: 'ba', goal: 1, cur: () => (zoneFree('base') ? 1 : 0),
+    hint: 'Phá 3 ổ zombie trong căn cứ và hạ zombie lính tới khi độ nhiễm về 0%. Container doanh trại & hòm quân dụng có súng, đạn.',
+    reward: { milchip: 2, w_rifle: 1 }, done: 'Căn cứ là của chúng ta! Với chỗ vũ khí này, cả trại sẽ an toàn hơn nhiều.',
   },
 ];
 

@@ -12,7 +12,7 @@
 import { state } from './state.js';
 
 export const FARM_W = 92; // v6: mở rộng sang phía đông (khu đất hoang, ao thứ ba, xe bỏ hoang)
-export const FARM_H = 44;
+export const FARM_H = 60; // v7: mở rộng xuống phía nam (đồng đất hoang, ao thứ tư, nhà kính đổ)
 
 export const FARM = {
   door: { x: 6, y: 7 },
@@ -32,16 +32,20 @@ export const FARM = {
     [9, 8, 11, 10], // lối tới rương
     [21, 10, 22, 10], // cổng chuồng gà
     [16, 0, 17, 10], // lối tắt lên thị trấn
-    [19, 13, 20, 43], // đường xuống rừng
+    [19, 13, 20, 59], // đường xuống rừng
+    [21, 47, 36, 48], // lối mòn sang đồng phía nam
   ],
   path: { x0: 34, y0: 11, x1: 91, y1: 12 },
   fromVillage: { x: 16, y: 2 },
   // Lối tắt lên thị trấn ngay cạnh nhà (phía bắc)
   northExit: [{ x: 16, y: 0 }, { x: 17, y: 0 }],
   northSign: { x: 15, y: 2 },
-  southPath: { x0: 19, y0: 13, x1: 20, y1: 43 },
-  southExit: [{ x: 19, y: 43 }, { x: 20, y: 43 }],
-  fromForest: { x: 19, y: 41 },
+  southPath: { x0: 19, y0: 13, x1: 20, y1: 59 },
+  southExit: [{ x: 19, y: 59 }, { x: 20, y: 59 }],
+  fromForest: { x: 19, y: 57 },
+  pond4: { x: 40, y: 50, w: 8, h: 4 },
+  // Nhà kính đổ nát ở đồng phía nam (trang trí + lục đồ)
+  greenhouse: { x: 58, y: 46 },
   // Công trình kiểu Hay Day (x = ô trái, yB = hàng dưới cùng của ảnh)
   hayday: {
     silo: { x: 41, yB: 9 },
@@ -57,10 +61,10 @@ export const FARM = {
   // Dải rừng dày ở mép (cây trang trí, không chặt được)
   forestBands: [
     [84, 2, 90, 9], // hai bên Cổng đông: rừng dày, chỉ chừa đường
-    [84, 14, 90, 41],
+    [84, 14, 90, 57],
     [56, 2, 83, 3],
-    [22, 39, 83, 42],
-    [1, 25, 3, 41],
+    [22, 56, 83, 58],
+    [1, 25, 3, 57],
     [40, 2, 54, 4],
   ],
 };
@@ -74,7 +78,10 @@ const RESERVED = [
   [63, 19, 73, 26], // ao thứ ba
   [69, 4, 76, 8], // xe bỏ hoang
   [62, 5, 66, 8], // thùng phuy
-  [18, 13, 21, 43], // đường xuống rừng
+  [18, 13, 21, 59], // đường xuống rừng
+  [21, 47, 36, 48], // lối mòn đồng phía nam
+  [38, 49, 49, 55], // ao thứ tư
+  [56, 43, 66, 48], // nhà kính đổ
   [45, 27, 53, 33], // ao thứ hai
   [4, 14, 17, 14], [4, 23, 17, 23], [4, 14, 4, 23], [17, 14, 17, 23], // rào ruộng
   [40, 4, 48, 10], // Kho thóc + Nhà kho
@@ -199,7 +206,7 @@ export function spawnDebris(n, winter) {
   if (!state.objects) return;
   const objs = Object.values(state.objects);
   const trees = objs.filter((o) => o.type === 'tree').length;
-  for (let i = 0, tries = 0; trees + i < 90 && i < 3 && tries < 300; tries++) {
+  for (let i = 0, tries = 0; trees + i < 120 && i < 3 && tries < 300; tries++) {
     const x = 1 + Math.floor(Math.random() * (FARM_W - 2)), y = 3 + Math.floor(Math.random() * (FARM_H - 4));
     if (!inWild(x, y) || !isFarmFree(x, y) || nearObject(x, y, ['tree', 'stump'])) continue;
     state.objects[key(x, y)] = makeObject(Math.random() < 0.8 ? 'tree' : 'stump');
@@ -215,6 +222,17 @@ export function spawnDebris(n, winter) {
     state.objects[key(x, y)] = makeObject(type);
     i++;
   }
+}
+
+// Bản đồ v7: đồng đất hoang phía nam (save cũ) — dải rừng cũ ở hàng 39–42 thành đất trống, mọc cây/đá mới
+export function expandFarmSouth(seed = 91) {
+  const reg = (x, y) => y >= 38 && inWild(x, y);
+  for (const k of Object.keys(state.objects || {})) {
+    const [x, y] = k.split(',').map(Number);
+    if (y >= 38 && (isReserved(x, y) || inForestBand(x, y))) delete state.objects[k];
+  }
+  generateObjects(reg, seed, 1.2, ['tree', 'stump']);
+  generateObjects(reg, seed + 1, 1.1, ['rock', 'branch', 'weed']);
 }
 
 // Bản đồ v6: khu đất mới phía đông (save cũ) — mọc cây, đá, cỏ dại

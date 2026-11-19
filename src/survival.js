@@ -254,8 +254,9 @@ export function ensureSurvival() {
 // ---------- Vùng bị chiếm ----------
 // infection 0–100: hạ zombie / phá ổ để giảm. Về 0 = giải phóng (ban ngày hết zombie, đồ lục nhiều hơn)
 export const ZONES = {
-  forest: { name: 'Rừng hoang', types: ['walker', 'walker', 'runner'], day: 6, night: 13, nests: 2 },
-  town: { name: 'Thị trấn bỏ hoang', types: ['walker', 'walker', 'runner', 'runner', 'brute'], day: 9, night: 16, nests: 2 },
+  forest: { name: 'Rừng hoang', types: ['walker', 'walker', 'runner'], day: 9, night: 18, nests: 3 },
+  town: { name: 'Thị trấn bỏ hoang', types: ['walker', 'walker', 'runner', 'runner', 'brute'], day: 12, night: 20, nests: 3 },
+  base: { name: 'Căn cứ quân sự', types: ['soldier', 'soldier', 'soldier', 'walker', 'runner', 'brute'], day: 12, night: 20, nests: 3 },
 };
 export function zoneState(id) {
   state.zones = state.zones || {};

@@ -80,10 +80,10 @@ export default class Combat {
   // Ổ zombie: đứng yên, thỉnh thoảng đẻ zombie khi người chơi lại gần. Phá ổ → giảm mạnh độ nhiễm.
   spawnNest(tx, ty, key) {
     const s = this.scene;
-    const sprite = this.group.create(tx * TILE + 8, (ty + 1) * TILE, 'surv', 'nest0').setOrigin(0.5, 1);
-    sprite.body.setSize(34, 14).setOffset(3, 10).setImmovable(true);
+    const sprite = this.group.create(tx * TILE + 8, (ty + 1) * TILE + 3, 'nest_pa0').setOrigin(0.5, 1); // tools/make_pa_props.py
+    sprite.body.setSize(40, 16).setOffset(6, 31).setImmovable(true);
     let fr = 0;
-    s.time.addEvent({ delay: 400, loop: true, callback: () => sprite.active && sprite.setFrame(`nest${(fr = 1 - fr)}`) });
+    s.time.addEvent({ delay: 450, loop: true, callback: () => sprite.active && sprite.setTexture(`nest_pa${(fr = 1 - fr)}`) });
     const m = {
       kind: 'monster', nest: true, key, cfg: { name: 'Ổ zombie', dmg: 0 }, sprite,
       hp: 160, maxHp: 160, next: s.time.now + 6000, knockUntil: 0,
@@ -120,7 +120,7 @@ export default class Combat {
       sp.setDepth(m.zombie || m.nest ? sp.y : sp.y + 8);
       if (m.bar) {
         const show = m.hp < m.maxHp;
-        const h = (m.cfg.scale || 1) * (m.nest ? 22 : zmeta(s, m.type).height + 3);
+        const h = (m.cfg.scale || 1) * (m.nest ? 44 : zmeta(s, m.type).height + 3);
         m.barBg.setVisible(show).setPosition(sp.x - 8, sp.y - h);
         m.bar.setVisible(show).setPosition(sp.x - 8, sp.y - h).setSize(16 * Math.max(0, m.hp / m.maxHp), 2);
       }
@@ -241,7 +241,7 @@ export default class Combat {
   }
 
   aimPoint(m) {
-    return { x: m.sprite.x, y: m.zombie ? m.sprite.y - zmeta(this.scene, m.type).height * 0.4 * (m.cfg.scale || 1) : m.nest ? m.sprite.y - 8 : m.sprite.y };
+    return { x: m.sprite.x, y: m.zombie ? m.sprite.y - zmeta(this.scene, m.type).height * 0.4 * (m.cfg.scale || 1) : m.nest ? m.sprite.y - 16 : m.sprite.y };
   }
 
   // Nút tấn công: tự ngắm zombie gần nhất. Trả về true nếu đã xử lý.

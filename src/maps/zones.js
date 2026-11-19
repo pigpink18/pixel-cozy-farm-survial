@@ -38,11 +38,11 @@ export function populateZone(s, zoneId, isFree, nests = []) {
   } else if (z.infection > 0) s.time.delayedCall(500, () => toast(`${Z.name} — độ nhiễm ${Math.round(z.infection)}%`));
 }
 
-// Thùng / xe / tủ để lục đồ. frame: hình trong atlas 'surv' (xe dùng car_*)
+// Thùng / xe / tủ để lục đồ. frame: hình trong atlas 'surv' (xe dùng car_*); o.tex = atlas khác (vd. 'pa')
 export function container(s, type, tx, ty, o = {}) {
   const C = CONTAINERS[type];
   const frame = o.frame || C.frame;
-  const img = s.add.image((tx + (o.w || 1) / 2) * TILE, (ty + 1) * TILE, 'surv', frame).setOrigin(0.5, 1).setDepth(o.depth ?? (ty + 1) * TILE - 1);
+  const img = s.add.image((tx + (o.w || 1) / 2) * TILE, (ty + 1) * TILE, o.tex || 'surv', frame).setOrigin(0.5, 1).setDepth(o.depth ?? (ty + 1) * TILE - 1);
   if (o.flip) img.setFlipX(true);
   const w = o.w || 1, rows = o.rows || 1;
   s.fx.shadow(img.x, (ty + 1) * TILE - 1, Math.min(img.width + 2, w * TILE + 6));
